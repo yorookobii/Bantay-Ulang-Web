@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="css/users.css">
+    </head>
+    <body>
+        <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-row">
+                    <div class="logo-droplets">
+                        <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                    </div>
+                    <span class="logo-text">Bantay Ulang</span>
+                    
+                    <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li><a href="real-time-monitoring.html" title="Real-Time Data"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                <li><a href="users.html" class="active" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar"><span>A</span></div>
+                    <div class="user-info">
+                        <div class="user-name">User Name</div>
+                        <div class="user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+        <!-- Topbar -->
+        <header class="topbar">
+            <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="search" placeholder="Search">
+                </div>
+            </div>
+
+
+
+            <!-- Right Side Items -->
+            <div class="topbar-right">
+                <div class="notification-container">
+                    <div class="notification-icon" onclick="toggleNotification()">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge"></span>
+                    </div>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                        <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                        <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                    </div>
+                </div>
+                <div style="position: relative;" >
+                    <div class="admin-profile" onclick="toggleProfile()">
+                        <div class="admin-avatar"><span>A</span></div>
+                        <div class="admin-info">
+                            <div class="admin-name">Juan Dela Cruz</div>
+                            <div class="admin-role">Admin</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="profile-menu-item">👤 My Profile</div>
+                        <div class="profile-menu-item">⚙️ Settings</div>
+                        <div class="profile-menu-item">🔐 Change Password</div>
+                        <div class="profile-menu-item" onclick="logout()">🚪 Logout</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main>
+
+            <div class="user_headings">
+                <h2>User Management</h2>
+                <p>Control system access and permissions for your team.</p>
+            </div>
+
+            <section class="user_section">
+                <h3 class="user_section_title technicians"><i class="fa-solid fa-wrench"></i> Technicians</h3>
+                <div class="user_cards">
+                    <div class="user_container">
+                        <div id="user_profile">
+                            <img src="../../assets/img/no-profile.png" alt="Technician 1 profile">
+                        </div>
+                        <div class="user_information">
+                            <h4 id="user_name">Technician 1</h4>
+                            <p id="user_email">technician1@gmail.com</p>
+                        </div>
+                        <div class="user_status">
+                            <div id="user_role">Technician</div>
+                            <div id="user_status">Active</div>
+                        </div>
+                    </div>
+                    <div class="user_container">
+                        <div class="user_profile">
+                            <img src="../../assets/img/no-profile.png" alt="Technician 2 profile">
+                        </div>
+                        <div class="user_information">
+                            <h4 class="user_name">Technician 2</h4>
+                            <p class="user_email">technician2@gmail.com</p>
+                        </div>
+                        <div class="user_status">
+                            <div class="user_role_badge">Technician</div>
+                            <div class="user_status_badge">Active</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="user_section">
+                <h3 class="user_section_title users"><i class="fa-solid fa-user"></i> Users</h3>
+                <div class="user_cards">
+                    <div class="user_container">
+                        <div class="user_profile">
+                            <img src="../../assets/img/no-profile.png" alt="User 1 profile">
+                        </div>
+                        <div class="user_information">
+                            <h4 class="user_name">User 1</h4>
+                            <p class="user_email">user1@example.com</p>
+                        </div>
+                        <div class="user_status">
+                            <div class="user_role_badge">User</div>
+                            <div class="user_status_badge">Active</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        </div>
+
+        <script src="js/users.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>
+

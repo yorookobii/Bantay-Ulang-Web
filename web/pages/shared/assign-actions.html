@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Assign Actions - Bantay Ulang Bulacan</title>
+        <link rel="stylesheet" href="css/assign-actions.css">
+        
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" class="active" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>A</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon"><i class="fa-regular fa-bell"></i><span class="notification-badge"></span></div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>A</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Admin</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content">
+                <header class="page-header">
+                    <div class="page-title-block">
+                        <h1>Assign Actions</h1>
+                        <p>Assign tasks and actions to users and technicians.</p>
+                    </div>
+                </header>
+
+                <!-- New assignment form -->
+                <div class="assign-form-card">
+                    <h2><i class="fa-solid fa-plus-circle"></i> New assignment</h2>
+                    <form id="assignForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="assignRole">Assign to role</label>
+                                <select id="assignRole" name="role" required>
+                                    <option value="">Select role…</option>
+                                    <option value="user">User</option>
+                                    <option value="technician">Technician</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="assignPerson">Person</label>
+                                <select id="assignPerson" name="person" required>
+                                    <option value="">Select person…</option>
+                                    <!-- Users -->
+                                    <option value="User 1" data-role="user">User 1</option>
+                                    <option value="User 2" data-role="user">User 2</option>
+                                    <option value="User 3" data-role="user">User 3</option>
+                                    <!-- Technicians -->
+                                    <option value="Technician 1" data-role="technician">Technician 1</option>
+                                    <option value="Technician 2" data-role="technician">Technician 2</option>
+                                    <option value="Technician 3" data-role="technician">Technician 3</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="actionType">Action type</label>
+                                <select id="actionType" name="actionType" required>
+                                    <option value="">Select action…</option>
+                                    <option value="Ulang Data Capture">Ulang Data Capture</option>
+                                    <option value="Report submission">Report submission</option>
+                                    <option value="Hardware Maintenance"> Sensor Repair</option>
+                                    <option value="Hardware Maintenance"> Maintenance</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="dueDate">Due date</label>
+                                <input type="date" id="dueDate" name="dueDate" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="notes">Notes (optional)</label>
+                                <textarea id="notes" name="notes" placeholder="Add instructions or details…"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-assign">
+                            <i class="fa-solid fa-paper-plane"></i> Assign action
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Current assignments table -->
+                <div class="assignments-card">
+                    <div class="panel-header">
+                        <h2 class="panel-title"><i class="fa-solid fa-list-check"></i> Current assignments</h2>
+                    </div>
+                    <div class="assignments-table-wrap">
+                        <table class="assignments-table" id="assignmentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Assignee</th>
+                                    <th>Role</th>
+                                    <th>Action</th>
+                                    <th>Due date</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignmentsBody">
+                                <tr>
+                                    <td>Technician 1</td>
+                                    <td>Technician</td>
+                                    <td>Hardware Maintenance</td>
+                                    <td>Feb 26, 2025</td>
+                                    <td><span class="status-badge status-pending">Pending</span></td>
+                                    <td><button type="button" class="btn-remove" title="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
+                                </tr>
+                                <tr>
+                                    <td>User 1</td>
+                                    <td>User</td>
+                                    <td>Ulang Data Capture</td>
+                                    <td>Feb 28, 2025</td>
+                                    <td><span class="status-badge status-in-progress">In progress</span></td>
+                                    <td><button type="button" class="btn-remove" title="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
+                                </tr>
+                               <!--This is where to assign the actions to the users and technicians-->
+                        </table>    
+                    </div>
+                </div>
+            </main>
+        </div>
+        <script src="js/assign-actions.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>

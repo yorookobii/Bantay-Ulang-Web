@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <title>Landing Page - Bantay Ulang</title>
+        <style>
+            body {
+                font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                margin: 0;
+                padding: 0;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-image: url('../../assets/img/3.png');
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                position: relative;
+            }
+            body::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.35);
+                z-index: 0;
+            }
+            body > * {
+                position: relative;
+                z-index: 1;
+                text-align: center;
+                color: #fff;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+                max-width: 90%;
+                padding: 0 1rem;
+            }
+            body button {
+                text-shadow: none;
+            }
+            h1 {
+                font-size: 2rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }
+            h4 {
+                font-size: 1.5rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }
+            p {
+                font-size: 1rem;
+                margin-bottom: 1rem;
+            }
+            button {
+                background-color: #fff;
+                color: #000000;
+                border: none;
+                padding: 0.6rem 1.5rem;
+                border-radius: 999px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 1rem;
+            }
+            button:hover {
+                background-color: #f0fdfa;
+            }
+            img {
+                width: 100%;
+                height: auto;
+                margin-top: 1rem;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>Bantay Ulang</h1>
+        <h4>An Adaptive Ulang Focused Aquaponic System</h4>
+        <p>Bantay Ulang is an adaptive aquaponic system designed to provide a sustainable and efficient way to grow vegetables and fish. It is a closed-loop system that uses water and nutrients from the fish to grow the vegetables, and the vegetables to clean the water.</p>
+        <button>Get Started</button>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>

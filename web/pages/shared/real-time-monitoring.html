@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Real-Time Monitoring - Bantay Ulang Bulacan</title>
+        <link rel="stylesheet" href="css/real-time-monitoring.css">
+       
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" class="active" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>A</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+            <!-- Topbar -->
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+
+                <!-- Right Side Items -->
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>A</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Admin</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content">
+                <header class="page-header">
+                    <div class="page-title-block">
+                        <h1>Real-Time Monitoring</h1>
+                        <p>Live sensor readings across all active tanks and filtration systems.</p>
+                    </div>
+                </header>
+
+                <section class="water-sensors-section">
+                    <div class="water-sensors-header">
+                        <div class="water-sensors-icon">
+                            <i class="fa-solid fa-droplet"></i>
+                        </div>
+                        <div>
+                            <h2 class="water-sensors-title">Water Sensors</h2>
+                            <p class="water-sensors-subtitle">Fish tank & water quality monitoring</p>
+                        </div>
+                    </div>
+
+                    <div class="sensor-grid" id="sensorGrid">
+                        <div class="sensor-card" data-sensor="ph" data-base="7.2" data-min="6.8" data-max="7.8" data-unit="" data-decimals="1">
+                            <div class="sensor-head">
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <span class="sensor-status optimal">OPTIMAL</span>
+                            </div>
+                            <div class="sensor-name">pH Sensor</div>
+                            <div class="sensor-value">7.2</div>
+                            <div class="sensor-meta">
+                                <span>Location: Main Tank</span>
+                                <span class="sensor-updated">Updated: Just now</span>
+                            </div>
+                        </div>
+
+                        <div class="sensor-card" data-sensor="do" data-base="6.8" data-min="5.5" data-max="8.2" data-unit=" mg/L" data-decimals="1">
+                            <div class="sensor-head">
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <span class="sensor-status optimal">OPTIMAL</span>
+                            </div>
+                            <div class="sensor-name">DO Sensor</div>
+                            <div class="sensor-value">6.8 mg/L</div>
+                            <div class="sensor-meta">
+                                <span>Location: Main Tank</span>
+                                <span class="sensor-updated">Updated: Just now</span>
+                            </div>
+                        </div>
+
+                        <div class="sensor-card" data-sensor="temp" data-base="24.4" data-min="23" data-max="26" data-unit="°C" data-decimals="1">
+                            <div class="sensor-head">
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <span class="sensor-status optimal">OPTIMAL</span>
+                            </div>
+                            <div class="sensor-name">Water Temp Probe</div>
+                            <div class="sensor-value">24.4°C</div>
+                            <div class="sensor-meta">
+                                <span>Location: Main Tank</span>
+                                <span class="sensor-updated">Updated: Just now</span>
+                            </div>
+                        </div>
+
+                        <div class="sensor-card" data-sensor="salinity" data-base="15" data-min="12" data-max="18" data-unit=" ppt" data-decimals="0">
+                            <div class="sensor-head">
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <span class="sensor-status optimal">OPTIMAL</span>
+                            </div>
+                            <div class="sensor-name">Salinity</div>
+                            <div class="sensor-value">15 ppt</div>
+                            <div class="sensor-meta">
+                                <span>Location: Main Tank</span>
+                                <span class="sensor-updated">Updated: Just now</span>
+                            </div>
+                        </div>
+
+                        <div class="sensor-card" data-sensor="turbidity" data-base="3.5" data-min="2" data-max="5" data-unit=" NTU" data-decimals="1">
+                            <div class="sensor-head">
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <span class="sensor-status optimal">OPTIMAL</span>
+                            </div>
+                            <div class="sensor-name">Turbidity</div>
+                            <div class="sensor-value">3.5 NTU</div>
+                            <div class="sensor-meta">
+                                <span>Location: Main Tank</span>
+                                <span class="sensor-updated">Updated: Just now</span>
+                            </div>
+                        </div>
+
+                        <div class="sensor-card" data-sensor="nitrate" data-base="5" data-min="0" data-max="20" data-unit=" ppm" data-decimals="0">
+                            <div class="sensor-head">
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <span class="sensor-status optimal">OPTIMAL</span>
+                            </div>
+                            <div class="sensor-name">Nitrate</div>
+                            <div class="sensor-value">5 ppm</div>
+                            <div class="sensor-meta">
+                                <span>Location: Main Tank</span>
+                                <span class="sensor-updated">Updated: Just now</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <script src="js/real-time-monitoring.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>

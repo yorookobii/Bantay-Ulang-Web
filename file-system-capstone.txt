@@ -1,0 +1,36 @@
+bantay-ulang/
+├─ web/                         (Admin + Technician: desktop web)
+│  ├─ pages/
+│  │  ├─ admin/
+│  │  │  └─ users.html          (admin-only)
+│  │  ├─ shared/               (admin + technician)
+│  │  │  ├─ dashboard.html
+│  │  │  ├─ real-time-monitoring.html
+│  │  │  ├─ automation.html
+│  │  │  ├─ analytics.html
+│  │  │  └─ settings.html
+│  │  └─ auth/
+│  │     └─ login.html
+│  ├─ components/
+│  │  ├─ sidebar.html
+│  │  ├─ topbar.html
+│  │  └─ footer.html
+│  └─ assets/
+│     ├─ css/
+│     ├─ js/
+│     └─ img/
+│
+├─ mobile/                      (Viewer: mobile UI)
+│  ├─ pages/
+│  │  ├─ dashboard.html
+│  │  └─ real-time-data.html
+│  ├─ components/
+│  │  └─ bottom-nav.html        (mobile nav instead of sidebar)
+│  └─ assets/
+│     ├─ css/
+│     │  ├─ base.css
+│     │  └─ mobile.css          (mobile-only styles)
+│     ├─ js/
+│     └─ icons/
+│
+└─ backend/                     (later: PHP API / Node API)

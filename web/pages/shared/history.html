@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="css/history.css">
+   
+    </head>
+    <body>
+        <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-row">
+                    <div class="logo-droplets">
+                        <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                    </div>
+                    <span class="logo-text">Bantay Ulang</span>
+                    
+                    <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li><a href="real-time-monitoring.html" title="Real-Time Data"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                <li><a href="history.html" class="active" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar"><span>A</span></div>
+                    <div class="user-info">
+                        <div class="user-name">User Name</div>
+                        <div class="user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+        <!-- Topbar -->
+        <header class="topbar">
+            <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="search" placeholder="Search">
+                </div>
+            </div>
+
+
+
+            <!-- Right Side Items -->
+            <div class="topbar-right">
+                <div class="notification-container">
+                    <div class="notification-icon" onclick="toggleNotification()">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge"></span>
+                    </div>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                        <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                        <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                    </div>
+                </div>
+                <div style="position: relative;" >
+                    <div class="admin-profile" onclick="toggleProfile()">
+                        <div class="admin-avatar"><span>A</span></div>
+                        <div class="admin-info">
+                            <div class="admin-name">Juan Dela Cruz</div>
+                            <div class="admin-role">Admin</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="profile-menu-item">👤 My Profile</div>
+                        <div class="profile-menu-item">⚙️ Settings</div>
+                        <div class="profile-menu-item">🔐 Change Password</div>
+                        <div class="profile-menu-item" onclick="logout()">🚪 Logout</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main>
+            <header class="history-page-header">
+                <h1>History</h1>
+                <p>View assigned task history for technicians and practitioners, and system logs.</p>
+            </header>
+
+            <section class="history-section" aria-labelledby="assigned-task-history-title">
+                <h2 class="history-section-title" id="assigned-task-history-title">
+                    <i class="fa-solid fa-clipboard-list"></i> Assigned Task History
+                </h2>
+                <div class="table-wrap">
+                    <table class="task-history-table">
+                        <thead>
+                            <tr>
+                                <th>Date Assigned</th>
+                                <th>Assigned To</th>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-label="Date Assigned">Feb 25, 2025 · 09:00</td>
+                                <td data-label="Assigned To">
+                                    <strong>Maria Santos</strong>
+                                    <div class="assignee-role">Technician</div>
+                                </td>
+                                <td data-label="Task">Inspect filtration system & clean filters</td>
+                                <td data-label="Status"><span class="status-badge completed">Completed</span></td>
+                                <td data-label="Priority">High</td>
+                            </tr>
+                            <tr>
+                                <td data-label="Date Assigned">Feb 24, 2025 · 14:30</td>
+                                <td data-label="Assigned To">
+                                    <strong>Juan Reyes</strong>
+                                    <div class="assignee-role">Practitioner</div>
+                                </td>
+                                <td data-label="Task">Water quality sampling – Main Tank</td>
+                                <td data-label="Status"><span class="status-badge completed">Completed</span></td>
+                                <td data-label="Priority">Medium</td>
+                            </tr>
+                            <tr>
+                                <td data-label="Date Assigned">Feb 25, 2025 · 08:00</td>
+                                <td data-label="Assigned To">
+                                    <strong>Ana Cruz</strong>
+                                    <div class="assignee-role">Technician</div>
+                                </td>
+                                <td data-label="Task">Morning feeding round & tank check</td>
+                                <td data-label="Status"><span class="status-badge in-progress">In Progress</span></td>
+                                <td data-label="Priority">Medium</td>
+                            </tr>
+                            <tr>
+                                <td data-label="Date Assigned">Feb 24, 2025 · 16:00</td>
+                                <td data-label="Assigned To">
+                                    <strong>Pedro Diaz</strong>
+                                    <div class="assignee-role">Practitioner</div>
+                                </td>
+                                <td data-label="Task">pH and DO sensor calibration</td>
+                                <td data-label="Status"><span class="status-badge pending">Pending</span></td>
+                                <td data-label="Priority">High</td>
+                            </tr>
+                       
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+        </div>
+
+        <script src="js/history.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>
+

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="css/dashboard-technician.css">
+        <title>Technician Dashboard - Bantay Ulang Bulacan</title>
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard-technician.html" class="active" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="task-technician.html" title="My Tasks"><i class="fa-solid fa-clipboard-list"></i><span>My Tasks</span></a></li>
+                    <li><a href="#" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>T</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Technician</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>T</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Technician</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content">
+                <header class="page-header">
+                    <div class="page-title-block">
+                        <h1>Technician Dashboard</h1>
+                        <p>Hardware monitoring & task management</p>
+                    </div>
+                    <div class="page-header-right">
+                        <span class="status-on-duty">On Duty</span>
+                        <span class="dashboard-date" id="dashboardDate">Wednesday, Mar 4</span>
+                    </div>
+                </header>
+
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="card-top">
+                            <div class="card-icon-wrap blue"><i class="fa-solid fa-wrench"></i></div>
+                            <span class="card-label">HARDWARE</span>
+                        </div>
+                        <div class="card-value">4/6</div>
+                        <div class="card-desc">Systems Operational</div>
+                        <div class="card-meta">
+                            <span class="meta-item warn ing">2 Warning</span>
+                            <span class="dot">•</span>
+                            <span class="meta-item offline">1 Offline</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-top">
+                            <div class="card-icon-wrap purple"><i class="fa-solid fa-clipboard-list"></i></div>
+                            <span class="card-label">TASKS</span>
+                        </div>
+                        <div class="card-value">4</div>
+                        <div class="card-desc">Pending Tasks</div>
+                        <div class="card-meta">
+                            <span class="meta-item progress">1 In Progress</span>
+                            <span class="dot">•</span>
+                            <span class="meta-item done">2 Done</span>
+                        </div>
+                    </div>
+                    <div class="summary-card schedule-card">
+                        <div class="card-top">
+                            <div class="card-icon-wrap orange"><i class="fa-solid fa-calendar-days"></i></div>
+                            <span class="card-label">SCHEDULE</span>
+                        </div>
+                        <div class="card-value">Today</div>
+                        <div class="card-next">Next Maintenance</div>
+                        <div class="card-detail">Sample Maintenance</div>
+                    </div>
+                </div>
+
+                <section class="urgent-section">
+                    <div class="urgent-section-header">
+                        <h2 class="urgent-section-title">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            Assigned Tasks
+                        </h2>
+                        <a href="task-technician.html" class="view-all">View All &gt;</a>
+                    </div>
+                    <div class="urgent-task-list" id="technician-tasks-list">
+                        <div class="urgent-task-card critical">
+                            <span class="task-badge critical">CRITICAL</span>
+                            <div class="task-name">Check DO Sensor Unit</div>
+                            <div class="task-meta">
+                                <span><i class="fa-regular fa-clock"></i> Today</span>
+                                <span><i class="fa-solid fa-location-dot"></i> All Tanks</span>
+                            </div>
+                            <button type="button" class="btn-start">Start Task</button>
+                        </div>
+                        <div class="urgent-task-card high">
+                            <span class="task-badge high">HIGH</span>
+                            <div class="task-name">Calibrate pH Probe</div>
+                            <div class="task-meta">
+                                <span><i class="fa-regular fa-clock"></i> Today</span>
+                                <span><i class="fa-solid fa-location-dot"></i> All Tanks</span>
+                            </div>
+                            <button type="button" class="btn-start">Start Task</button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <script type="module" src="js/dashboard-technician.js"></script>
+    </body>
+</html>

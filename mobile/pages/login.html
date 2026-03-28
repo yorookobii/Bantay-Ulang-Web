@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Sign In - Bantay Ulang</title>
+        <style>
+            :root {
+                --teal: #0d9488;
+                --teal-dark: #0f766e;
+                --text-dark: #111827;
+                --text-muted: #6b7280;
+                --border: #e5e7eb;
+            }
+
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f9fafb;
+                color: var(--text-dark);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 24px 20px;
+            }
+
+            .login-wrap {
+                width: 100%;
+                max-width: 400px;
+            }
+
+            .auth-toggle {
+                display: flex;
+                gap: 0;
+                background: #fff;
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                padding: 4px;
+                margin-bottom: 28px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            }
+            .auth-toggle button {
+                flex: 1;
+                padding: 12px 20px;
+                border: none;
+                border-radius: 999px;
+                font-size: 15px;
+                font-weight: 600;
+                cursor: pointer;
+                font-family: inherit;
+                background: transparent;
+                color: var(--text-muted);
+                transition: background 0.2s, color 0.2s;
+            }
+            .auth-toggle button.active {
+                background: var(--teal);
+                color: #fff;
+            }
+            .auth-toggle button:not(.active):hover {
+                background: #f3f4f6;
+            }
+
+            .welcome-title {
+                font-size: 1.75rem;
+                font-weight: 700;
+                color: var(--text-dark);
+                text-align: center;
+                margin-bottom: 8px;
+            }
+            .welcome-sub {
+                font-size: 14px;
+                color: var(--text-muted);
+                text-align: center;
+                margin-bottom: 28px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+            .form-group label {
+                display: block;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 8px;
+            }
+            .input-wrap {
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+            .input-wrap .icon-left {
+                position: absolute;
+                left: 14px;
+                color: var(--text-muted);
+                font-size: 16px;
+                pointer-events: none;
+            }
+            .input-wrap .icon-right {
+                position: absolute;
+                right: 14px;
+                color: var(--text-muted);
+                font-size: 16px;
+                cursor: pointer;
+                background: none;
+                border: none;
+                padding: 4px;
+            }
+            .form-group input {
+                width: 100%;
+                padding: 14px 14px 14px 44px;
+                font-size: 16px;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background: #fff;
+                color: var(--text-dark);
+            }
+            .form-group input.with-icon-right {
+                padding-right: 44px;
+            }
+            .form-group input::placeholder {
+                color: #9ca3af;
+            }
+            .form-group input:focus {
+                outline: none;
+                border-color: var(--teal);
+                box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+            }
+
+            .form-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 24px;
+                gap: 12px;
+            }
+            .remember-wrap {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+            }
+            .remember-wrap input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--teal);
+                cursor: pointer;
+            }
+            .remember-wrap span {
+                font-size: 14px;
+                color: var(--text-dark);
+            }
+            .forgot-link {
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--teal);
+                text-decoration: none;
+            }
+            .forgot-link:hover {
+                text-decoration: underline;
+            }
+
+            .btn-signin {
+                width: 100%;
+                padding: 14px;
+                font-size: 16px;
+                font-weight: 600;
+                color: #fff;
+                background: var(--teal);
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-family: inherit;
+                transition: background 0.2s;
+            }
+            .btn-signin:hover {
+                background: var(--teal-dark);
+            }
+            .btn-signin:active {
+                transform: scale(0.98);
+            }
+
+            .login-error {
+                font-size: 13px;
+                color: #dc2626;
+                text-align: center;
+                margin-top: 12px;
+                min-height: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="login-wrap">
+            <div class="auth-toggle">
+                <button type="button" class="active">Sign In</button>
+                <button type="button" onclick="window.location.href='#'">Sign Up</button>
+            </div>
+
+            <h1 class="welcome-title">Welcome back</h1>
+            <p class="welcome-sub">Sign in to your Bantay Ulang account</p>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-envelope icon-left"></i>
+                        <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-lock icon-left"></i>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password" class="with-icon-right">
+                        <button type="button" class="icon-right" id="toggle-password" aria-label="Toggle password visibility">
+                            <i class="fa-regular fa-eye" id="toggle-password-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="remember-wrap">
+                        <input type="checkbox" id="remember" name="remember">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="forgot-link">Forgot password?</a>
+                </div>
+                <button type="submit" class="btn-signin">Sign in</button>
+                <div class="login-error" id="login-error" role="alert"></div>
+            </form>
+        </div>
+
+        <script>
+            (function() {
+                var form = document.getElementById('login-form');
+                var errorEl = document.getElementById('login-error');
+                var toggleBtn = document.getElementById('toggle-password');
+                var toggleIcon = document.getElementById('toggle-password-icon');
+                var passwordInput = document.getElementById('password');
+
+                function showError(msg) {
+                    errorEl.textContent = msg || '';
+                }
+
+                toggleBtn.addEventListener('click', function() {
+                    var isPassword = passwordInput.type === 'password';
+                    passwordInput.type = isPassword ? 'text' : 'password';
+                    toggleIcon.classList.toggle('fa-eye', !isPassword);
+                    toggleIcon.classList.toggle('fa-eye-slash', isPassword);
+                    toggleBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+                });
+
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    showError('');
+
+                    var email = document.getElementById('email').value.trim();
+                    var password = document.getElementById('password').value;
+
+                    if (!email || !password) {
+                        showError('Please enter email and password.');
+                        return;
+                    }
+
+                    window.location.href = 'landing-page.html';
+                });
+            })();
+        </script>
+    </body>
+</html>

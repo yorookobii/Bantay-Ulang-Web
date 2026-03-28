@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Automation Controls - Bantay Ulang Bulacan</title>
+        <link rel="stylesheet" href="css/automation.css">
+
+      
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                    <li><a href="automation.html" class="active" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>A</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+            <!-- Topbar -->
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+
+
+
+                <!-- Right Side Items -->
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>A</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Admin</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content">
+                <header class="page-header">
+                    <div class="page-title-block">
+                        <h1>Automation Controls</h1>
+                        <p>Manage automated feeding, filtration, and environmental regulation workflows.</p>
+                    </div>
+                    <button type="button" class="btn-new-workflow">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </header>
+
+                <div class="workflow-list">
+                    <div class="workflow-card">
+                        <div class="workflow-card-left">
+                            <div class="workflow-icon active"><i class="fa-solid fa-bolt"></i></div>
+                            <div class="workflow-info">
+                                <div class="workflow-title">Morning Feeding</div>
+                                <div class="workflow-schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                    <span>Scheduled • Time: 08:00 AM</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="workflow-card-right">
+                            <div class="workflow-last-run">
+                                <div class="label">Last run</div>
+                                <div class="value">Today, 08:00 AM</div>
+                            </div>
+                            <input type="checkbox" id="workflow-toggle-1" class="workflow-toggle-input" checked aria-label="Toggle Morning Feeding">
+                            <label class="workflow-toggle" for="workflow-toggle-1"></label>
+                        </div>
+                    </div>
+
+                    <div class="workflow-card">
+                        <div class="workflow-card-left">
+                            <div class="workflow-icon active"><i class="fa-solid fa-bolt"></i></div>
+                            <div class="workflow-info">
+                                <div class="workflow-title">Afternoon Feeding</div>
+                                <div class="workflow-schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                    <span>Scheduled • Time: 12:00 PM</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="workflow-card-right">
+                            <div class="workflow-last-run">
+                                <div class="label">Last run</div>
+                                <div class="value">Today, 12:00 PM</div>
+                            </div>
+                            <input type="checkbox" id="workflow-toggle-2" class="workflow-toggle-input" checked aria-label="Toggle Afternoon Feeding">
+                            <label class="workflow-toggle" for="workflow-toggle-2"></label>
+                        </div>
+                    </div>
+
+                    <div class="workflow-card">
+                        <div class="workflow-card-left">
+                            <div class="workflow-icon active"><i class="fa-solid fa-bolt"></i></div>
+                            <div class="workflow-info">
+                                <div class="workflow-title">Evening Feeding</div>
+                                <div class="workflow-schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                    <span>Scheduled • Time: 06:00 PM</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="workflow-card-right">
+                            <div class="workflow-last-run">
+                                <div class="label">Last run</div>
+                                <div class="value">Yesterday, 06:00 PM</div>
+                            </div>
+                            <input type="checkbox" id="workflow-toggle-3" class="workflow-toggle-input" checked aria-label="Toggle Evening Feeding">
+                            <label class="workflow-toggle" for="workflow-toggle-3"></label>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <script src="js/automation.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>

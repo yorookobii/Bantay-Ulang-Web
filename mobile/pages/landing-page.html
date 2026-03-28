@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="fil">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Bantay Ulang</title>
+        <style>
+            :root {
+                --teal: #0d9488;
+                --teal-dark: #0f766e;
+                --green-main: #059669;
+                --green-light: rgba(255, 255, 255, 0.25);
+                --text-dark: #111827;
+                --text-muted: #6b7280;
+                --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            }
+
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f3f4f6;
+                color: var(--text-dark);
+                min-height: 100vh;
+                padding-bottom: 32px;
+            }
+
+            /* Topbar (dashboard-style) */
+            .topbar {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 12px 16px;
+                background: #f9fafb;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            }
+            .topbar .topbar-menu-btn {
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #e5e7eb;
+                border: none;
+                border-radius: 8px;
+                color: #374151;
+                font-size: 18px;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+            .topbar .topbar-menu-btn:hover {
+                background: #d1d5db;
+            }
+            .topbar .search-container {
+                flex: 1;
+                max-width: 280px;
+                min-width: 0;
+            }
+            .topbar .search-bar {
+                display: flex;
+                align-items: center;
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 20px;
+                padding: 8px 14px;
+            }
+            .topbar .search-bar:focus-within {
+                border-color: var(--teal);
+                box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+            }
+            .topbar .search-bar input {
+                flex: 1;
+                background: none;
+                border: none;
+                outline: none;
+                font-size: 14px;
+                color: var(--text-dark);
+            }
+            .topbar .search-bar .search-icon {
+                color: #9ca3af;
+                font-size: 14px;
+                margin-right: 8px;
+            }
+            .topbar .topbar-right {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .topbar .notification-container {
+                position: relative;
+            }
+            .topbar .notification-icon {
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                color: #374151;
+                cursor: pointer;
+                position: relative;
+                background: none;
+                border: none;
+            }
+            .topbar .notification-icon:hover {
+                color: var(--teal);
+            }
+            .topbar .notification-badge {
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                width: 8px;
+                height: 8px;
+                background: #ef4444;
+                border-radius: 50%;
+            }
+            .topbar .notification-dropdown {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                margin-top: 8px;
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                min-width: 260px;
+                max-height: 320px;
+                overflow-y: auto;
+                display: none;
+                z-index: 200;
+            }
+            .topbar .notification-dropdown.show {
+                display: block;
+            }
+            .topbar .notification-item {
+                padding: 12px 14px;
+                font-size: 13px;
+                color: #374151;
+                border-bottom: 1px solid #f3f4f6;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .topbar .notification-item:last-child {
+                border-bottom: none;
+            }
+            .topbar .notification-item i {
+                color: var(--teal);
+                font-size: 14px;
+            }
+            .topbar .admin-profile {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 6px 12px;
+                background: none;
+                border: none;
+                border-radius: 0;
+                cursor: pointer;
+                transition: color 0.2s;
+            }
+            .topbar .admin-profile:hover {
+                background: none;
+                color: var(--teal);
+            }
+            .topbar .admin-avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: var(--teal-dark);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            .topbar .admin-info {
+                text-align: left;
+            }
+            .topbar .admin-name {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-dark);
+            }
+            .topbar .admin-role {
+                font-size: 11px;
+                color: var(--text-muted);
+            }
+            .topbar .admin-profile .fa-chevron-down {
+                font-size: 10px;
+                color: #6b7280;
+            }
+            .topbar .profile-dropdown {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                margin-top: 8px;
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                min-width: 180px;
+                display: none;
+                z-index: 200;
+            }
+            .topbar .profile-dropdown.show {
+                display: block;
+            }
+            .topbar .profile-menu-item {
+                padding: 12px 14px;
+                font-size: 13px;
+                color: #374151;
+                border-bottom: 1px solid #f3f4f6;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .topbar .profile-menu-item:last-child {
+                border-bottom: none;
+            }
+            .topbar .profile-menu-item:hover {
+                background: #f0fdfa;
+                color: var(--teal);
+            }
+            @media (max-width: 480px) {
+                .topbar .search-container { display: none; }
+                .topbar .admin-info { display: none; }
+            }
+
+            /* Collapsible sidebar */
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.4);
+                z-index: 200;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.25s ease, visibility 0.25s ease;
+            }
+
+            .sidebar-overlay.open {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .sidebar-drawer {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                max-width: 85vw;
+                height: 100vh;
+                background-color: #15212e;
+                z-index: 201;
+                box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                padding-top: 0;
+                padding-left: 0;
+                padding-right: 0;
+                overflow-y: auto;
+            }
+
+            .sidebar-drawer.open {
+                transform: translateX(0);
+            }
+
+            /* Sidebar header + logo (match dashboard) */
+            .sidebar-drawer .sidebar-header {
+                padding: 20px 16px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                margin-bottom: 12px;
+            }
+            .sidebar-drawer .logo-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .sidebar-drawer .sidebar-toggle {
+                background: none;
+                border: none;
+                color: #9ca3af;
+                cursor: pointer;
+                padding: 6px;
+                font-size: 14px;
+                margin-left: auto;
+            }
+            .sidebar-drawer .sidebar-toggle:hover {
+                color: #ecf0f1;
+            }
+            .sidebar-drawer .logo-text {
+                flex: 1;
+            }
+            .sidebar-drawer .logo-droplets {
+                display: flex;
+                align-items: center;
+                line-height: 1;
+            }
+            .sidebar-drawer .logo-droplets svg {
+                display: block;
+            }
+            .sidebar-drawer .logo-text {
+                color: #ecf0f1;
+                font-size: 18px;
+                font-weight: 600;
+                flex: 1;
+            }
+
+            .sidebar-drawer .nav-list {
+                list-style: none;
+            }
+
+            .sidebar-drawer .nav-list a {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 15px 20px;
+                color: #bdc3c7;
+                text-decoration: none;
+                font-size: 15px;
+                font-weight: 500;
+                border-left: 3px solid transparent;
+                transition: background 0.2s, border-color 0.2s, color 0.2s;
+            }
+
+            .sidebar-drawer .nav-list a:hover,
+            .sidebar-drawer .nav-list a:focus {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border-left-color: #3498db;
+            }
+
+            .sidebar-drawer .nav-list a[data-page="home"] {
+                background-color: rgba(16, 185, 129, 0.25);
+                color: #6ee7b7;
+                border-left-color: #10b981;
+            }
+
+            .sidebar-drawer .nav-list a i {
+                font-size: 16px;
+                color: #6ee7b7;
+                width: 20px;
+                text-align: center;
+            }
+
+            .sidebar-drawer .nav-list .logout-link {
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                margin-top: 8px;
+                padding-top: 12px;
+            }
+            .sidebar-drawer .nav-list .logout-link i {
+                color: #f87171;
+            }
+            .sidebar-drawer .nav-list .logout-link:hover {
+                background-color: rgba(220, 38, 38, 0.15);
+                border-left-color: #dc2626;
+            }
+            .sidebar-drawer .nav-list .logout-link:hover i {
+                color: #fca5a5;
+            }
+
+            /* Main content */
+            .main-content {
+                padding: 24px 16px 0;
+            }
+
+            .greeting-title {
+                font-size: 24px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 4px;
+            }
+
+            .greeting-subtitle {
+                font-size: 14px;
+                color: var(--text-muted);
+                margin-bottom: 20px;
+            }
+
+            /* Main status card (green) */
+            .status-card {
+                background: linear-gradient(180deg, var(--green-main) 0%, #047857 100%);
+                border-radius: 16px;
+                padding: 20px;
+                margin-bottom: 24px;
+                box-shadow: var(--card-shadow);
+            }
+
+            .status-card .header {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .status-card .status-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                border: 2px solid rgba(255, 255, 255, 0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #fff;
+                font-size: 20px;
+                flex-shrink: 0;
+            }
+
+            .status-card .status-text h2 {
+                font-size: 20px;
+                font-weight: 700;
+                color: #fff;
+                margin-bottom: 4px;
+            }
+
+            .status-card .status-text p {
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.95);
+                line-height: 1.4;
+            }
+
+            .status-subcards {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .status-subcard {
+                background: var(--green-light);
+                border-radius: 12px;
+                padding: 14px;
+                text-align: center;
+            }
+
+            .status-subcard .label {
+                font-size: 10px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.9);
+                letter-spacing: 0.04em;
+                margin-bottom: 4px;
+            }
+
+            .status-subcard .value {
+                font-size: 16px;
+                font-weight: 700;
+                color: #fff;
+            }
+
+            /* Section headers */
+            .section-title {
+                font-size: 14px;
+                font-weight: 700;
+                color: var(--text-dark);
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                margin-bottom: 12px;
+            }
+
+            .section-title.with-icon {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                text-transform: none;
+                letter-spacing: 0;
+            }
+
+            .section-title.with-icon i {
+                color: var(--green-main);
+                font-size: 18px;
+            }
+
+            /* Water condition cards */
+            .water-cards {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+
+            .info-card {
+                background: #fff;
+                border-radius: 14px;
+                padding: 16px;
+                box-shadow: var(--card-shadow);
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                border: 1px solid #e5e7eb;
+            }
+
+            .info-card .card-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                background: #ccfbf1;
+                color: var(--teal);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                flex-shrink: 0;
+            }
+
+            .info-card .card-body {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .info-card .card-title {
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 2px;
+            }
+
+            .info-card .card-desc {
+                font-size: 13px;
+                color: var(--text-muted);
+                line-height: 1.35;
+            }
+
+            .info-card .card-status {
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-muted);
+                letter-spacing: 0.03em;
+                flex-shrink: 0;
+            }
+            .plant-cards {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+            .plant-card {
+                background: #fff;
+                border-radius: 14px;
+                padding: 16px;
+                box-shadow: var(--card-shadow);
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                border: 1px solid #e5e7eb;
+            }
+            .plant-card .plant-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                background: #ccfbf1;
+                color: var(--teal);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                flex-shrink: 0;
+            }
+            .plant-card .plant-body {
+                flex: 1;
+                min-width: 0;
+            }
+            .plant-card .plant-title {
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 2px;
+            }
+            .plant-card .plant-desc {
+                font-size: 13px;
+                color: var(--text-muted);
+                line-height: 1.35;
+            }
+            .plant-card .plant-status {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 4px;
+            }
+            .plant-card .plant-status-value {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-dark);
+                letter-spacing: 0.03em;
+            }
+            .plant-card .plant-status-label {
+                font-size: 12px;
+                color: var(--text-muted);
+                letter-spacing: 0.03em;
+            }
+
+            /* Yield prediction / expected yield */
+            .yield-prediction-section {
+                margin-bottom: 24px;
+            }
+            .yield-prediction-section .section-title {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .yield-prediction-section .section-title i {
+                color: var(--green-main);
+                font-size: 18px;
+            }
+            .yield-prediction-card {
+                background: linear-gradient(135deg, var(--green-main) 0%, #047857 100%);
+                border-radius: 14px;
+                padding: 20px;
+                box-shadow: var(--card-shadow);
+                color: #fff;
+                border: none;
+            }
+            .yield-prediction-card .yield-header {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .yield-prediction-card .yield-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.25);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 22px;
+            }
+            .yield-prediction-card .yield-title {
+                font-size: 15px;
+                font-weight: 600;
+                opacity: 0.95;
+            }
+            .yield-prediction-card .yield-value {
+                font-size: 32px;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                margin-bottom: 4px;
+            }
+            .yield-prediction-card .yield-label {
+                font-size: 13px;
+                opacity: 0.9;
+                margin-bottom: 10px;
+            }
+            .yield-prediction-card .yield-note {
+                font-size: 12px;
+                opacity: 0.85;
+                line-height: 1.4;
+            }
+
+            /* Assigned / urgent tasks (instant action) */
+            .urgent-tasks-section {
+                margin-bottom: 24px;
+            }
+            .urgent-tasks-section .section-title {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .urgent-tasks-section .section-title i {
+                color: #dc2626;
+                font-size: 18px;
+            }
+            .urgent-tasks-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .urgent-task-card {
+                background: #fff;
+                border-radius: 12px;
+                padding: 14px 16px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid #e5e7eb;
+                border-left: 4px solid #dc2626;
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            .urgent-task-card .task-icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                background: #fef2f2;
+                color: #dc2626;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                flex-shrink: 0;
+            }
+            .urgent-task-card .task-body {
+                flex: 1;
+                min-width: 0;
+            }
+            .urgent-task-card .task-title {
+                font-size: 15px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 4px;
+            }
+            .urgent-task-card .task-meta {
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 8px;
+            }
+            .urgent-task-card .task-badge {
+                display: inline-block;
+                font-size: 10px;
+                font-weight: 700;
+                color: #b91c1c;
+                background: #fef2f2;
+                padding: 3px 8px;
+                border-radius: 6px;
+                letter-spacing: 0.02em;
+                margin-top: 4px;
+            }
+            .urgent-task-card .task-action {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--teal);
+                text-decoration: none;
+                margin-top: 8px;
+            }
+            .urgent-task-card .task-action:hover {
+                color: var(--teal-dark);
+                text-decoration: underline;
+            }
+            .urgent-tasks-cta {
+                margin-top: 12px;
+            }
+            .urgent-tasks-cta .btn-view-tasks {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 18px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #fff;
+                background: var(--teal);
+                border: none;
+                border-radius: 10px;
+                text-decoration: none;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .urgent-tasks-cta .btn-view-tasks:hover {
+                background: var(--teal-dark);
+            }
+            .urgent-tasks-empty {
+                text-align: center;
+                padding: 20px 16px;
+                background: #fff;
+                border-radius: 12px;
+                border: 1px dashed #e5e7eb;
+                color: var(--text-muted);
+                font-size: 14px;
+            }
+
+            /* Plant status section */
+            .plant-section {
+                margin-top: 8px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Collapsible sidebar -->
+        <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+        <aside class="sidebar-drawer" id="sidebar-drawer" aria-label="Navigation menu">
+            <div class="sidebar-header">
+                <div class="logo-row">
+                    <div class="logo-droplets">
+                        <svg width="28" height="24" viewBox="0 0 28 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2c-2 4-6 8-6 12a6 6 0 1012 0c0-4-4-8-6-12z" fill="#6ee7b7"/>
+                            <path d="M22 6c-1.5 2.5-4 5-4 8a4 4 0 108 0c0-3-2.5-5.5-4-8z" fill="#6ee7b7" opacity="0.9"/>
+                        </svg>
+                    </div>
+                    <span class="logo-text">Bantay Ulang</span>
+                    <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                </div>
+            </div>
+            <ul class="nav-list">
+                <li><a href="landing-page.html" data-page="home"><i class="fa-solid fa-house"></i> Home</a></li>
+                <li><a href="tasks.html" data-page="tasks"><i class="fa-solid fa-clipboard-list"></i> Tasks</a></li>
+                <li><a href="yield.html" data-page="yield"><i class="fa-solid fa-chart-line"></i> Yield</a></li>
+                <li><a href="#" data-page="real-time-monitoring"><i class="fa-solid fa-gauge-high"></i> Real-Time Monitoring</a></li>
+                <li><a href="logs.html" data-page="logs"><i class="fa-solid fa-list"></i> Logs</a></li>
+                <li><a href="landing-page.html" class="logout-link" id="sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i> Log out</a></li>
+            </ul>
+        </aside>
+
+        <!-- Topbar -->
+        <nav class="topbar">
+            <button type="button" class="topbar-menu-btn" id="menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar-drawer">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" placeholder="Search" aria-label="Search">
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="notification-container">
+                    <button type="button" class="notification-icon" id="notification-btn" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="notification-badge" aria-hidden="true"></span>
+                    </button>
+                    <div class="notification-dropdown" id="notification-dropdown" role="menu">
+                        <div class="notification-item">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                            <span>New task assigned: Ulang Data Capture</span>
+                        </div>
+                        <div class="notification-item">
+                            <i class="fa-solid fa-droplet"></i>
+                            <span>Water parameter alert: pH slightly high</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-profile-wrapper" style="position: relative;">
+                    <button type="button" class="admin-profile" id="profile-btn" aria-label="Profile menu" aria-expanded="false" aria-haspopup="true">
+                        <div class="admin-avatar">V</div>
+                        <div class="admin-info">
+                            <div class="admin-name">Juan Dela Cruz</div>
+                            <div class="admin-role">User</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="profile-dropdown" id="profile-dropdown" role="menu">
+                        <div class="profile-menu-item" data-action="profile">My Profile</div>
+                        <div class="profile-menu-item" data-action="settings">Settings</div>
+                        <div class="profile-menu-item" data-action="password">Change Password</div>
+                        <div class="profile-menu-item" data-action="logout" id="profile-logout">Logout</div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <!-- Greeting -->
+            <h1 class="greeting-title">Magandang Araw!</h1>
+            <p class="greeting-subtitle">Status ng Bantay Ulang ngayong araw.</p>
+
+            <!-- Main status card -->
+            <section class="status-card">
+                <div class="header">
+                    <div class="status-icon">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div class="status-text">
+                        <h2>Mabuti ang Kalagayan</h2>
+                        <p>Ligtas ang tubig at masigla ang mga ulang at tanim sa buong system.</p>
+                    </div>
+                </div>
+                <div class="status-subcards">
+                    <div class="status-subcard">
+                        <div class="label">Laki ng Ulang</div>
+                        <div class="value">Malusog</div>
+                    </div>
+                    <div class="status-subcard">
+                        <div class="label">Dami ng Tanim</div>
+                        <div class="value">Sapat</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Yield prediction / expected yield -->
+            <section class="yield-prediction-section">
+                <h2 class="section-title">
+                    <i class="fa-solid fa-chart-line"></i>
+                    Inaasahang Ani ng Ulang
+                </h2>
+                <div class="yield-prediction-card">
+                    <div class="yield-header">
+                        <div class="yield-icon">
+                            <i class="fa-solid fa-fish-fins"></i>
+                        </div>
+                        <span class="yield-title">Expected yield</span>
+                    </div>
+                    <div class="yield-value" id="yield-value">55 kg</div>
+                    <div class="yield-label">This cycle · Based on current stock & conditions</div>
+                    <p class="yield-note">Prediction may change with feeding, water quality, and survival rate. Keep logs updated for better estimates.</p>
+                </div>
+            </section>
+
+            <!-- Assigned / urgent tasks (instant action) -->
+            <section class="urgent-tasks-section">
+                <h2 class="section-title">
+                    <i class="fa-solid fa-bolt"></i>
+                    Urgent Tasks
+                </h2>
+                <div class="urgent-tasks-list" id="urgent-tasks-list">
+                    <div class="urgent-task-card">
+                        <div class="task-icon"><i class="fa-solid fa-droplet"></i></div>
+                        <div class="task-body">
+                            <div class="task-title">Ulang Data Capture</div>
+                            <div class="task-meta">Due: Today · Assigned by Admin</div>
+                            <span class="task-badge">URGENT</span>
+                            <a href="tasks.html" class="task-action">View task <i class="fa-solid fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="urgent-tasks-cta">
+                    <a href="tasks.html" class="btn-view-tasks">
+                        <i class="fa-solid fa-clipboard-list"></i> View all my tasks
+                    </a>
+                </div>
+            </section>
+
+            <!-- Water conditions -->
+            <h2 class="section-title">Kondisyon ng Tubig</h2>
+            <div class="water-cards">
+                <div class="info-card">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-water"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">Temperatura</div>
+                        <div class="card-desc">Tamang-tama para sa paglaki ng ulang.</div>
+                    </div>
+                    <span class="card-status">KATAMTAMAN</span>
+                </div>
+                <div class="info-card">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">Linis ng Tubig</div>
+                        <div class="card-desc">Walang nakitang lason o dumi sa tubig.</div>
+                    </div>
+                    <span class="card-status">MAAYOS</span>
+                </div>
+                <div class="info-card">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">Hangin (Oxygen)</div>
+                        <div class="card-desc">May sapat na hangin para sa mga ulang.</div>
+                    </div>
+                    <span class="card-status">MATAAS</span>
+                </div>
+            </div>
+
+            <!-- Plant status section -->
+            <section class="plant-section">
+                <h2 class="section-title with-icon">
+                    <i class="fa-solid fa-leaf"></i>
+                    STATUS NG MGA TANIM
+                </h2>
+                <!-- Additional plant cards can go here -->
+                <div class="plant-cards">
+                    <div class="plant-card">
+                        <div class="plant-icon">
+                            <i class="fa-solid fa-leaf"></i>
+                        </div>
+                        <div class="plant-body">
+                            <div class="plant-title">Plant</div>
+                            <div class="plant-desc">Healthy and growing well.</div>
+                        </div>
+                        <div class="plant-status">
+                            <span class="plant-status-value">Healthy</span>
+                            <span class="plant-status-label">Growing well</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            (function() {
+                var menuBtn = document.getElementById('menu-btn');
+                var overlay = document.getElementById('sidebar-overlay');
+                var drawer = document.getElementById('sidebar-drawer');
+                var sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+                var notificationBtn = document.getElementById('notification-btn');
+                var notificationDropdown = document.getElementById('notification-dropdown');
+                var profileBtn = document.getElementById('profile-btn');
+                var profileDropdown = document.getElementById('profile-dropdown');
+                var profileLogout = document.getElementById('profile-logout');
+                var sidebarLogout = document.getElementById('sidebar-logout');
+
+                function openSidebar() {
+                    drawer.classList.add('open');
+                    overlay.classList.add('open');
+                    overlay.setAttribute('aria-hidden', 'false');
+                    if (menuBtn) menuBtn.setAttribute('aria-expanded', 'true');
+                    document.body.style.overflow = 'hidden';
+                }
+
+                function closeSidebar() {
+                    drawer.classList.remove('open');
+                    overlay.classList.remove('open');
+                    overlay.setAttribute('aria-hidden', 'true');
+                    if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+                    document.body.style.overflow = '';
+                }
+
+                function toggleSidebar() {
+                    if (drawer.classList.contains('open')) closeSidebar();
+                    else openSidebar();
+                }
+
+                if (menuBtn) menuBtn.addEventListener('click', toggleSidebar);
+                if (overlay) overlay.addEventListener('click', closeSidebar);
+                if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', closeSidebar);
+
+                var navLinks = drawer.querySelectorAll('.nav-list a:not(.logout-link)');
+                navLinks.forEach(function(link) {
+                    link.addEventListener('click', function(e) {
+                        var href = link.getAttribute('href');
+                        if (!href || href === '#') e.preventDefault();
+                        closeSidebar();
+                    });
+                });
+
+                function doLogout() {
+                    closeSidebar();
+                    if (profileDropdown) profileDropdown.classList.remove('show');
+                    window.location.href = 'landing-user.html';
+                }
+
+                if (profileLogout) profileLogout.addEventListener('click', doLogout);
+                if (sidebarLogout) sidebarLogout.addEventListener('click', function(e) { e.preventDefault(); doLogout(); });
+
+                function toggleNotificationDropdown() {
+                    var isOpen = notificationDropdown.classList.toggle('show');
+                    notificationBtn.setAttribute('aria-expanded', isOpen);
+                    if (profileDropdown) profileDropdown.classList.remove('show');
+                    if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
+                }
+                function toggleProfileDropdown() {
+                    var isOpen = profileDropdown.classList.toggle('show');
+                    profileBtn.setAttribute('aria-expanded', isOpen);
+                    if (notificationDropdown) notificationDropdown.classList.remove('show');
+                    if (notificationBtn) notificationBtn.setAttribute('aria-expanded', 'false');
+                }
+                function closeAllDropdowns() {
+                    if (notificationDropdown) notificationDropdown.classList.remove('show');
+                    if (profileDropdown) profileDropdown.classList.remove('show');
+                    if (notificationBtn) notificationBtn.setAttribute('aria-expanded', 'false');
+                    if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
+                }
+
+                if (notificationBtn) notificationBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleNotificationDropdown(); });
+                if (profileBtn) profileBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleProfileDropdown(); });
+                if (notificationDropdown) notificationDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+                if (profileDropdown) profileDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+                document.addEventListener('click', closeAllDropdowns);
+            })();
+        </script>
+    </body>
+</html>

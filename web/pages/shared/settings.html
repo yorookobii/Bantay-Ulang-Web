@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="css/settings.css">
+    </head>
+    <body>
+        <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-row">
+                    <div class="logo-droplets">
+                        <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                    </div>
+                    <span class="logo-text">Bantay Ulang</span>
+                    
+                    <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li><a href="real-time-monitoring.html" title="Real-Time Data"><i class="fa-solid fa-chart-line"></i><span>Real-Time Data</span></a></li>
+                <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                <li><a href="settings.html" class="active" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar"><span>A</span></div>
+                    <div class="user-info">
+                        <div class="user-name">User Name</div>
+                        <div class="user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+        <!-- Topbar -->
+        <header class="topbar">
+            <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="search" placeholder="Search">
+                </div>
+            </div>
+
+
+
+            <!-- Right Side Items -->
+            <div class="topbar-right">
+                <div class="notification-container">
+                    <div class="notification-icon" onclick="toggleNotification()">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge"></span>
+                    </div>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                        <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                        <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                    </div>
+                </div>
+                <div style="position: relative;" >
+                    <div class="admin-profile" onclick="toggleProfile()">
+                        <div class="admin-avatar"><span>A</span></div>
+                        <div class="admin-info">
+                            <div class="admin-name">Juan Dela Cruz</div>
+                            <div class="admin-role">Admin</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="profile-menu-item">👤 My Profile</div>
+                        <div class="profile-menu-item">⚙️ Settings</div>
+                        <div class="profile-menu-item">🔐 Change Password</div>
+                        <div class="profile-menu-item" onclick="logout()">🚪 Logout</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main>
+
+            <div class="settings_headings">
+                <h2>Settings</h2>
+                <p>Configure system thresholds and notification preferences.</p>
+            </div>
+
+            <div class="system_threshold">
+                <div id="threshold_headings">
+                    <h2>Water Parameters – System Thresholds</h2>
+                    <p class="threshold_section_desc">Set min/max or alert thresholds for water parameters. Alerts trigger when readings go outside these ranges.</p>
+                </div>
+                <form id="threshold-form" class="threshold_form">
+                    <div class="threshold_row">
+                        <div class="threshold_param">
+                            <label for="ph_min">pH (min)</label>
+                            <span class="unit">Range 0–14</span>
+                            <input type="number" id="ph_min" name="ph_min" min="0" max="14" step="0.1" value="6.5" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label for="ph_max">pH (max)</label>
+                            <span class="unit">—</span>
+                            <input type="number" id="ph_max" name="ph_max" min="0" max="14" step="0.1" value="8.5" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">—</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">—</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row">
+                        <div class="threshold_param">
+                            <label for="temp_min">Temperature (°C) min</label>
+                            <span class="unit">Below = alert</span>
+                            <input type="number" id="temp_min" name="temp_min" min="-5" max="50" step="0.5" value="22" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label for="temp_max">Temperature (°C) max</label>
+                            <span class="unit">Above = alert</span>
+                            <input type="number" id="temp_max" name="temp_max" min="-5" max="50" step="0.5" value="32" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">°C</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">°C</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row single_val">
+                        <div class="threshold_param">
+                            <label for="o2_min">Dissolved Oxygen (min)</label>
+                            <span class="unit">Below = low oxygen alert (mg/L)</span>
+                            <input type="number" id="o2_min" name="o2_min" min="0" max="20" step="0.1" value="5" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">—</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">mg/L</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row single_val">
+                        <div class="threshold_param">
+                            <label for="salinity_min">Salinity (min)</label>
+                            <span class="unit">Below = alert (ppt)</span>
+                            <input type="number" id="salinity_min" name="salinity_min" min="0" max="50" step="0.1" value="10" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label for="salinity_max">Salinity (max)</label>
+                            <span class="unit">Above = alert (ppt)</span>
+                            <input type="number" id="salinity_max" name="salinity_max" min="0" max="50" step="0.1" value="35" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">—</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">ppt</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row single_val">
+                        <div class="threshold_param">
+                            <label for="nitrate_max">Nitrate (max)</label>
+                            <span class="unit">Above = high nitrate warning (ppm)</span>
+                            <input type="number" id="nitrate_max" name="nitrate_max" min="0" max="200" step="0.5" value="50" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">—</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">ppm</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row single_val">
+                        <div class="threshold_param">
+                            <label for="ammonia_max">Ammonia (max)</label>
+                            <span class="unit">Above = toxicity alert (ppm)</span>
+                            <input type="number" id="ammonia_max" name="ammonia_max" min="0" max="10" step="0.1" value="1" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">—</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">ppm</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div>
+                            <button type="submit" class="btn-save-threshold">
+                                <i class="fa-solid fa-check"></i> Save thresholds
+                            </button>
+                        </div>
+                    </div>
+                    <p class="threshold_saved_msg" id="threshold-saved-msg">Thresholds saved successfully.</p>
+                </form>
+            </div>
+        </main>
+        </div>
+
+        <script src="js/settings.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>
+

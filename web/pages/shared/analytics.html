@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Growth & Survival Predictions - Bantay Ulang Bulacan</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link rel="stylesheet" href="css/analytics.css">
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" class="active" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>A</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+            <!-- Topbar -->
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+
+
+
+                <!-- Right Side Items -->
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>A</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Admin</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+
+            <!-- Main Content -->
+            <main class="content">
+                <header class="page-header">
+                    <div class="page-title-block">
+                        <h1>Growth & Survival Predictions</h1>
+                        <p>Ulang survival rates based on current water quality parameters.</p>
+                    </div>
+                    <button type="button" class="btn-run-simulation" id="runSimulationBtn">
+                        <i class="fa-solid fa-arrow-trend-up"></i> Run New Simulation
+                    </button>
+                </header>
+                <!-- Analytics Cards -->
+                <div class="analytics-cards">
+                    <!-- Survival Projection -->
+                    <div class="analytics-card">
+                        <div class="card-title">Survival Projection (Next 4 Weeks)</div>
+                        <div class="card-subtitle">Predicted population based on current stable parameters</div>
+                        <div class="chart-legend">
+                            <span class="chart-legend-item">
+                                <span class="line-dot"></span>
+                                <span>Actual Survival %</span>
+                            </span>
+                            <span class="chart-legend-item dashed">
+                                <span class="line-sample"></span>
+                                <span>Predicted Survival %</span>
+                            </span>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="survivalChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Parameter Impact Score -->
+                    <div class="analytics-card">
+                        <div class="card-title">Parameter Impact Score</div>
+                        <div class="card-subtitle">How current metrics are affecting growth potential</div>
+                        <div class="param-row">
+                            <div class="param-head">
+                                <span class="param-label">pH (7.2)</span>
+                            </div>
+                            <div class="param-bar-wrap">
+                                <div class="param-bar dark-green" style="width: 92%;"></div>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-head">
+                                <span class="param-label">Temp (28°C)</span>
+                            </div>
+                            <div class="param-bar-wrap">
+                                <div class="param-bar dark-green" style="width: 78%;"></div>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-head">
+                                <span class="param-label">DO (6.5)</span>
+                            </div>
+                            <div class="param-bar-wrap">
+                                <div class="param-bar teal" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-head">
+                                <span class="param-label">Salinity (15 ppt)</span>
+                            </div>
+                            <div class="param-bar-wrap">
+                                <div class="param-bar dark-green" style="width: 90%;"></div>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-head">
+                                <span class="param-label">Turbidity (3.5 NTU)</span>
+                            </div>
+                            <div class="param-bar-wrap">
+                                <div class="param-bar teal" style="width: 85%;"></div>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-head">
+                                <span class="param-label">Nitrate (5 ppm)</span>
+                            </div>
+                            <div class="param-bar-wrap">
+                                <div class="param-bar light-teal" style="width: 88%;"></div>
+                            </div>
+                        </div>
+                        <div class="optimal-state-box">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span class="text">Optimal State: Your current pH, salinity, turbidity, and nitrate levels are within ideal range for ulang growth.</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Analytics Metrics Row -->
+                <div class="metrics-row">
+                    <div class="metric-card">
+                        <div class="metric-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                        <div class="metric-label">Estimated Harvest Date</div>
+                        <div class="metric-value">April 12, 2026</div>
+                        <div class="metric-desc">Based on growth rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon"><i class="fa-solid fa-water"></i></div>
+                        <div class="metric-label">Predicted Yield</div>
+                        <div class="metric-value" id="predictedYieldValue">142.5 kg</div>
+                        <div class="metric-desc" id="predictedYieldConfidence">Confidence: 89%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="metric-label">Mortality Risk</div>
+                        <div class="metric-value">Low</div>
+                        <div class="metric-desc">Predicted: 12% total</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon"><i class="fa-solid fa-bolt"></i></div>
+                        <div class="metric-label">Feed Efficiency</div>
+                        <div class="metric-value">1.2 FCR</div>
+                        <div class="metric-desc">Optimal range: 1.1 - 1.4</div>
+                    </div>
+                </div>
+
+                <!-- Analytics Recommendation -->
+                <section class="recommendation-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Analytics Recommendation</h2>
+                        <p class="section-subtitle">Smart system optimizations and predictive maintenance recommendations based on historical data.</p>
+                    </div>
+
+                    <div class="recommendation-layout">
+                        <div class="recommendation-cards">
+                            <div class="rec-card">
+                                <div class="rec-card-head">
+                                    <span class="rec-impact high">High IMPACT</span>
+                                    <span class="rec-category">OXYGEN MANAGEMENT</span>
+                                </div>
+                                <h3 class="rec-card-title">Optimize Night-time Aeration</h3>
+                                <p class="rec-card-desc">Based on recent DO drops between 2:00 AM and 4:00 AM, we recommend increasing aerator speed by 20% during these hours to prevent stress in Tank 02.</p>
+                                <!--<button type="button" class="btn-apply">Apply Now</button>-->
+                            </div>
+
+                            <div class="rec-card">
+                                <div class="rec-card-head">
+                                    <span class="rec-impact medium">Medium IMPACT</span>
+                                    <span class="rec-category">GROWTH OPTIMIZATION</span>
+                                </div>
+                                <h3 class="rec-card-title">Adjust Feeding Schedule</h3>
+                                <p class="rec-card-desc">The current water temperature (28.4°C) suggests peak metabolic activity. Shifting 15% of the daily feed to 10:00 AM will improve nutrient uptake.</p>
+                                <!--<span class="btn-processing">Processing...</span>-->
+                            </div>
+
+                            <div class="rec-card">
+                                <div class="rec-card-head">
+                                    <span class="rec-impact low">Low IMPACT</span>
+                                    <span class="rec-category">YIELD MANAGEMENT</span>
+                                </div>
+                                <h3 class="rec-card-title">Early Harvest Warning</h3>
+                                <p class="rec-card-desc">Section C is reaching capacity faster than predicted. Consider harvesting 10% of adult Ulang 3 days early to maintain optimal water quality.</p>
+                                <!--<button type="button" class="btn-apply">Apply Now</button>-->
+                            </div>
+                        </div>
+
+                        <div class="efficiency-card">
+                            <div class="eff-title">
+                                <i class="fa-solid fa-chart-line"></i>
+                                <span>Efficiency Score</span>
+                            </div>
+                            <div class="efficiency-circle-outer">
+                                <div class="efficiency-circle-inner">
+                                    <span class="eff-value">82%</span>
+                                    <span class="eff-status">OPTIMAL</span>
+                                </div>
+                            </div>
+                            <p class="eff-desc">System is performing <strong>12% better</strong> than the regional average for Bulacan-based Ulang farms.</p>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <script src="js/analytics.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>

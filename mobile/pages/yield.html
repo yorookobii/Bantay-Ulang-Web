@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Yield Estimations - Bantay Ulang</title>
+        <style>
+            :root {
+                --teal: #0d9488;
+                --teal-dark: #0f766e;
+                --green-main: #059669;
+                --text-dark: #111827;
+                --text-muted: #6b7280;
+                --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            }
+
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f3f4f6;
+                color: var(--text-dark);
+                min-height: 100vh;
+                padding-bottom: 32px;
+            }
+
+            .topnav {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 14px 16px;
+                background: #fff;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            }
+            .topnav .menu-btn {
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                color: var(--text-dark);
+                font-size: 20px;
+                cursor: pointer;
+            }
+
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.4);
+                z-index: 200;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.25s ease, visibility 0.25s ease;
+            }
+            .sidebar-overlay.open { opacity: 1; visibility: visible; }
+
+            .sidebar-drawer {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                max-width: 85vw;
+                height: 100vh;
+                background-color: #15212e;
+                z-index: 201;
+                box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                padding-top: 0;
+                overflow-y: auto;
+            }
+            .sidebar-drawer.open { transform: translateX(0); }
+
+            .sidebar-drawer .sidebar-header {
+                padding: 20px 16px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                margin-bottom: 12px;
+            }
+            .sidebar-drawer .logo-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .sidebar-drawer .logo-droplets { display: flex; align-items: center; line-height: 1; }
+            .sidebar-drawer .logo-droplets svg { display: block; }
+            .sidebar-drawer .logo-text {
+                color: #ecf0f1;
+                font-size: 18px;
+                font-weight: 600;
+                flex: 1;
+            }
+            .sidebar-drawer .nav-list { list-style: none; }
+            .sidebar-drawer .nav-list a {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 15px 20px;
+                color: #bdc3c7;
+                text-decoration: none;
+                font-size: 15px;
+                font-weight: 500;
+                border-left: 3px solid transparent;
+                transition: background 0.2s, border-color 0.2s, color 0.2s;
+            }
+            .sidebar-drawer .nav-list a:hover,
+            .sidebar-drawer .nav-list a:focus {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border-left-color: #3498db;
+            }
+            .sidebar-drawer .nav-list a.active {
+                background-color: rgba(16, 185, 129, 0.25);
+                color: #6ee7b7;
+                border-left-color: #10b981;
+            }
+            .sidebar-drawer .nav-list a i {
+                font-size: 16px;
+                color: #6ee7b7;
+                width: 20px;
+                text-align: center;
+            }
+
+            .topnav .brand { font-size: 18px; font-weight: 700; color: var(--teal-dark); }
+            .topnav .right-icons { display: flex; align-items: center; gap: 12px; }
+            .topnav .icon-btn {
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                color: var(--text-dark);
+                font-size: 18px;
+                cursor: pointer;
+            }
+            .topnav .avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: var(--teal-dark);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 16px;
+            }
+
+            .main-content { padding: 24px 16px 0; }
+
+            .page-title {
+                font-size: 22px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 6px;
+            }
+            .page-desc {
+                font-size: 14px;
+                color: var(--text-muted);
+                margin-bottom: 24px;
+            }
+
+            .yield-section {
+                margin-bottom: 24px;
+            }
+            .yield-section h3 {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .yield-section h3 i { color: var(--teal); }
+
+            .yield-card {
+                background: #fff;
+                border-radius: 14px;
+                padding: 20px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid #e5e7eb;
+                margin-bottom: 12px;
+            }
+            .yield-card.highlight {
+                background: linear-gradient(135deg, var(--green-main) 0%, #047857 100%);
+                border: none;
+                color: #fff;
+            }
+            .yield-card.highlight .yield-card-label,
+            .yield-card.highlight .yield-card-sublabel {
+                color: rgba(255, 255, 255, 0.9);
+            }
+            .yield-card .yield-card-label {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--text-muted);
+                margin-bottom: 4px;
+            }
+            .yield-card .yield-card-value {
+                font-size: 28px;
+                font-weight: 800;
+                color: var(--text-dark);
+                letter-spacing: -0.02em;
+            }
+            .yield-card.highlight .yield-card-value {
+                color: #fff;
+            }
+            .yield-card .yield-card-sublabel {
+                font-size: 13px;
+                color: var(--text-muted);
+                margin-top: 6px;
+            }
+            .yield-card .yield-card-note {
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-top: 10px;
+                padding-top: 10px;
+                border-top: 1px solid #e5e7eb;
+            }
+            .yield-card.highlight .yield-card-note {
+                border-top-color: rgba(255, 255, 255, 0.3);
+                color: rgba(255, 255, 255, 0.9);
+            }
+
+            .yield-summary-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .yield-summary-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 14px;
+                background: #f9fafb;
+                border-radius: 10px;
+                font-size: 14px;
+            }
+            .yield-summary-row .label { color: var(--text-muted); font-weight: 500; }
+            .yield-summary-row .value { color: var(--text-dark); font-weight: 700; }
+
+            .yield-disclaimer {
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-top: 20px;
+                padding: 12px;
+                background: #f9fafb;
+                border-radius: 10px;
+                border-left: 4px solid var(--teal);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+        <aside class="sidebar-drawer" id="sidebar-drawer" aria-label="Navigation menu">
+            <div class="sidebar-header">
+                <div class="logo-row">
+                    <div class="logo-droplets">
+                        <svg width="28" height="24" viewBox="0 0 28 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2c-2 4-6 8-6 12a6 6 0 1012 0c0-4-4-8-6-12z" fill="#6ee7b7"/>
+                            <path d="M22 6c-1.5 2.5-4 5-4 8a4 4 0 108 0c0-3-2.5-5.5-4-8z" fill="#6ee7b7" opacity="0.9"/>
+                        </svg>
+                    </div>
+                    <span class="logo-text">Bantay Ulang</span>
+                </div>
+            </div>
+            <ul class="nav-list">
+                <li><a href="landing-page.html"><i class="fa-solid fa-house"></i> Home</a></li>
+                <li><a href="tasks.html"><i class="fa-solid fa-clipboard-list"></i> Tasks</a></li>
+                <li><a href="yield.html" class="active"><i class="fa-solid fa-chart-line"></i> Yield</a></li>
+                <li><a href="#"><i class="fa-solid fa-gauge-high"></i> Real-Time Monitoring</a></li>
+                <li><a href="logs.html"><i class="fa-solid fa-list"></i> Logs</a></li>
+            </ul>
+        </aside>
+
+        <nav class="topnav">
+            <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar-drawer">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <span class="brand">Yield</span>
+            <div class="right-icons">
+                <button type="button" class="icon-btn" aria-label="Notifications">
+                    <i class="fa-solid fa-bell"></i>
+                </button>
+                <div class="avatar">V</div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <h1 class="page-title">Yield Estimations</h1>
+            <p class="page-desc">Expected harvest and total yield of Ulang based on current data.</p>
+
+            <section class="yield-section">
+                <h3><i class="fa-solid fa-fish-fins"></i> Expected harvest</h3>
+                <div class="yield-card highlight">
+                    <div class="yield-card-label">Expected yield this cycle</div>
+                    <div class="yield-card-value" id="expected-yield-value">55 kg</div>
+                    <div class="yield-card-sublabel">Target harvest: Mar 15–20, 2025</div>
+                    <p class="yield-card-note">Based on current stock, growth rate, and typical survival. Update logs regularly for better accuracy.</p>
+                </div>
+            </section>
+
+            <section class="yield-section">
+                <h3><i class="fa-solid fa-scale-balanced"></i> Total yield</h3>
+                <div class="yield-card">
+                    <div class="yield-card-label">Total yield (this cycle)</div>
+                    <div class="yield-card-value" id="total-yield-value">55 kg</div>
+                    <div class="yield-card-sublabel">Estimated total harvest weight</div>
+                </div>
+                <div class="yield-summary-list">
+                    <div class="yield-summary-row">
+                        <span class="label">Avg. weight per piece</span>
+                        <span class="value" id="yield-avg-weight">~50 g</span>
+                    </div>
+                    <div class="yield-summary-row">
+                        <span class="label">Cycle period</span>
+                        <span class="value">Jan 10 – Mar 20, 2025</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="yield-section">
+                <h3><i class="fa-solid fa-circle-info"></i> Summary</h3>
+                <div class="yield-card">
+                    <div class="yield-card-label">Yield trend</div>
+                    <div class="yield-card-sublabel">Current estimate is within normal range for your setup. Keep water quality and feeding consistent to meet or exceed this yield.</div>
+                </div>
+            </section>
+
+         
+        </main>
+
+        <script>
+            (function() {
+                var overlay = document.getElementById('sidebar-overlay');
+                var drawer = document.getElementById('sidebar-drawer');
+                var menuBtn = document.getElementById('menu-btn');
+
+                function openSidebar() {
+                    drawer.classList.add('open');
+                    overlay.classList.add('open');
+                    menuBtn.setAttribute('aria-expanded', 'true');
+                    document.body.style.overflow = 'hidden';
+                }
+                function closeSidebar() {
+                    drawer.classList.remove('open');
+                    overlay.classList.remove('open');
+                    menuBtn.setAttribute('aria-expanded', 'false');
+                    document.body.style.overflow = '';
+                }
+                if (menuBtn) menuBtn.addEventListener('click', openSidebar);
+                if (overlay) overlay.addEventListener('click', closeSidebar);
+            })();
+        </script>
+    </body>
+</html>

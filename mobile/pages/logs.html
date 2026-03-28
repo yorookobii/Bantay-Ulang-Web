@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fil">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Ulang Logs - Bantay Ulang</title>
+        <style>
+            :root {
+                --teal: #0d9488;
+                --teal-dark: #0f766e;
+                --green-main: #059669;
+                --text-dark: #111827;
+                --text-muted: #6b7280;
+                --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            }
+
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f3f4f6;
+                color: var(--text-dark);
+                min-height: 100vh;
+                padding-bottom: 32px;
+            }
+
+            .topnav {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 14px 16px;
+                background: #fff;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            }
+
+            .topnav .menu-btn {
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                color: var(--text-dark);
+                font-size: 20px;
+                cursor: pointer;
+            }
+
+            .topnav .brand { font-size: 18px; font-weight: 700; color: var(--teal-dark); }
+
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.4);
+                z-index: 200;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.25s ease, visibility 0.25s ease;
+            }
+
+            .sidebar-overlay.open {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .sidebar-drawer {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                max-width: 85vw;
+                height: 100vh;
+                background-color: #15212e;
+                z-index: 201;
+                box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                padding-top: 0;
+                overflow-y: auto;
+            }
+
+            .sidebar-drawer.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-drawer .sidebar-header {
+                padding: 20px 16px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                margin-bottom: 12px;
+            }
+            .sidebar-drawer .logo-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .sidebar-drawer .logo-droplets { display: flex; align-items: center; line-height: 1; }
+            .sidebar-drawer .logo-droplets svg { display: block; }
+            .sidebar-drawer .logo-text {
+                color: #ecf0f1;
+                font-size: 18px;
+                font-weight: 600;
+                flex: 1;
+            }
+
+            .sidebar-drawer .nav-list { list-style: none; }
+
+            .sidebar-drawer .nav-list a {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 15px 20px;
+                color: #bdc3c7;
+                text-decoration: none;
+                font-size: 15px;
+                font-weight: 500;
+                border-left: 3px solid transparent;
+                transition: background 0.2s, border-color 0.2s, color 0.2s;
+            }
+
+            .sidebar-drawer .nav-list a:hover,
+            .sidebar-drawer .nav-list a:focus {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border-left-color: #3498db;
+            }
+
+            .sidebar-drawer .nav-list a.active {
+                background-color: rgba(16, 185, 129, 0.25);
+                color: #6ee7b7;
+                border-left-color: #10b981;
+            }
+
+            .sidebar-drawer .nav-list a i {
+                font-size: 16px;
+                color: #6ee7b7;
+                width: 20px;
+                text-align: center;
+            }
+
+            .topnav .right-icons { display: flex; align-items: center; gap: 12px; }
+
+            .topnav .icon-btn {
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                color: var(--text-dark);
+                font-size: 18px;
+                cursor: pointer;
+            }
+
+            .topnav .avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: var(--teal-dark);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 16px;
+            }
+
+            .main-content { padding: 24px 16px 0; }
+
+            .page-title {
+                font-size: 22px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 6px;
+            }
+
+            .page-desc {
+                font-size: 14px;
+                color: var(--text-muted);
+                margin-bottom: 20px;
+            }
+
+            .form-card {
+                background: #fff;
+                border-radius: 14px;
+                padding: 20px;
+                margin-bottom: 24px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid #e5e7eb;
+            }
+
+            .form-card h3 {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .form-card h3 i { color: var(--teal); }
+
+            .form-group { margin-bottom: 16px; }
+            .form-group:last-of-type { margin-bottom: 20px; }
+
+            .form-group label {
+                display: block;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 6px;
+            }
+
+            .form-group input {
+                width: 100%;
+                padding: 12px 14px;
+                font-size: 15px;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                background: #fff;
+                color: var(--text-dark);
+            }
+
+            .form-group input:focus {
+                outline: none;
+                border-color: var(--teal);
+                box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
+            }
+
+            .form-group select {
+                width: 100%;
+                padding: 12px 14px;
+                font-size: 15px;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                background: #fff;
+                color: var(--text-dark);
+                cursor: pointer;
+            }
+            .form-group select:focus {
+                outline: none;
+                border-color: var(--teal);
+                box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
+            }
+
+            .btn-submit {
+                width: 100%;
+                padding: 14px;
+                font-size: 15px;
+                font-weight: 600;
+                color: #fff;
+                background: var(--teal);
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .btn-submit:hover { background: var(--teal-dark); }
+
+            .logs-section h3 {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .logs-section h3 i { color: var(--teal); }
+
+            .log-list { display: flex; flex-direction: column; gap: 10px; }
+
+            .log-entry {
+                background: #fff;
+                border-radius: 12px;
+                padding: 14px 16px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid #e5e7eb;
+            }
+
+            .log-entry .log-meta {
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 8px;
+            }
+
+            .log-entry .log-fields {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px 20px;
+            }
+
+            .log-entry .log-fields span { font-size: 14px; color: var(--text-dark); }
+            .log-entry .log-fields strong { color: var(--teal-dark); margin-right: 4px; }
+
+            .log-empty {
+                text-align: center;
+                padding: 24px 16px;
+                background: #fff;
+                border-radius: 12px;
+                color: var(--text-muted);
+                font-size: 14px;
+                border: 1px solid #e5e7eb;
+            }
+
+            /* Statistics section */
+            .stats-section {
+                margin-bottom: 24px;
+            }
+            .stats-section h3 {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .stats-section h3 i { color: var(--teal); }
+
+            .stats-cards {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+            .stat-card {
+                background: #fff;
+                border-radius: 12px;
+                padding: 16px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid #e5e7eb;
+                text-align: center;
+            }
+            .stat-card .stat-value {
+                font-size: 24px;
+                font-weight: 700;
+                color: var(--teal-dark);
+                margin-bottom: 4px;
+            }
+            .stat-card .stat-label {
+                font-size: 12px;
+                color: var(--text-muted);
+                font-weight: 500;
+            }
+
+            .weight-week-card {
+                background: #fff;
+                border-radius: 12px;
+                padding: 16px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid #e5e7eb;
+            }
+            .weight-week-card h4 {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-dark);
+                margin-bottom: 14px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .weight-week-card h4 i { color: var(--teal); }
+
+            .weight-by-day {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .weight-day-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 13px;
+            }
+            .weight-day-row .day-label {
+                width: 80px;
+                flex-shrink: 0;
+                color: var(--text-muted);
+            }
+            .weight-day-row .day-bar-wrap {
+                flex: 1;
+                height: 24px;
+                background: #e5e7eb;
+                border-radius: 6px;
+                overflow: hidden;
+                min-width: 0;
+            }
+            .weight-day-row .day-bar {
+                height: 100%;
+                background: linear-gradient(90deg, var(--teal) 0%, var(--teal-dark) 100%);
+                border-radius: 6px;
+                min-width: 4px;
+                transition: width 0.3s ease;
+            }
+            .weight-day-row .day-value {
+                width: 52px;
+                text-align: right;
+                font-weight: 600;
+                color: var(--text-dark);
+                flex-shrink: 0;
+            }
+            .weight-week-empty {
+                text-align: center;
+                padding: 20px;
+                color: var(--text-muted);
+                font-size: 14px;
+            }
+
+            .log-subsection {
+                margin-top: 32px;
+                padding-top: 24px;
+                border-top: 1px solid #e5e7eb;
+            }
+            .log-subsection .subsection-title {
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--text-dark);
+                margin-bottom: 6px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .log-subsection .subsection-title i { color: var(--green-main); }
+            .log-subsection .subsection-desc {
+                font-size: 14px;
+                color: var(--text-muted);
+                margin-bottom: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+        <aside class="sidebar-drawer" id="sidebar-drawer" aria-label="Navigation menu">
+            <div class="sidebar-header">
+                <div class="logo-row">
+                    <div class="logo-droplets">
+                        <svg width="28" height="24" viewBox="0 0 28 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2c-2 4-6 8-6 12a6 6 0 1012 0c0-4-4-8-6-12z" fill="#6ee7b7"/>
+                            <path d="M22 6c-1.5 2.5-4 5-4 8a4 4 0 108 0c0-3-2.5-5.5-4-8z" fill="#6ee7b7" opacity="0.9"/>
+                        </svg>
+                    </div>
+                    <span class="logo-text">Bantay Ulang</span>
+                </div>
+            </div>
+            <ul class="nav-list">
+                <li><a href="landing-page.html"><i class="fa-solid fa-house"></i> Home</a></li>
+                <li><a href="tasks.html"><i class="fa-solid fa-clipboard-list"></i> Tasks</a></li>
+                <li><a href="yield.html"><i class="fa-solid fa-chart-line"></i> Yield</a></li>
+                <li><a href="#"><i class="fa-solid fa-gauge-high"></i> Real-Time Monitoring</a></li>
+                <li><a href="logs.html" class="active"><i class="fa-solid fa-list"></i> Logs</a></li>
+            </ul>
+        </aside>
+
+        <nav class="topnav">
+            <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar-drawer">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <span class="brand">Bantay Ulang</span>
+            <div class="right-icons">
+                <button type="button" class="icon-btn" aria-label="Notifications"><i class="fa-solid fa-bell"></i></button>
+                <div class="avatar">V</div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <h1 class="page-title">Ulang Physical Information</h1>
+            <p class="page-desc">I-log ang laki, bigat, at petsa/oras ng ulang.</p>
+
+            <div class="form-card">
+                <h3><i class="fa-solid fa-pen-to-square"></i> Magdagdag ng Log</h3>
+                <form id="log-form">
+                    <div class="form-group">
+                        <label for="size">Laki (Size)</label>
+                        <input type="text" id="size" name="size" placeholder="" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Bigat (Weight)</label>
+                        <input type="text" id="weight" name="weight" placeholder="" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule">Petsa at Oras ng Input (Schedule)</label>
+                        <input type="datetime-local" id="schedule" name="schedule" required>
+                    </div>
+                    <button type="submit" class="btn-submit">I-save ang Log</button>
+                </form>
+            </div>
+
+            <section class="stats-section">
+                <h3><i class="fa-solid fa-chart-simple"></i> Statistics</h3>
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-logs">0</div>
+                        <div class="stat-label">Logs Stored</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-week-logs">0</div>
+                        <div class="stat-label">Logs for this week</div>
+                    </div>
+                </div>
+                <div class="weight-week-card">
+                    <h4><i class="fa-solid fa-weight-hanging"></i> Weight for the week</h4>
+                    <div class="weight-by-day" id="weight-by-day">
+                        <div class="weight-week-empty" id="weight-week-empty">No weight logged in the past 7 days.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="logs-section">
+                <h3><i class="fa-solid fa-list"></i> Mga Na-log na Entries (Previous Logs)</h3>
+                <div class="log-list" id="log-list">
+                    <div class="log-empty" id="log-empty">Walang log pa. Magdagdag sa form sa itaas.</div>
+                </div>
+            </section>
+
+            <div class="log-subsection">
+                <h2 class="subsection-title"><i class="fa-solid fa-leaf"></i> Plant Physical Information</h2>
+                <p class="subsection-desc">Log height, condition, and growth stage of plants.</p>
+
+                <div class="form-card">
+                    <h3><i class="fa-solid fa-pen-to-square"></i> Add plant log</h3>
+                    <form id="plant-log-form">
+                        <div class="form-group">
+                            <label for="plant_name">Plant type / name</label>
+                            <input type="text" id="plant_name" name="plant_name" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label for="plant_height">Height</label>
+                            <input type="text" id="plant_height" name="plant_height" placeholder="" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="plant_condition">Condition</label>
+                            <input type="text" id="plant_condition" name="plant_condition" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label for="plant_stage">Growth stage</label>
+                            <select id="plant_stage" name="plant_stage">
+                                <option value="">Select stage</option>
+                                <option value="Seedling">Seedling</option>
+                                <option value="Vegetative">Vegetative</option>
+                                <option value="Pre-Flowering / Reproductive">Pre-Flowering / Reproductive</option>
+                                <option value="Harvest">Harvest</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="plant_schedule">Date & time</label>
+                            <input type="datetime-local" id="plant_schedule" name="plant_schedule" required>
+                        </div>
+                        <button type="submit" class="btn-submit">Save plant log</button>
+                    </form>
+                </div>
+
+                <section class="logs-section">
+                    <h3><i class="fa-solid fa-list"></i> Plant log entries</h3>
+                    <div class="log-list" id="plant-log-list">
+                        <div class="log-empty" id="plant-log-empty">No plant logs yet. Add one above.</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <script>
+            (function() {
+                var STORAGE_KEY = 'bantay_ulang_logs';
+
+                function getLogs() {
+                    try {
+                        var raw = localStorage.getItem(STORAGE_KEY);
+                        return raw ? JSON.parse(raw) : [];
+                    } catch (e) { return []; }
+                }
+
+                function saveLogs(logs) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+                }
+
+                function formatSchedule(iso) {
+                    if (!iso) return '';
+                    var d = new Date(iso);
+                    return d.toLocaleString('en-US', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short'
+                    });
+                }
+
+                function parseWeight(str) {
+                    if (!str || typeof str !== 'string') return 0;
+                    var num = parseFloat(str.replace(/[^\d.]/g, '').trim());
+                    return isNaN(num) ? 0 : num;
+                }
+
+                function getDayKey(iso) {
+                    var d = new Date(iso);
+                    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                }
+
+                function getWeightByDayForWeek(logs) {
+                    var now = new Date();
+                    var dayKeys = [];
+                    var dayLabels = [];
+                    for (var i = 6; i >= 0; i--) {
+                        var d = new Date(now);
+                        d.setDate(d.getDate() - i);
+                        var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        dayKeys.push(key);
+                        dayLabels.push(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+                    }
+                    var byDay = {};
+                    dayKeys.forEach(function(k, idx) {
+                        byDay[k] = { total: 0, label: dayLabels[idx] };
+                    });
+                    var oneWeekAgo = new Date(now);
+                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                    logs.forEach(function(log) {
+                        var logDate = new Date(log.schedule);
+                        if (logDate < oneWeekAgo) return;
+                        var key = getDayKey(log.schedule);
+                        if (byDay[key] !== undefined) {
+                            byDay[key].total += parseWeight(log.weight);
+                        }
+                    });
+                    return dayKeys.map(function(k) {
+                        return { key: k, label: byDay[k].label, total: byDay[k].total };
+                    });
+                }
+
+                function renderStats() {
+                    var logs = getLogs();
+                    var total = logs.length;
+                    var now = new Date();
+                    var weekStart = new Date(now);
+                    weekStart.setDate(weekStart.getDate() - 7);
+                    var weekLogs = logs.filter(function(log) {
+                        return new Date(log.schedule) >= weekStart;
+                    });
+
+                    document.getElementById('stat-total-logs').textContent = total;
+                    document.getElementById('stat-week-logs').textContent = weekLogs.length;
+
+                    var weightByDay = getWeightByDayForWeek(logs);
+                    var maxWeight = Math.max.apply(null, weightByDay.map(function(d) { return d.total; }), 1);
+                    var container = document.getElementById('weight-by-day');
+
+                    if (maxWeight === 0) {
+                        container.innerHTML = '<div class="weight-week-empty" id="weight-week-empty">Walang bigat na na-log sa nakaraang 7 araw.</div>';
+                        return;
+                    }
+                    container.innerHTML = weightByDay.map(function(d) {
+                        var pct = maxWeight > 0 ? (d.total / maxWeight) * 100 : 0;
+                        return '<div class="weight-day-row">' +
+                            '<span class="day-label">' + d.label + '</span>' +
+                            '<div class="day-bar-wrap"><div class="day-bar" style="width:' + pct + '%"></div></div>' +
+                            '<span class="day-value">' + (d.total > 0 ? d.total + ' g' : '—') + '</span></div>';
+                    }).join('');
+                }
+
+                function renderLogs() {
+                    var logs = getLogs();
+                    var list = document.getElementById('log-list');
+                    var empty = document.getElementById('log-empty');
+
+                    if (logs.length === 0) {
+                        list.innerHTML = '';
+                        list.appendChild(empty);
+                        empty.style.display = 'block';
+                        return;
+                    }
+
+                    empty.style.display = 'none';
+                    if (empty.parentNode) empty.parentNode.removeChild(empty);
+
+                    list.innerHTML = logs.map(function(log) {
+                        return '<div class="log-entry">' +
+                            '<div class="log-meta">Input noong ' + formatSchedule(log.schedule) + '</div>' +
+                            '<div class="log-fields">' +
+                            '<span><strong>Laki:</strong> ' + (log.size || '—') + '</span>' +
+                            '<span><strong>Bigat:</strong> ' + (log.weight || '—') + '</span>' +
+                            '</div></div>';
+                    }).join('');
+                }
+
+                document.getElementById('log-form').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var size = document.getElementById('size').value.trim();
+                    var weight = document.getElementById('weight').value.trim();
+                    var schedule = document.getElementById('schedule').value;
+
+                    if (!size || !weight || !schedule) return;
+
+                    var logs = getLogs();
+                    logs.unshift({
+                        size: size,
+                        weight: weight,
+                        schedule: schedule,
+                        id: Date.now()
+                    });
+                    saveLogs(logs);
+
+                    document.getElementById('size').value = '';
+                    document.getElementById('weight').value = '';
+                    var now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    document.getElementById('schedule').value = now.toISOString().slice(0, 16);
+
+                    renderLogs();
+                    renderStats();
+                });
+
+                var scheduleInput = document.getElementById('schedule');
+                var now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                scheduleInput.value = now.toISOString().slice(0, 16);
+
+                renderLogs();
+                renderStats();
+
+                var menuBtn = document.getElementById('menu-btn');
+                var overlay = document.getElementById('sidebar-overlay');
+                var drawer = document.getElementById('sidebar-drawer');
+
+                function openSidebar() {
+                    drawer.classList.add('open');
+                    overlay.classList.add('open');
+                    menuBtn.setAttribute('aria-expanded', 'true');
+                    document.body.style.overflow = 'hidden';
+                }
+
+                function closeSidebar() {
+                    drawer.classList.remove('open');
+                    overlay.classList.remove('open');
+                    menuBtn.setAttribute('aria-expanded', 'false');
+                    document.body.style.overflow = '';
+                }
+
+                menuBtn.addEventListener('click', function() {
+                    if (drawer.classList.contains('open')) closeSidebar();
+                    else openSidebar();
+                });
+                overlay.addEventListener('click', closeSidebar);
+            })();
+
+            // Plant logs
+            (function() {
+                var STORAGE_KEY = 'bantay_ulang_plant_logs';
+
+                function getPlantLogs() {
+                    try {
+                        var raw = localStorage.getItem(STORAGE_KEY);
+                        return raw ? JSON.parse(raw) : [];
+                    } catch (e) { return []; }
+                }
+
+                function savePlantLogs(logs) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+                }
+
+                function formatSchedule(iso) {
+                    if (!iso) return '';
+                    var d = new Date(iso);
+                    return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+                }
+
+                function renderPlantLogs() {
+                    var logs = getPlantLogs();
+                    var list = document.getElementById('plant-log-list');
+                    var empty = document.getElementById('plant-log-empty');
+
+                    if (logs.length === 0) {
+                        list.innerHTML = '';
+                        list.appendChild(empty);
+                        empty.style.display = 'block';
+                        return;
+                    }
+                    empty.style.display = 'none';
+                    if (empty.parentNode) empty.parentNode.removeChild(empty);
+                    list.innerHTML = logs.map(function(log) {
+                        return '<div class="log-entry">' +
+                            '<div class="log-meta">' + formatSchedule(log.schedule) + '</div>' +
+                            '<div class="log-fields">' +
+                            (log.plant_name ? '<span><strong>Plant:</strong> ' + log.plant_name + '</span>' : '') +
+                            '<span><strong>Height:</strong> ' + (log.height || '—') + '</span>' +
+                            (log.condition ? '<span><strong>Condition:</strong> ' + log.condition + '</span>' : '') +
+                            (log.stage ? '<span><strong>Stage:</strong> ' + log.stage + '</span>' : '') +
+                            '</div></div>';
+                    }).join('');
+                }
+
+                var plantForm = document.getElementById('plant-log-form');
+                if (plantForm) {
+                    plantForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        var name = document.getElementById('plant_name').value.trim();
+                        var height = document.getElementById('plant_height').value.trim();
+                        var condition = document.getElementById('plant_condition').value.trim();
+                        var stage = document.getElementById('plant_stage').value.trim();
+                        var schedule = document.getElementById('plant_schedule').value;
+                        if (!height || !schedule) return;
+
+                        var logs = getPlantLogs();
+                        logs.unshift({
+                            plant_name: name || undefined,
+                            height: height,
+                            condition: condition || undefined,
+                            stage: stage || undefined,
+                            schedule: schedule,
+                            id: Date.now()
+                        });
+                        savePlantLogs(logs);
+
+                        document.getElementById('plant_name').value = '';
+                        document.getElementById('plant_height').value = '';
+                        document.getElementById('plant_condition').value = '';
+                        document.getElementById('plant_stage').value = '';
+                        var now = new Date();
+                        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                        document.getElementById('plant_schedule').value = now.toISOString().slice(0, 16);
+
+                        renderPlantLogs();
+                    });
+                }
+
+                var plantScheduleInput = document.getElementById('plant_schedule');
+                if (plantScheduleInput) {
+                    var now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    plantScheduleInput.value = now.toISOString().slice(0, 16);
+                }
+                renderPlantLogs();
+            })();
+        </script>
+    </body>
+</html>

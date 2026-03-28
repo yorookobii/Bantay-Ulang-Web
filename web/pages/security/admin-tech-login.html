@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Admin & Technician Login - Bantay Ulang</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="./admin-tech-login.css">
+    </head>
+    <body>
+        <main class="page-shell">
+            <section class="brand-panel">
+                <div class="brand-content">
+                    <div class="brand-badge">
+                        <i class="fa-solid fa-water"></i>
+                        Bantay Ulang Access Portal
+                    </div>
+
+                    <div class="brand-logo-row">
+                        <img class="brand-logo" src="../../assets/img/logo-one-removebg-preview.png" alt="Bantay Ulang logo">
+                        <div>
+                            <p style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(165, 243, 252, 0.92);">Bulacan Monitoring System</p>
+                            <h1 class="brand-title">Secure admin and technician entry</h1>
+                        </div>
+                    </div>
+
+                    <p class="brand-copy">
+                        Monitor operations, coordinate response work, and keep authorized team members moving through one verified login flow. Access is granted from Firebase Authentication plus your Firestore user profile.
+                    </p>
+
+                    <div class="role-grid">
+                        <article class="role-card">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <h2>Admin access</h2>
+                            <p>Directs authorized admins to the operations dashboard for oversight, analytics, and system controls.</p>
+                        </article>
+                        <article class="role-card">
+                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                            <h2>Technician access</h2>
+                            <p>Routes technicians to their field dashboard and task workspace after role validation.</p>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="brand-footer">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <p>Make sure each Firestore user record includes a valid role such as <strong>admin</strong> or <strong>technician</strong> before using this login page.</p>
+                </div>
+            </section>
+
+            <section class="login-panel">
+                <div class="panel-head">
+                    <span class="eyebrow">
+                        <i class="fa-solid fa-lock"></i>
+                        Authorized Login
+                    </span>
+                    <h1>Sign in to continue</h1>
+                </div>
+
+                <form class="auth-form" id="login-form">
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <div class="field-wrap">
+                            <i class="fa-solid fa-envelope field-icon"></i>
+                            <input class="field-input" type="email" id="email" name="email" placeholder="name@bantayulang.com" autocomplete="username" required>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <div class="field-wrap">
+                            <i class="fa-solid fa-key field-icon"></i>
+                            <input class="field-input password-input" type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+                            <button class="password-toggle" type="button" id="toggle-password" aria-label="Show password">
+                                <i class="fa-regular fa-eye" id="toggle-password-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-meta">
+                        <label class="remember-me" for="remember-session">
+                            <input type="checkbox" id="remember-session" name="remember-session" checked>
+                            Keep me signed in on this device
+                        </label>
+                        <div class="role-hint">
+                            <i class="fa-solid fa-user-check"></i>
+                            Admins and technicians only
+                        </div>
+                    </div>
+
+                    <button class="submit-btn" id="submit-btn" type="submit">Login to Bantay Ulang</button>
+                    <div class="message is-info" id="form-message" role="alert" aria-live="polite">Waiting for your credentials.</div>
+                </form>
+
+                
+            </section>
+        </main>
+
+        <script type="module" src="./admin-tech-login.js"></script>
+    </body>
+</html>

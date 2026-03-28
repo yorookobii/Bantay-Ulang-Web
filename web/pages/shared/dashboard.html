@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>Admin Overview - Bantay Ulang Bulacan</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link rel="stylesheet" href="css/dashboard.css">
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <!-- Sidebar Menu -->
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" class="active" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>A</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+
+            <!-- Topbar --> 
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+
+                <!-- Right Side Items -->
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>A</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Admin</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item" id="logoutMenuItem">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="content">
+                <header class="page-header">
+                    <div class="page-title-block">
+                        <h1>Admin Overview</h1>
+                        <p>System management & oversight for Bantay Ulang Bulacan</p>
+                    </div>
+                    <button type="button" class="btn-report" id="generateReportBtn" aria-label="Generate report">
+                        <i class="fa-solid fa-file-lines"></i> Generate Report
+                    </button>
+                </header>
+
+                <!-- Metrics Row -->
+                <div class="metrics-row">
+                    <div class="metric-card">
+                        <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
+                        <div class="card-header">
+                            <div class="card-icon status"><i class="fa-solid fa-check"></i></div>
+                            <span class="card-title">System Hardware Status</span>
+                        </div>
+                        <div class="card-value">Normal</div>
+                        <div class="card-trend positive">
+                            <i class="fa-solid fa-arrow-up"></i> +100% stable
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
+                        <div class="card-header">
+                            <div class="card-icon population"><i class="fa-solid fa-water"></i></div>
+                            <span class="card-title">Total Yield Expected</span>
+                        </div>
+                        <div class="card-value">55kg</div>
+                        <div class="card-trend negative">
+                            <i class="fa-solid fa-arrow-down"></i> -2% mortality
+                        </div>  
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
+                        <div class="card-header">
+                            <div class="card-icon alerts"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <span class="card-title">Active Alerts</span>
+                        </div>
+                        <div class="card-value" id="active-alerts-value">0</div>
+                        <div class="card-trend action">
+                            <i class="fa-solid fa-arrow-up"></i> Action required
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Environmental Trends</div>
+                                <div class="chart-subtitle">24-hour cycle of key metrics</div>
+                            </div>
+                            <div class="chart-header-controls">
+                                <select class="chart-dropdown" id="envTrendsParamDropdown" aria-label="Select water parameter">
+                                    <option value="ph">pH</option>
+                                    <option value="do">Dissolved Oxygen (mg/L)</option>
+                                    <option value="temp">Temperature (°C)</option>
+                                    <option value="salinity">Salinity (ppt)</option>
+                                    <option value="turbidity">Turbidity (NTU)</option>
+                                    <option value="nitrate">Nitrate (ppm)</option>
+                                </select>
+                                <select class="chart-dropdown" aria-label="Time range">
+                                    <option>Last 24 Hours</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="envTrendsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Mortality Rate <span class="mortality-badge">3.4% Weekly Average</span></div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="mortalityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: System Logs -->
+                <div class="cards-row">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Recent System Logs</h2>
+                            <a href="#" class="panel-link">View All Logs</a>
+                        </div>
+                        <ul class="log-list" id="recent-logs-list">
+                            <li class="log-item">
+                                <span class="log-dot" aria-hidden="true"></span>
+                                <span class="log-title">Sensor Calibration</span>
+                                <div class="log-meta">
+                                    <div class="log-time">10:45 AM</div>
+                                    <div class="log-actor">Technician A</div>
+                                </div>
+                                <span class="log-desc">Sample Log</span>
+                            </li>
+                            <li class="log-item">
+                                <span class="log-dot alert" aria-hidden="true"></span>
+                                <span class="log-title">Alert Triggered</span>
+                                <div class="log-meta">
+                                    <div class="log-time">09:12 AM</div>
+                                    <div class="log-actor">System</div>
+                                </div>
+                                <span class="log-desc">Sample Log</span>
+                            </li>
+                            <li class="log-item">
+                                <span class="log-dot" aria-hidden="true"></span>
+                                <span class="log-title">Feeding Log</span>
+                                <div class="log-meta">
+                                    <div class="log-time">08:00 AM</div>
+                                    <div class="log-actor">Technician B</div>
+                                </div>
+                                <span class="log-desc">Sample Log</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Report modal: table report -->
+        <div class="report-modal-overlay" id="reportModalOverlay" aria-hidden="true">
+            <div class="report-modal report-modal--wide" id="reportModal" role="dialog" aria-labelledby="reportModalTitle" aria-modal="true">
+                <div class="report-modal-header">
+                    <h2 id="reportModalTitle">Admin Overview Report</h2>
+                    <button type="button" class="report-modal-close" id="reportModalClose" aria-label="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="report-modal-body">
+                    <div class="report-meta" id="reportMeta"></div>
+                    <div id="reportTableContainer"></div>
+                    <div class="report-modal-actions">
+                        <button type="button" class="btn-cancel" id="reportModalCancel">Close</button>
+                        <button type="button" class="btn-print-pdf" id="reportPrintPdf">
+                            <i class="fa-solid fa-file-pdf"></i> Print / Save as PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="help-fab" aria-label="Help"><i class="fa-solid fa-question"></i></button>
+
+        <script type="module" src="js/dashboard.js"></script>
+    </body>
+</html>

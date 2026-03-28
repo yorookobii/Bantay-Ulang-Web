@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="css/dashboard-technician.css">
+        <link rel="stylesheet" href="css/task-technician.css">
+        <title>My Tasks - Bantay Ulang Bulacan</title>
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard-technician.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="task-technician.html" class="active" title="My Tasks"><i class="fa-solid fa-clipboard-list"></i><span>My Tasks</span></a></li>
+                    <li><a href="#" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>T</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Technician</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" placeholder="Search">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>T</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-role">Technician</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content">
+                <header class="tasks-page-header">
+                    <h1>My Tasks</h1>
+                    <p>Manage and track your assigned maintenance tasks</p>
+                </header>
+
+                <div class="task-filters" role="tablist">
+                    <button type="button" class="task-filter-btn active" data-filter="all" aria-pressed="true">
+                        All Tasks <span class="task-filter-count" data-for="all">(0)</span>
+                    </button>
+                    <button type="button" class="task-filter-btn" data-filter="pending" aria-pressed="false">
+                        <i class="fa-regular fa-clock"></i> Pending <span class="task-filter-count" data-for="pending">(0)</span>
+                    </button>
+                    <button type="button" class="task-filter-btn" data-filter="in-progress" aria-pressed="false">
+                        <i class="fa-solid fa-play"></i> In Progress <span class="task-filter-count" data-for="in-progress">(0)</span>
+                    </button>
+                    <button type="button" class="task-filter-btn" data-filter="completed" aria-pressed="false">
+                        <i class="fa-solid fa-check"></i> Completed <span class="task-filter-count" data-for="completed">(0)</span>
+                    </button>
+                </div>
+
+                <div class="task-list" id="taskList">
+                    <article class="task-card critical" data-status="pending">
+                        <div class="task-card-top">
+                            <span class="task-priority-badge critical">CRITICAL</span>
+                            <span class="task-status-dot pending"></span>
+                            <span class="task-status-label">PENDING</span>
+                        </div>
+                        <h2 class="task-card-title">Task Title</h2>
+                        <div class="task-card-meta">
+                            <span class="task-meta-item">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span class="task-meta-label">Location</span>
+                                <span class="task-meta-value">All Tanks</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-solid fa-tag"></i>
+                                <span class="task-meta-label">Category</span>
+                                <span class="task-meta-value">Sensor Repair</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-regular fa-calendar"></i>
+                                <span class="task-meta-label">Assigned</span>
+                                <span class="task-meta-value">Mar 1, 2026</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-regular fa-clock"></i>
+                                <span class="task-meta-label">Due Date</span>
+                                <span class="task-meta-value due">Mar 2, 2026</span>
+                            </span>
+                        </div>
+                        <div class="task-card-actions">
+                            <button type="button" class="btn-start-working"><i class="fa-solid fa-play"></i> Start Working</button>
+                            <button type="button" class="btn-mark-complete"><i class="fa-solid fa-check"></i> Mark as complete</button>
+                            <button type="button" class="btn-task-completed" disabled><i class="fa-solid fa-circle-check"></i> Task Completed</button>
+                            <button type="button" class="btn-show-details"><i class="fa-solid fa-chevron-down"></i> Show Details</button>
+                        </div>
+                        <div class="task-card-details">
+                            <div class="task-details-grid">
+                                <div class="task-detail-block">
+                                    <h3 class="task-detail-heading"><i class="fa-solid fa-wrench"></i> Maintenance History</h3>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-regular fa-calendar"></i>
+                                        <span class="task-detail-label">Last Maintenance</span>
+                                        <span class="task-detail-value">Feb 10, 2026</span>
+                                    </div>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-solid fa-arrows-rotate task-detail-icon-green"></i>
+                                        <span class="task-detail-label">Last Checked</span>
+                                        <span class="task-detail-value">2 days ago</span>
+                                    </div>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-regular fa-clock task-detail-icon-orange"></i>
+                                        <span class="task-detail-label">Task Created</span>
+                                        <span class="task-detail-value">Mar 1, 2026 - 8:30 AM</span>
+                                    </div>
+                                </div>
+                                <div class="task-detail-block">
+                                    <h3 class="task-detail-heading"><i class="fa-solid fa-circle-exclamation"></i> Additional Notes</h3>
+                                    <div class="task-notes-box">Sample Notes here...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="task-card high" data-status="in-progress">
+                        <div class="task-card-top">
+                            <span class="task-priority-badge high">HIGH</span>
+                            <span class="task-status-dot in-progress"></span>
+                            <span class="task-status-label">IN PROGRESS</span>
+                        </div>
+                        <h2 class="task-card-title">Task Title</h2>
+                        <div class="task-card-meta">
+                            <span class="task-meta-item">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span class="task-meta-label">Location</span>
+                                <span class="task-meta-value">All Tanks</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-solid fa-tag"></i>
+                                <span class="task-meta-label">Category</span>
+                                <span class="task-meta-value">Calibration</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-regular fa-calendar"></i>
+                                <span class="task-meta-label">Assigned</span>
+                                <span class="task-meta-value">Feb 28, 2026</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-regular fa-clock"></i>
+                                <span class="task-meta-label">Due Date</span>
+                                <span class="task-meta-value">Mar 5, 2026</span>
+                            </span>
+                        </div>
+                        <div class="task-card-actions">
+                            <button type="button" class="btn-start-working" disabled><i class="fa-solid fa-play"></i> Start Working</button>
+                            <button type="button" class="btn-mark-complete"><i class="fa-solid fa-check"></i> Mark as complete</button>
+                            <button type="button" class="btn-task-completed" disabled><i class="fa-solid fa-circle-check"></i> Task Completed</button>
+                            <button type="button" class="btn-show-details"><i class="fa-solid fa-chevron-down"></i> Show Details</button>
+                        </div>
+                        <div class="task-card-details">
+                            <div class="task-details-grid">
+                                <div class="task-detail-block">
+                                    <h3 class="task-detail-heading"><i class="fa-solid fa-wrench"></i> Maintenance History</h3>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-regular fa-calendar"></i>
+                                        <span class="task-detail-label">Last Maintenance</span>
+                                        <span class="task-detail-value">Feb 5, 2026</span>
+                                    </div>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-solid fa-arrows-rotate task-detail-icon-green"></i>
+                                        <span class="task-detail-label">Last Checked</span>
+                                        <span class="task-detail-value">Today</span>
+                                    </div>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-regular fa-clock task-detail-icon-orange"></i>
+                                        <span class="task-detail-label">Task Created</span>
+                                        <span class="task-detail-value">Feb 28, 2026 - 9:00 AM</span>
+                                    </div>
+                                </div>
+                                <div class="task-detail-block">
+                                    <h3 class="task-detail-heading"><i class="fa-solid fa-circle-exclamation"></i> Additional Notes</h3>
+                                        <div class="task-notes-box">Sample Notes here...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="task-card high" data-status="completed">
+                        <div class="task-card-top">
+                            <span class="task-priority-badge high">HIGH</span>
+                            <span class="task-status-dot completed"></span>
+                            <span class="task-status-label">COMPLETED</span>
+                        </div>
+                        <h2 class="task-card-title">Task Title</h2>
+                        <div class="task-card-meta">
+                            <span class="task-meta-item">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span class="task-meta-label">Location</span>
+                                <span class="task-meta-value">All Tanks</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-solid fa-tag"></i>
+                                <span class="task-meta-label">Category</span>
+                                <span class="task-meta-value">Maintenance</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-regular fa-calendar"></i>
+                                <span class="task-meta-label">Assigned</span>
+                                <span class="task-meta-value">Feb 25, 2026</span>
+                            </span>
+                            <span class="task-meta-item">
+                                <i class="fa-regular fa-clock"></i>
+                                <span class="task-meta-label">Due Date</span>
+                                <span class="task-meta-value">Feb 28, 2026</span>
+                            </span>
+                        </div>
+                        <div class="task-card-actions">
+                            <button type="button" class="btn-start-working" disabled><i class="fa-solid fa-play"></i> Start Working</button>
+                            <button type="button" class="btn-mark-complete"><i class="fa-solid fa-check"></i> Mark as complete</button>
+                            <button type="button" class="btn-task-completed" disabled><i class="fa-solid fa-circle-check"></i> Task Completed</button>
+                            <button type="button" class="btn-show-details"><i class="fa-solid fa-chevron-down"></i> Show Details</button>
+                        </div>
+                        <div class="task-card-details">
+                            <div class="task-details-grid">
+                                <div class="task-detail-block">
+                                    <h3 class="task-detail-heading"><i class="fa-solid fa-wrench"></i> Maintenance History</h3>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-regular fa-calendar"></i>
+                                        <span class="task-detail-label">Last Maintenance</span>
+                                        <span class="task-detail-value">Feb 20, 2026</span>
+                                    </div>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-solid fa-arrows-rotate task-detail-icon-green"></i>
+                                        <span class="task-detail-label">Last Checked</span>
+                                        <span class="task-detail-value">Feb 28, 2026</span>
+                                    </div>
+                                    <div class="task-detail-row-box">
+                                        <i class="fa-regular fa-clock task-detail-icon-orange"></i>
+                                        <span class="task-detail-label">Task Created</span>
+                                        <span class="task-detail-value">Feb 25, 2026 - 8:00 AM</span>
+                                    </div>
+                                </div>
+                                <div class="task-detail-block">
+                                    <h3 class="task-detail-heading"><i class="fa-solid fa-circle-exclamation"></i> Additional Notes</h3>
+                                    <div class="task-notes-box">Sample Notes here...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </main>
+        </div>
+
+        <script src="js/dashboard-technician.js"></script>
+        <script src="js/task-technician.js"></script>
+        <script type="module" src="../../assets/js/firebase-init.js"></script>
+    </body>
+</html>

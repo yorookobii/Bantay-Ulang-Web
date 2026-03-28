@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Admin Sidebar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #15212e;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding-top: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 16px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 12px;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .logo-droplets {
+            display: flex;
+            align-items: center;
+            line-height: 1;
+        }
+
+        .logo-droplets svg {
+            display: block;
+        }
+
+        .logo-text {
+            color: #ecf0f1;
+            font-size: 18px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .preview-badge {
+            background: #e5e7eb;
+            color: #374151;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 12px;
+        }
+
+        .sidebar-toggle:hover {
+            color: #ecf0f1;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin: 0;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: #34495e;
+            color: #ecf0f1;
+            border-left-color: #3498db;
+        }
+
+        .sidebar-menu a.active {
+            background-color: rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+            border-left-color: #10b981;
+        }
+
+        .sidebar-menu a i {
+            margin-right: 12px;
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-menu a.has-badge {
+            position: relative;
+        }
+
+        .menu-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .sidebar-menu span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 20px;
+            border-top: 1px solid #34495e;
+            background-color: #15212e;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: #374151;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d1d5db;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-info {
+            flex-grow: 1;
+        }
+
+        .user-name {
+            color: #ecf0f1;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .user-role {
+            color: #95a5a6;
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        .content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-row">
+                <div class="logo-droplets">
+                    <svg width="28" height="24" viewBox="0 0 28 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 2c-2 4-6 8-6 12a6 6 0 1012 0c0-4-4-8-6-12z" fill="#6ee7b7"/>
+                        <path d="M22 6c-1.5 2.5-4 5-4 8a4 4 0 108 0c0-3-2.5-5.5-4-8z" fill="#6ee7b7" opacity="0.9"/>
+                    </svg>
+                </div>
+                <span class="logo-text">Bantay</span>
+                <span class="preview-badge">Preview</span>
+                <button class="sidebar-toggle" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+            </div>
+        </div>
+        <ul class="sidebar-menu">
+            <li>
+                <a href="dashboard.html" class="active" title="Dashboard">
+                    <i class="fa-solid fa-grid-2"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="real-time-monitoring.html" title="Real-Time Data">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Real-Time Data</span>
+                </a>
+            </li>
+            <li>
+                <a href="automation.html" title="Automation">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Automation</span>
+                </a>
+            </li>
+            <li>
+                <a href="analytics.html" title="Analytics">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Analytics</span>
+                </a>
+            </li>
+            <li>
+                <a href="analytics-recommendation.html" title="Analytics Recommendation">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Analytics Recommendation</span>
+                </a>
+            </li>
+            <li>
+                <a href="alerts.html" title="Alerts" class="has-badge">
+                    <i class="fa-solid fa-bell"></i>
+                    <span>Alerts</span>
+                    <span class="menu-badge">3</span>
+                </a>
+            </li>
+            <li>
+                <a href="history.html" title="History">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </a>
+            </li>
+            <li>
+                <a href="../admin/users.html" title="Users">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Users</span>
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <span>A</span>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">User Name</div>
+                    <div class="user-role">Admin</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="content">
+        <!-- Page content goes here -->
+    </div>
+</body>
+</html>

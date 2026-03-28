@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Top Bar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #f9fafb;
+            padding: 15px 30px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            margin-left: 250px;
+            gap: 20px;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            padding: 8px 12px;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar:focus-within {
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        .search-bar input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .search-bar input::placeholder {
+            color: #999;
+        }
+
+        .search-bar .search-icon {
+            color: #999;
+            font-size: 14px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .topbar-center {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-normal {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-normal i {
+            color: #10b981;
+        }
+
+        .role-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .role-select {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #fff;
+            color: #374151;
+            cursor: pointer;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .notification-container {
+            position: relative;
+        }
+
+        .notification-icon {
+            font-size: 24px;
+            cursor: pointer;
+            color: #333;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .notification-icon:hover {
+            color: #3498db;
+            transform: scale(1.1);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #e74c3c;
+            border-radius: 50%;
+            width: 10px;
+            height: 10px;
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            min-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: none;
+            z-index: 1000;
+        }
+
+        .notification-dropdown.show {
+            display: block;
+        }
+
+        .notification-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notification-item i {
+            font-size: 14px;
+            color: #3498db;
+            flex-shrink: 0;
+            width: 16px;
+            text-align: center;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .admin-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 15px;
+            background-color: #f5f5f5;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .admin-profile:hover {
+            background-color: #ecf0f1;
+        }
+
+        .admin-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: #ddd;
+            border: 2px solid #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .admin-avatar img,
+        .admin-avatar span {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+            color: #374151;
+        }
+
+        .admin-info {
+            text-align: right;
+        }
+
+        .admin-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .admin-role {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .profile-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            min-width: 200px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: none;
+            z-index: 1000;
+        }
+
+        .profile-dropdown.show {
+            display: block;
+        }
+
+        .profile-menu-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .profile-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .profile-menu-item:hover {
+            background-color: #f9f9f9;
+            color: #3498db;
+        }
+    </style>
+
+</head>
+<body>
+    <div class="topbar">
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" placeholder="Search monitoring dat...">
+            </div>
+        </div>
+
+        <!-- Center: Status & Role -->
+        <div class="topbar-center">
+            <span class="status-badge status-normal">
+                <i class="fa-solid fa-check"></i> System Normal
+            </span>
+            <span class="role-label">SWITCH ROLE:</span>
+            <select class="role-select">
+                <option>Admin</option>
+            </select>
+        </div>
+
+        <!-- Right Side Items -->
+        <div class="topbar-right">
+            <!-- Notification -->
+            <div class="notification-container">
+                <div class="notification-icon" onclick="toggleNotification()">
+                    <i class="fa-regular fa-bell"></i>
+                    <span class="notification-badge"></span>
+                </div>
+                <div class="notification-dropdown" id="notificationDropdown">
+                    <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i>  New report submitted</div>
+                    <div class="notification-item"><i class="fa-solid fa-user"></i>  New user registration</div>
+                    <div class="notification-item"><i class="fa-solid fa-sync-alt"></i>  System update available</div>
+                </div>
+            </div>
+
+            <!-- Admin Profile -->
+            <div style="position: relative;">
+                <div class="admin-profile" onclick="toggleProfile()">
+                    <div class="admin-avatar">
+                        <span>A</span>
+                    </div>
+                    <div class="admin-info">
+                        <div class="admin-name">Juan Dela Cruz</div>
+                        <div class="admin-role">Admin</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                </div>
+                <div class="profile-dropdown" id="profileDropdown">
+                    <div class="profile-menu-item">👤 My Profile</div>
+                    <div class="profile-menu-item">⚙️ Settings</div>
+                    <div class="profile-menu-item">🔐 Change Password</div>
+                    <div class="profile-menu-item" onclick="logout()">🚪 Logout</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleNotification() {
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.classList.toggle('show');
+            
+            // Close profile dropdown when opening notification
+            const profileDropdown = document.getElementById('profileDropdown');
+            profileDropdown.classList.remove('show');
+        }
+
+        function toggleProfile() {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.classList.toggle('show');
+            
+            // Close notification dropdown when opening profile
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            notificationDropdown.classList.remove('show');
+        }
+
+        function logout() {
+            alert('Logging out...');
+            // Implement logout logic here
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            const notificationContainer = document.querySelector('.notification-container');
+            const adminProfile = document.querySelector('.admin-profile');
+            
+            if (!notificationContainer.contains(event.target)) {
+                document.getElementById('notificationDropdown').classList.remove('show');
+            }
+            
+            if (!adminProfile.contains(event.target) && !event.target.closest('.profile-dropdown')) {
+                document.getElementById('profileDropdown').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
