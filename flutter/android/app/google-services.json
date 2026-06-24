@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "827033380382",
+    "project_id": "bantay-ulang",
+    "storage_bucket": "bantay-ulang.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827033380382:android:f5ac08f92209c0e15e300f",
+        "android_client_info": {
+          "package_name": "com.example.demo_1_langto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "827033380382-0lb18ml796to7bd6im2o080mugga7ep8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBz9q6lml9muXd6zCtgdrL8-rLtDFWm14E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "827033380382-0lb18ml796to7bd6im2o080mugga7ep8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
