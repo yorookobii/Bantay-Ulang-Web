@@ -361,3 +361,28 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     .app.sidebar-collapsed .topbar { left: var(--sidebar-collapsed-width); }
     .app.sidebar-collapsed .content { margin-left: var(--sidebar-collapsed-width); }
 }
+
+/* ── Toast notification ──────────────────────────────────────────────────── */
+.aa-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Segoe UI', sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+}
+.aa-toast.show    { opacity: 1; transform: translateY(0); }
+.aa-toast-success { background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7; }
+.aa-toast-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+/* ── Spinner for submit button ───────────────────────────────────────────── */
+.btn-assign:disabled { opacity: 0.7; cursor: not-allowed; }
+

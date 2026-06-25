@@ -103,14 +103,7 @@
                                 <label for="assignPerson">Person</label>
                                 <select id="assignPerson" name="person" required>
                                     <option value="">Select person…</option>
-                                    <!-- Users -->
-                                    <option value="User 1" data-role="user">User 1</option>
-                                    <option value="User 2" data-role="user">User 2</option>
-                                    <option value="User 3" data-role="user">User 3</option>
-                                    <!-- Technicians -->
-                                    <option value="Technician 1" data-role="technician">Technician 1</option>
-                                    <option value="Technician 2" data-role="technician">Technician 2</option>
-                                    <option value="Technician 3" data-role="technician">Technician 3</option>
+                                    <!-- populated from Firestore users collection -->
                                 </select>
                             </div>
                             <div class="form-group">
@@ -158,29 +151,14 @@
                                 </tr>
                             </thead>
                             <tbody id="assignmentsBody">
-                                <tr>
-                                    <td>Technician 1</td>
-                                    <td>Technician</td>
-                                    <td>Hardware Maintenance</td>
-                                    <td>Feb 26, 2025</td>
-                                    <td><span class="status-badge status-pending">Pending</span></td>
-                                    <td><button type="button" class="btn-remove" title="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
-                                </tr>
-                                <tr>
-                                    <td>User 1</td>
-                                    <td>User</td>
-                                    <td>Ulang Data Capture</td>
-                                    <td>Feb 28, 2025</td>
-                                    <td><span class="status-badge status-in-progress">In progress</span></td>
-                                    <td><button type="button" class="btn-remove" title="Remove"><i class="fa-solid fa-trash-can"></i></button></td>
-                                </tr>
-                               <!--This is where to assign the actions to the users and technicians-->
+                                <!-- populated from Firestore tasks collection -->
+                            </tbody>
                         </table>    
                     </div>
                 </div>
             </main>
         </div>
-        <script src="js/assign-actions.js"></script>
+        <script type="module" src="js/assign-actions.js"></script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';
@@ -188,7 +166,7 @@
         </script>
         <script type="module">
             import { initDropdown } from './js/dropdownActions.js';
-            initDropdown();
+            initDropdown({ handleToggle: true });
         </script>
     </body>
 </html>

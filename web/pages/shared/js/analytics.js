@@ -202,3 +202,38 @@ document.addEventListener('DOMContentLoaded', function() {
     var runBtn = document.getElementById('runSimulationBtn') || document.querySelector('.btn-run-simulation');
     if (runBtn) runBtn.addEventListener('click', runNewSimulation);
 });
+
+// ── Efficiency circle: driven by yield-prediction-updated event ───────────
+// yieldPrediction.js dispatches this after it computes the WQ score from
+// the latest sensor reading, so we reuse its result without a second fetch.
+document.addEventListener('yield-prediction-updated', function (e) {
+    var wqScore = e.detail && e.detail.wqScore;
+    if (!wqScore) return;
+
+    var pct    = Math.round(wqScore * 100);
+    var deg    = ((pct / 100) * 360).toFixed(1);
+    var color  = pct >= 85 ? '#10b981' : pct >= 70 ? '#d97706' : '#ef4444';
+    var status = pct >= 85 ? 'OPTIMAL' : pct >= 70 ? 'GOOD' : pct >= 60 ? 'FAIR' : 'POOR';
+
+    var outer = document.getElementById('eff-circle-outer');
+    if (outer) {
+        outer.style.background =
+            'conic-gradient(' + color + ' 0deg ' + deg + 'deg, #e5e7eb ' + deg + 'deg 360deg)';
+    }
+
+    var effVal = document.getElementById('eff-value');
+    if (effVal) effVal.textContent = pct + '%';
+
+    var effStatus = document.getElementById('eff-status');
+    if (effStatus) effStatus.textContent = status;
+
+    var effDesc = document.getElementById('eff-desc');
+    if (effDesc) {
+        var note = pct >= 85
+            ? 'System is operating at <strong>peak efficiency</strong> for ulang cultivation.'
+            : pct >= 70
+            ? 'System is performing <strong>adequately</strong> — address sensor alerts to improve.'
+            : 'System needs <strong>immediate attention</strong> — multiple parameters out of range.';
+        effDesc.innerHTML = 'Water Quality Score: ' + wqScore.toFixed(2) + ' (' + pct + '%). ' + note;
+    }
+});

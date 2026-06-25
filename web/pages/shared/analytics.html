@@ -362,35 +362,10 @@
                     </div>
 
                     <div class="recommendation-layout">
-                        <div class="recommendation-cards">
-                            <div class="rec-card">
-                                <div class="rec-card-head">
-                                    <span class="rec-impact high">High IMPACT</span>
-                                    <span class="rec-category">OXYGEN MANAGEMENT</span>
-                                </div>
-                                <h3 class="rec-card-title">Optimize Night-time Aeration</h3>
-                                <p class="rec-card-desc">Based on recent DO drops between 2:00 AM and 4:00 AM, we recommend increasing aerator speed by 20% during these hours to prevent stress in Tank 02.</p>
-                                <!--<button type="button" class="btn-apply">Apply Now</button>-->
-                            </div>
-
-                            <div class="rec-card">
-                                <div class="rec-card-head">
-                                    <span class="rec-impact medium">Medium IMPACT</span>
-                                    <span class="rec-category">GROWTH OPTIMIZATION</span>
-                                </div>
-                                <h3 class="rec-card-title">Adjust Feeding Schedule</h3>
-                                <p class="rec-card-desc">The current water temperature (28.4°C) suggests peak metabolic activity. Shifting 15% of the daily feed to 10:00 AM will improve nutrient uptake.</p>
-                                <!--<span class="btn-processing">Processing...</span>-->
-                            </div>
-
-                            <div class="rec-card">
-                                <div class="rec-card-head">
-                                    <span class="rec-impact low">Low IMPACT</span>
-                                    <span class="rec-category">YIELD MANAGEMENT</span>
-                                </div>
-                                <h3 class="rec-card-title">Early Harvest Warning</h3>
-                                <p class="rec-card-desc">Section C is reaching capacity faster than predicted. Consider harvesting 10% of adult Ulang 3 days early to maintain optimal water quality.</p>
-                                <!--<button type="button" class="btn-apply">Apply Now</button>-->
+                        <div class="recommendation-cards" id="rec-cards-container">
+                            <div class="rec-loading" id="rec-loading">
+                                <div class="rec-spinner"></div>
+                                <p>Analyzing water quality data...</p>
                             </div>
                         </div>
 
@@ -399,13 +374,13 @@
                                 <i class="fa-solid fa-chart-line"></i>
                                 <span>Efficiency Score</span>
                             </div>
-                            <div class="efficiency-circle-outer">
+                            <div class="efficiency-circle-outer" id="eff-circle-outer">
                                 <div class="efficiency-circle-inner">
-                                    <span class="eff-value">82%</span>
-                                    <span class="eff-status">OPTIMAL</span>
+                                    <span class="eff-value" id="eff-value">--</span>
+                                    <span class="eff-status" id="eff-status">--</span>
                                 </div>
                             </div>
-                            <p class="eff-desc">System is performing <strong>12% better</strong> than the regional average for Bulacan-based Ulang farms.</p>
+                            <p class="eff-desc" id="eff-desc">Calculating efficiency from live sensor data...</p>
                         </div>
                     </div>
                 </section>
@@ -416,6 +391,10 @@
         <script type="module">
             import { initYieldPrediction } from "./js/yieldPrediction.js";
             initYieldPrediction();
+        </script>
+        <script type="module">
+            import { initAnalyticsRecommendations } from "./js/analyticsRecommendations.js";
+            initAnalyticsRecommendations();
         </script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';

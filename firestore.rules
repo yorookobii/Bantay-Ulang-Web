@@ -18,9 +18,9 @@ service cloud.firestore {
     // users
     // -------------------------------------------------------------------------
     match /users/{userId} {
-      // A user can read/write their own document; admins can read any user doc.
+      // A user can read/write their own document; admins can read/write any user doc.
       allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
     }
 
     // -------------------------------------------------------------------------

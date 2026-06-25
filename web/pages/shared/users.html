@@ -93,61 +93,17 @@
                 <p>Control system access and permissions for your team.</p>
             </div>
 
-            <section class="user_section">
-                <h3 class="user_section_title technicians"><i class="fa-solid fa-wrench"></i> Technicians</h3>
-                <div class="user_cards">
-                    <div class="user_container">
-                        <div id="user_profile">
-                            <img src="../../assets/img/no-profile.png" alt="Technician 1 profile">
-                        </div>
-                        <div class="user_information">
-                            <h4 id="user_name">Technician 1</h4>
-                            <p id="user_email">technician1@gmail.com</p>
-                        </div>
-                        <div class="user_status">
-                            <div id="user_role">Technician</div>
-                            <div id="user_status">Active</div>
-                        </div>
-                    </div>
-                    <div class="user_container">
-                        <div class="user_profile">
-                            <img src="../../assets/img/no-profile.png" alt="Technician 2 profile">
-                        </div>
-                        <div class="user_information">
-                            <h4 class="user_name">Technician 2</h4>
-                            <p class="user_email">technician2@gmail.com</p>
-                        </div>
-                        <div class="user_status">
-                            <div class="user_role_badge">Technician</div>
-                            <div class="user_status_badge">Active</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <div id="users-loading" class="um-loading">
+                <div class="um-spinner"></div>
+                <p>Loading users...</p>
+            </div>
 
-            <section class="user_section">
-                <h3 class="user_section_title users"><i class="fa-solid fa-user"></i> Users</h3>
-                <div class="user_cards">
-                    <div class="user_container">
-                        <div class="user_profile">
-                            <img src="../../assets/img/no-profile.png" alt="User 1 profile">
-                        </div>
-                        <div class="user_information">
-                            <h4 class="user_name">User 1</h4>
-                            <p class="user_email">user1@example.com</p>
-                        </div>
-                        <div class="user_status">
-                            <div class="user_role_badge">User</div>
-                            <div class="user_status_badge">Active</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <div id="users-container"></div>
 
         </main>
         </div>
 
-        <script src="js/users.js"></script>
+        <script type="module" src="js/users.js"></script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';
@@ -155,7 +111,7 @@
         </script>
         <script type="module">
             import { initDropdown } from './js/dropdownActions.js';
-            initDropdown();
+            initDropdown({ handleToggle: false });
         </script>
     </body>
 </html>
