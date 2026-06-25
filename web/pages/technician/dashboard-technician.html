@@ -158,6 +158,13 @@
         </div>
 
         <script type="module" src="js/dashboard-technician.js"></script>
-        <script type="module" src="js/feeding.js"></script>
+        <script type="module">
+            import { loadUserProfile } from '../shared/js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from '../shared/js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>

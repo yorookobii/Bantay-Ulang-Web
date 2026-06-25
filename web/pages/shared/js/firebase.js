@@ -1,5 +1,5 @@
 // Import Firebase core
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 // Import Firestore
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -22,8 +22,9 @@ const firebaseConfig = {
 };
 
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Reuse the app created by firebase-init.js if it already exists on this page,
+// otherwise initialize fresh (e.g. on pages that don't load firebase-init.js).
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // Initialize Firestore (THIS IS THE DATABASE)
 const db = getFirestore(app);

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'landing_page.dart';
 import 'yield.dart';
 import 'logs.dart';
 import 'profile.dart';
 
 class TasksPage extends StatefulWidget {
-  const TasksPage({Key? key}) : super(key: key);
+  const TasksPage({super.key});
 
   @override
   State<TasksPage> createState() => _TasksPageState();
@@ -27,9 +24,15 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
   late GlobalKey<ScaffoldState> _scaffoldKey;
   late AnimationController _fadeController;
 
-  List<Map<String, dynamic>> _tasks = [];
-  StreamSubscription<QuerySnapshot>? _tasksSub;
-  bool _isLoading = true;
+  List<Map<String, dynamic>> tasks = [
+    {
+      "title": "Ulang Data Capture",
+      "due": "Mar 06, 2025",
+      "assignedBy": "Admin",
+      "notes": "Capture the data of the ulang in all tanks.",
+      "status": "in-progress",
+    },
+  ];
 
   @override
   void initState() {
@@ -40,139 +43,18 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..forward();
-
-    _initListener();
   }
 
   @override
   void dispose() {
-    _tasksSub?.cancel();
     _fadeController.dispose();
     super.dispose();
   }
 
-  void _initListener() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-    _tasksSub = FirebaseFirestore.instance
-        .collection('tasks')
-        .where('assignedTo', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .listen((snap) {
-      if (!mounted) return;
-      setState(() {
-        _tasks = snap.docs.map((doc) {
-          return {'id': doc.id, ...doc.data() as Map<String, dynamic>};
-        }).toList();
-        _isLoading = false;
-      });
+  void markAsCompleted(int index) {
+    setState(() {
+      tasks[index]["status"] = "done";
     });
-  }
-
-  Future<void> _markAsCompleted(String docId) async {
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(docId)
-        .update({'status': 'done'});
-  }
-
-  Future<void> _createTask(String title, String description) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('tasks').add({
-      'title': title,
-      'description': description,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-      'assignedTo': uid,
-    });
-  }
-
-  void _showCreateTaskDialog() {
-    final titleCtrl = TextEditingController();
-    final descCtrl  = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Bagong Task',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: teal),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(
-                labelText: 'Title',
-                labelStyle: GoogleFonts.poppins(fontSize: 13),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: teal, width: 2),
-                ),
-              ),
-              style: GoogleFonts.poppins(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Description',
-                labelStyle: GoogleFonts.poppins(fontSize: 13),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: teal, width: 2),
-                ),
-              ),
-              style: GoogleFonts.poppins(fontSize: 14),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: const Color(0xFF6B7280))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: teal,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              if (titleCtrl.text.trim().isEmpty) return;
-              _createTask(titleCtrl.text.trim(), descCtrl.text.trim());
-              Navigator.pop(ctx);
-            },
-            child: Text('Save',
-                style: GoogleFonts.poppins(
-                    color: Colors.white, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(dynamic value) {
-    if (value == null) return '—';
-    if (value is Timestamp) {
-      final d = value.toDate();
-      const months = [
-        'Jan','Feb','Mar','Apr','May','Jun',
-        'Jul','Aug','Sep','Oct','Nov','Dec'
-      ];
-      return '${months[d.month - 1]} ${d.day}, ${d.year}';
-    }
-    return value.toString();
   }
 
   Color statusColor(String status) {
@@ -221,11 +103,6 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
       backgroundColor: Colors.white,
       drawer: _buildSidebar(context),
       appBar: _buildTopBar(context),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateTaskDialog,
-        backgroundColor: teal,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
       body: FadeTransition(
         opacity: Tween<double>(begin: 0, end: 1).animate(
           CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
@@ -264,27 +141,19 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 12),
-              _isLoading
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  : _tasks.isEmpty
-                      ? _buildEmptyState()
-                      : Column(
-                          children: List.generate(
-                            _tasks.length,
-                            (index) => Column(
-                              children: [
-                                _buildTaskCard(_tasks[index]),
-                                if (index < _tasks.length - 1)
-                                  const SizedBox(height: 12),
-                              ],
-                            ),
-                          ),
+              tasks.isEmpty
+                  ? _buildEmptyState()
+                  : Column(
+                      children: List.generate(
+                        tasks.length,
+                        (index) => Column(
+                          children: [
+                            _buildTaskCard(tasks[index], index),
+                            if (index < tasks.length - 1) const SizedBox(height: 12),
+                          ],
                         ),
+                      ),
+                    ),
             ],
           ),
         ),
@@ -523,7 +392,7 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildTaskCard(Map<String, dynamic> task) {
+  Widget _buildTaskCard(Map<String, dynamic> task, int index) {
     return GlassmorphicCard(
       child: InkWell(
         onTap: () {
@@ -585,8 +454,7 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          task["description"] as String? ??
-                              task["notes"] as String? ?? '',
+                          task["notes"],
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: const Color(0xFF6B7280),
@@ -606,7 +474,7 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
                   Icon(Icons.calendar_today, size: 14, color: teal, semanticLabel: 'Due date'),
                   const SizedBox(width: 4),
                   Text(
-                    "Created: ${_formatDate(task["createdAt"])}",
+                    "Due: ${task["due"]}",
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: const Color(0xFF6B7280),
@@ -617,7 +485,7 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
                   Icon(Icons.person, size: 14, color: teal, semanticLabel: 'Assigned by'),
                   const SizedBox(width: 4),
                   Text(
-                    "By: ${task["assignedBy"] ?? 'System'}",
+                    "By: ${task["assignedBy"]}",
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: const Color(0xFF6B7280),
@@ -671,7 +539,7 @@ class _TasksPageState extends State<TasksPage> with TickerProviderStateMixin {
                     Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () => _markAsCompleted(task['id'] as String),
+                        onTap: () => markAsCompleted(index),
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

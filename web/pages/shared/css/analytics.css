@@ -688,3 +688,378 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
         right: 0;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Yield Prediction & Income Forecast Section
+   ══════════════════════════════════════════════════════════════════ */
+
+.yield-section {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid #e5e7eb;
+    position: relative;
+}
+
+/* Loading state: blur content, show spinner overlay */
+.yield-section.yp-loading .yp-main-grid,
+.yield-section.yp-loading .yp-sensor-breakdown {
+    opacity: 0.25;
+    pointer-events: none;
+}
+.yield-section.yp-loading .yp-loading-overlay { display: flex; }
+.yp-loading-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #6b7280;
+    background: rgba(243, 244, 246, 0.7);
+    z-index: 2;
+    border-radius: 12px;
+    padding-top: 60px;
+}
+
+/* Section header */
+.yp-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.yp-section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+}
+.yp-section-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+}
+.yp-badge {
+    font-size: 12px;
+    color: #6b7280;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 5px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    align-self: flex-start;
+}
+
+/* Main 2-column grid */
+.yp-main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+/* Shared card base */
+.yp-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.yp-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 18px;
+}
+.yp-card-title i { color: #0d9488; font-size: 15px; }
+
+/* Cycle parameter 2×2 grid */
+.yp-input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 4px;
+}
+.yp-input-item {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.yp-input-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 5px;
+}
+.yp-input-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.yp-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 18px 0;
+}
+
+/* Calculation steps */
+.yp-calc-steps { display: flex; flex-direction: column; gap: 10px; }
+
+.yp-calc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.yp-calc-left { display: flex; flex-direction: column; }
+.yp-calc-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+.yp-calc-note {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 1px;
+}
+.yp-calc-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+}
+.yp-wq-label { color: #0d9488; }
+
+.yp-calc-result {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 4px;
+}
+.yp-calc-result .yp-calc-label { color: #065f46; }
+.yp-calc-result .yp-calc-value { font-size: 18px; color: #047857; }
+
+/* WQ progress bar */
+.yp-wq-bar-wrap {
+    height: 10px;
+    background: #e5e7eb;
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 4px 0 2px;
+}
+.yp-wq-bar {
+    height: 100%;
+    border-radius: 5px;
+    background: #059669;
+    transition: width 0.5s ease, background 0.4s ease;
+    width: 0%;
+}
+.yp-wq-bar-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.yp-wq-range-label {
+    font-size: 10px;
+    color: #9ca3af;
+}
+.yp-wq-score-display {
+    font-size: 16px;
+    font-weight: 700;
+    color: #059669;
+}
+
+/* Right column */
+.yp-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Big yield banner */
+.yp-yield-banner {
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    border-radius: 12px;
+    padding: 24px 22px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 0 0 auto;
+}
+.yp-yield-icon {
+    font-size: 22px;
+    opacity: 0.8;
+    margin-bottom: 6px;
+}
+.yp-yield-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-bottom: 6px;
+}
+.yp-yield-big {
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 6px;
+}
+.yp-yield-sub {
+    font-size: 13px;
+    opacity: 0.75;
+}
+
+/* Income section */
+.yp-income-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.yp-income-header i { color: #059669; }
+
+.yp-income-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.yp-income-card {
+    border-radius: 10px;
+    padding: 14px 14px 12px;
+    border: 1px solid;
+}
+.yp-income-min {
+    background: #fff7ed;
+    border-color: #fed7aa;
+}
+.yp-income-avg {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+.yp-income-max {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+.yp-income-tier {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.yp-income-min .yp-income-tier { color: #c2410c; }
+.yp-income-avg .yp-income-tier { color: #1d4ed8; }
+.yp-income-max .yp-income-tier { color: #047857; }
+.yp-income-min .yp-income-tier i { color: #ea580c; }
+.yp-income-avg .yp-income-tier i { color: #2563eb; }
+.yp-income-max .yp-income-tier i { color: #059669; }
+
+.yp-income-amount {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 3px;
+    word-break: break-all;
+}
+.yp-income-rate {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+/* Sensor score breakdown */
+.yp-sensor-breakdown {
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+}
+.yp-sb-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.yp-sb-title i { color: #2563eb; }
+
+.yp-sb-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+}
+.yp-sb-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 8px;
+}
+.yp-sb-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
+    line-height: 1.3;
+}
+.yp-sb-score {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+}
+.yp-sb-score.yp-good { color: #059669; }
+.yp-sb-score.yp-warn { color: #d97706; }
+.yp-sb-score.yp-bad  { color: #dc2626; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .yp-sb-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .yp-main-grid { grid-template-columns: 1fr; }
+    .yp-income-grid { grid-template-columns: repeat(3, 1fr); }
+    .yp-yield-big { font-size: 34px; }
+    .yp-sb-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 480px) {
+    .yp-input-grid { grid-template-columns: 1fr; }
+    .yp-income-grid { grid-template-columns: 1fr; }
+    .yp-sb-grid { grid-template-columns: repeat(2, 1fr); }
+    .yp-yield-big { font-size: 28px; }
+    .yp-income-amount { font-size: 16px; }
+}

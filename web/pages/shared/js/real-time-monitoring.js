@@ -149,9 +149,14 @@
                         });
                     }
 
+                    var tickInterval  = setInterval(tick, 3000);
+                    var clockInterval = setInterval(runClock, 1000);
+                    // Exposed so receiveSensorData() can permanently kill both intervals
+                    window.stopSensorSimulation = function() {
+                        clearInterval(tickInterval);
+                        clearInterval(clockInterval);
+                    };
                     tick();
-                    setInterval(tick, 3000);
-                    setInterval(runClock, 1000);
                 }
 
                 if (document.readyState === 'loading') {

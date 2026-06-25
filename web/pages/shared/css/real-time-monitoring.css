@@ -125,13 +125,18 @@
             }
 
             .sensor-card .sensor-icon-wrap.optimal {
-                background: #dbeafe;
-                color: #2563eb;
+                background: #d1fae5;
+                color: #059669;
             }
 
             .sensor-card .sensor-icon-wrap.warning {
-                background: #ffedd5;
-                color: #ea580c;
+                background: #fef3c7;
+                color: #d97706;
+            }
+
+            .sensor-card .sensor-icon-wrap.critical {
+                background: #fee2e2;
+                color: #dc2626;
             }
 
             .sensor-card .sensor-status {
@@ -143,13 +148,18 @@
             }
 
             .sensor-card .sensor-status.optimal {
-                background: #dbeafe;
-                color: #1d4ed8;
+                background: #10b981;
+                color: #fff;
             }
 
             .sensor-card .sensor-status.warning {
-                background: #ffedd5;
-                color: #c2410c;
+                background: #f59e0b;
+                color: #fff;
+            }
+
+            .sensor-card .sensor-status.critical {
+                background: #ef4444;
+                color: #fff;
             }
 
             .sensor-card .sensor-name {
@@ -417,4 +427,189 @@
                     width: min(180px, calc(100vw - 16px));
                     right: 0;
                 }
+            }
+
+            /* ── Sensor Card: clickable hover ──────────────────────────── */
+            .sensor-card {
+                cursor: pointer;
+                transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            }
+            .sensor-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12);
+                border-color: #93c5fd;
+            }
+
+            /* chart icon hint injected by JS */
+            .sh-card-hint {
+                position: absolute;
+                bottom: 14px;
+                right: 14px;
+                width: 26px;
+                height: 26px;
+                border-radius: 6px;
+                background: #f3f4f6;
+                color: #9ca3af;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                opacity: 0;
+                transition: opacity 0.15s, background 0.15s, color 0.15s;
+                pointer-events: none;
+            }
+            .sensor-card:hover .sh-card-hint {
+                opacity: 1;
+                background: #dbeafe;
+                color: #2563eb;
+            }
+
+            /* ── Sensor History Modal ──────────────────────────────────── */
+            .sh-modal-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 2000;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                backdrop-filter: blur(2px);
+            }
+            .sh-modal-overlay.active { display: flex; }
+
+            .sh-modal {
+                background: #fff;
+                border-radius: 16px;
+                width: 100%;
+                max-width: 780px;
+                max-height: 88vh;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+                animation: shFadeIn 0.22s ease;
+                overflow: hidden;
+            }
+            @keyframes shFadeIn {
+                from { opacity: 0; transform: scale(0.96) translateY(-10px); }
+                to   { opacity: 1; transform: scale(1)    translateY(0);     }
+            }
+
+            .sh-modal-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                padding: 20px 24px 16px;
+                border-bottom: 1px solid #e5e7eb;
+                flex-shrink: 0;
+            }
+            .sh-modal-title {
+                font-size: 18px;
+                font-weight: 700;
+                color: #111827;
+                margin-bottom: 3px;
+            }
+            .sh-modal-subtitle {
+                font-size: 13px;
+                color: #6b7280;
+            }
+            .sh-modal-close {
+                background: #f3f4f6;
+                border: none;
+                border-radius: 8px;
+                width: 34px;
+                height: 34px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: #6b7280;
+                font-size: 15px;
+                flex-shrink: 0;
+                transition: background 0.15s, color 0.15s;
+                margin-top: 2px;
+            }
+            .sh-modal-close:hover { background: #fee2e2; color: #dc2626; }
+
+            .sh-modal-body {
+                padding: 0 24px 24px;
+                overflow-y: auto;
+                flex: 1;
+                min-height: 0;
+            }
+
+            .sh-modal-toggle {
+                display: flex;
+                gap: 8px;
+                padding-top: 16px;
+            }
+            .sh-toggle-btn {
+                padding: 6px 18px;
+                border: 1.5px solid #d1d5db;
+                border-radius: 20px;
+                background: #fff;
+                color: #6b7280;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .sh-toggle-btn:hover { border-color: #2563eb; color: #2563eb; }
+            .sh-toggle-btn.active {
+                background: #2563eb;
+                border-color: #2563eb;
+                color: #fff;
+                font-weight: 600;
+            }
+
+            .sh-safe-range-row {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                margin-top: 12px;
+            }
+            .sh-safe-dot {
+                width: 14px;
+                height: 14px;
+                border-radius: 3px;
+                background: rgba(16, 185, 129, 0.25);
+                border: 1.5px solid rgba(16, 185, 129, 0.5);
+                flex-shrink: 0;
+            }
+            .sh-safe-text {
+                font-size: 12px;
+                color: #059669;
+                font-weight: 500;
+            }
+
+            .sh-chart-area {
+                position: relative;
+                height: 300px;
+                margin-top: 14px;
+            }
+            .sh-chart-area canvas {
+                position: absolute;
+                inset: 0;
+                width: 100% !important;
+                height: 100% !important;
+            }
+            .sh-overlay-state {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                background: #fff;
+                color: #6b7280;
+                font-size: 14px;
+            }
+            .sh-hidden { display: none !important; }
+
+            @media (max-width: 600px) {
+                .sh-modal { max-height: 92vh; border-radius: 12px; }
+                .sh-modal-header { padding: 16px 16px 12px; }
+                .sh-modal-body { padding: 0 16px 20px; }
+                .sh-toggle-btn { padding: 5px 12px; font-size: 12px; }
+                .sh-chart-area { height: 220px; }
             }

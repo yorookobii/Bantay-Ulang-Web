@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'landing_page.dart';
-import 'landing_user.dart';
 import 'tasks.dart';
 import 'yield.dart';
 import 'logs.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -31,23 +28,18 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   late TextEditingController _addressController;
   bool _isEditingAddress = false;
 
-  String _fullName = '';
-  String _email = '';
-  String _role = '';
-  bool _isLoadingData = true;
-
   @override
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    _addressController = TextEditingController();
-
+    _addressController = TextEditingController(
+      text: "123 Riverside Street, Malolos, Bulacan",
+    );
+    
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..forward();
-
-    _loadUserData();
   }
 
   @override
@@ -109,7 +101,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                           )
                         : Center(
                             child: Text(
-                              _getInitials(),
+                              "JD",
                               style: GoogleFonts.poppins(
                                 fontSize: 48,
                                 fontWeight: FontWeight.w700,
@@ -168,22 +160,11 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoField(
-                      "Full Name",
-                      _isLoadingData ? '...' : (_fullName.isEmpty ? '—' : _fullName),
-                    ),
+                    _buildInfoField("Full Name", "Juan Dela Cruz"),
                     const SizedBox(height: 16),
-                    _buildInfoField(
-                      "Role",
-                      _isLoadingData
-                          ? '...'
-                          : (_role.isEmpty ? '—' : _role[0].toUpperCase() + _role.substring(1)),
-                    ),
+                    _buildInfoField("Plant Chosen", "Mint"),
                     const SizedBox(height: 16),
-                    _buildInfoField(
-                      "Email Address",
-                      _isLoadingData ? '...' : (_email.isEmpty ? '—' : _email),
-                    ),
+                    _buildInfoField("Email Address", "juan.delacruz@email.com"),
                     const SizedBox(height: 16),
                     _buildAddressField(),
                   ],
@@ -323,31 +304,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         ),
       ),
     );
-  }
-
-  Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    if (!mounted) return;
-    setState(() {
-      _email = user.email ?? '';
-      _fullName = doc.data()?['fullName'] ?? '';
-      _role = doc.data()?['role'] ?? 'user';
-      _addressController.text = doc.data()?['address'] ?? '';
-      _isLoadingData = false;
-    });
-  }
-
-  String _getInitials() {
-    if (_fullName.trim().isEmpty) return '?';
-    final parts = _fullName.trim().split(' ').where((w) => w.isNotEmpty).toList();
-    return parts.map((w) => w[0]).take(2).join().toUpperCase();
   }
 
   void _pickImage() {

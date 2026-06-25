@@ -58,7 +58,7 @@
             <!-- Right Side Items -->
             <div class="topbar-right">
                 <div class="notification-container">
-                    <div class="notification-icon" onclick="toggleNotification()">
+                    <div class="notification-icon">
                         <i class="fa-regular fa-bell"></i>
                         <span class="notification-badge"></span>
                     </div>
@@ -69,7 +69,7 @@
                     </div>
                 </div>
                 <div style="position: relative;" >
-                    <div class="admin-profile" onclick="toggleProfile()">
+                    <div class="admin-profile">
                         <div class="admin-avatar"><span>A</span></div>
                         <div class="admin-info">
                             <div class="admin-name">Juan Dela Cruz</div>
@@ -81,7 +81,7 @@
                         <div class="profile-menu-item">👤 My Profile</div>
                         <div class="profile-menu-item">⚙️ Settings</div>
                         <div class="profile-menu-item">🔐 Change Password</div>
-                        <div class="profile-menu-item" onclick="logout()">🚪 Logout</div>
+                        <div class="profile-menu-item">🚪 Logout</div>
                     </div>
                 </div>
             </div>
@@ -170,27 +170,32 @@
                     </div>
                     <div class="threshold_row single_val">
                         <div class="threshold_param">
-                            <label for="nitrate_max">Nitrate (max)</label>
-                            <span class="unit">Above = high nitrate warning (ppm)</span>
-                            <input type="number" id="nitrate_max" name="nitrate_max" min="0" max="200" step="0.5" value="50" required>
+                            <label for="turbidity_max">Turbidity (max)</label>
+                            <span class="unit">Above = turbidity alert (NTU)</span>
+                            <input type="number" id="turbidity_max" name="turbidity_max" min="0" max="500" step="0.5" value="25" required>
                         </div>
                         <div class="threshold_param">
                             <label>Unit</label>
                             <span class="unit">—</span>
-                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">ppm</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">NTU</span>
                         </div>
                         <div></div>
                     </div>
-                    <div class="threshold_row single_val">
+                    <div class="threshold_row">
                         <div class="threshold_param">
-                            <label for="ammonia_max">Ammonia (max)</label>
-                            <span class="unit">Above = toxicity alert (ppm)</span>
-                            <input type="number" id="ammonia_max" name="ammonia_max" min="0" max="10" step="0.1" value="1" required>
+                            <label for="waterlevel_min">Water Level (min)</label>
+                            <span class="unit">Below = low water alert (m)</span>
+                            <input type="number" id="waterlevel_min" name="waterlevel_min" min="0" max="10" step="0.1" value="0.5" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label for="waterlevel_max">Water Level (max)</label>
+                            <span class="unit">Above = overflow alert (m)</span>
+                            <input type="number" id="waterlevel_max" name="waterlevel_max" min="0" max="10" step="0.1" value="2.0" required>
                         </div>
                         <div class="threshold_param">
                             <label>Unit</label>
                             <span class="unit">—</span>
-                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">ppm</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">m</span>
                         </div>
                         <div></div>
                     </div>
@@ -210,8 +215,15 @@
         </main>
         </div>
 
-        <script src="js/settings.js"></script>
-        <script type="module" src="../../assets/js/firebase-init.js"></script>
+        <script type="module" src="js/settings.js"></script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>
 

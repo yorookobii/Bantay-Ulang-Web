@@ -182,5 +182,13 @@
         </div>
         <script src="js/assign-actions.js"></script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>

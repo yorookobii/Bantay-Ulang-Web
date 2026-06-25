@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
-import { collection, getDocs, limit, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { collection, doc, getDocs, getDoc, limit, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const defaultEnvLabels = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"];
 const defaultEnvParamData = {
@@ -630,7 +630,138 @@ async function loadData() {
                 }
             })();
 
+            // ── Welcome message ───────────────────────────────────────────────────────
+
+            function loadWelcomeData() {
+                const headingEl  = document.getElementById('welcome-heading');
+                const datetimeEl = document.getElementById('welcome-datetime');
+
+                function updateDatetime() {
+                    if (!datetimeEl) return;
+                    const now = new Date();
+                    const datePart = now.toLocaleDateString('en-PH', {
+                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                    });
+                    const timePart = now.toLocaleTimeString('en-PH', {
+                        hour: 'numeric', minute: '2-digit', hour12: true
+                    });
+                    datetimeEl.textContent = datePart + ' · ' + timePart;
+                }
+
+                updateDatetime();
+                setInterval(updateDatetime, 60000);
+
+                const unsub = onAuthStateChanged(auth, async function(user) {
+                    unsub();
+                    if (!user || !headingEl) return;
+                    try {
+                        var snap = await getDoc(doc(db, 'users', user.uid));
+                        var data = snap.exists() ? snap.data() : {};
+                        var name = data.fullName || user.displayName ||
+                                   (user.email ? user.email.split('@')[0] : 'there');
+                        headingEl.textContent = 'Welcome back, ' + name + '!';
+                    } catch (err) {
+                        console.warn('[dashboard] Could not load user name:', err);
+                    }
+                });
+            }
+
+            // ── Most important active alert ───────────────────────────────────────────
+
+            var SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+
+            var PARAM_LABELS = {
+                phLevel: 'pH Level',
+                waterTemp: 'Water Temperature',
+                dissolvedOxygen: 'Dissolved Oxygen',
+                salinity: 'Salinity',
+                turbidity: 'Turbidity',
+                waterLevel: 'Water Level'
+            };
+
+            function renderAlertBanner(container, alertData, totalCount) {
+                var sev        = alertData.severity || 'low';
+                var paramLabel = PARAM_LABELS[alertData.parameter] || alertData.parameter || 'Parameter';
+                var value      = alertData.currentValue != null ? alertData.currentValue : '—';
+                var safeRange  = alertData.safeRange || '—';
+                var message    = alertData.message   || '';
+                var moreCount  = totalCount > 1 ? totalCount - 1 : 0;
+                var moreHtml   = moreCount > 0
+                    ? '<span class="tab-meta-sep">·</span>' +
+                      '<span class="tab-more">' + moreCount + ' more active alert' + (moreCount > 1 ? 's' : '') + '</span>'
+                    : '';
+
+                container.className = 'top-alert-banner top-alert-banner--' + sev;
+                container.innerHTML =
+                    '<div class="tab-icon-wrap"><i class="fa-solid ' + iconForSev(sev) + '"></i></div>' +
+                    '<div class="tab-content">' +
+                        '<div class="tab-top-row">' +
+                            '<span class="tab-param-name">' + paramLabel + '</span>' +
+                            '<span class="tab-sev-badge tab-sev-badge--' + sev + '">' + sev.toUpperCase() + '</span>' +
+                        '</div>' +
+                        '<p class="tab-message">' + message + '</p>' +
+                        '<div class="tab-meta-row">' +
+                            '<span class="tab-meta-item">Current: <strong>' + value + '</strong></span>' +
+                            '<span class="tab-meta-sep">·</span>' +
+                            '<span class="tab-meta-item">Safe range: <strong>' + safeRange + '</strong></span>' +
+                            moreHtml +
+                        '</div>' +
+                    '</div>' +
+                    '<a href="real-time-monitoring.html" class="tab-action-btn">View All Alerts →</a>';
+            }
+
+            function renderNoBanner(container) {
+                container.className = 'top-alert-banner top-alert-banner--ok';
+                container.innerHTML =
+                    '<div class="tab-icon-wrap"><i class="fa-solid fa-circle-check"></i></div>' +
+                    '<div class="tab-content">' +
+                        '<span class="tab-param-name">All parameters are within safe range 🌊</span>' +
+                    '</div>';
+            }
+
+            function iconForSev(sev) {
+                if (sev === 'critical') return 'fa-triangle-exclamation';
+                if (sev === 'high')     return 'fa-circle-exclamation';
+                return 'fa-circle-info';
+            }
+
+            async function loadTopAlert() {
+                var bannerEl = document.getElementById('top-alert-banner');
+                if (!bannerEl) return;
+                try {
+                    var snap = await getDocs(
+                        query(collection(db, 'alerts'), where('status', '==', 'active'))
+                    );
+                    if (snap.empty) { renderNoBanner(bannerEl); return; }
+
+                    var topData = null;
+                    var topRank = -1;
+                    var topTime = 0;
+
+                    snap.docs.forEach(function(d) {
+                        var data = d.data();
+                        var rank = SEVERITY_RANK[data.severity] || 0;
+                        var t    = (data.createdAt && data.createdAt.seconds) ? data.createdAt.seconds : 0;
+                        if (rank > topRank || (rank === topRank && t > topTime)) {
+                            topRank = rank;
+                            topData = data;
+                            topTime = t;
+                        }
+                    });
+
+                    if (topData) {
+                        renderAlertBanner(bannerEl, topData, snap.size);
+                    } else {
+                        renderNoBanner(bannerEl);
+                    }
+                } catch (err) {
+                    console.warn('[dashboard] Could not load top alert:', err);
+                }
+            }
+
             document.addEventListener('DOMContentLoaded', async function() {
+                loadWelcomeData();
+                loadTopAlert();
                 await loadData();
 
                 var envCtx = document.getElementById('envTrendsChart');

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>My Profile - Bantay Ulang</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="css/settings.css">
+        <style>
+            .profile-card {
+                background: #fff;
+                border-radius: 12px;
+                border: 1px solid #e5e7eb;
+                padding: 32px;
+                max-width: 560px;
+            }
+            .profile-avatar-row {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                margin-bottom: 28px;
+            }
+            .profile-avatar-circle {
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                background: #15212e;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 28px;
+                font-weight: 700;
+                color: #fff;
+                flex-shrink: 0;
+            }
+            .profile-avatar-label {
+                font-size: 18px;
+                font-weight: 700;
+                color: #111827;
+            }
+            .profile-avatar-sublabel {
+                font-size: 13px;
+                color: #6b7280;
+                margin-top: 2px;
+            }
+            .profile-form .form-group {
+                margin-bottom: 18px;
+            }
+            .profile-form label {
+                display: block;
+                font-size: 12px;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            .profile-form input {
+                width: 100%;
+                padding: 10px 13px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                font-size: 14px;
+                color: #111827;
+                background: #fff;
+                box-sizing: border-box;
+                transition: border-color 0.15s;
+            }
+            .profile-form input:focus {
+                outline: none;
+                border-color: #15212e;
+            }
+            .profile-form input[readonly] {
+                background: #f9fafb;
+                color: #6b7280;
+                cursor: not-allowed;
+            }
+            .btn-save-profile {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 22px;
+                background: #15212e;
+                color: #fff;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                margin-top: 6px;
+                transition: background 0.15s;
+            }
+            .btn-save-profile:hover { background: #1e3347; }
+            .btn-save-profile:disabled { opacity: 0.6; cursor: not-allowed; }
+            .profile-msg {
+                margin-top: 12px;
+                font-size: 13px;
+                min-height: 18px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-row">
+                        <div class="logo-droplets">
+                            <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
+                        </div>
+                        <span class="logo-text">Bantay Ulang</span>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" title="Real-Time Data"><i class="fa-solid fa-chart-line"></i><span>Real-Time Data</span></a></li>
+                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="user-avatar"><span>A</span></div>
+                        <div class="user-info">
+                            <div class="user-name">User Name</div>
+                            <div class="user-role">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+            <!-- Topbar -->
+            <header class="topbar">
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="search" placeholder="Search">
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="notification-container">
+                        <div class="notification-icon">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge"></span>
+                        </div>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <div class="admin-profile">
+                            <div class="admin-avatar"><span>A</span></div>
+                            <div class="admin-info">
+                                <div class="admin-name">User Name</div>
+                                <div class="admin-role">Admin</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                        </div>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-menu-item">👤 My Profile</div>
+                            <div class="profile-menu-item">⚙️ Settings</div>
+                            <div class="profile-menu-item">🔐 Change Password</div>
+                            <div class="profile-menu-item">🚪 Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="content" style="padding: 24px 30px;">
+                <div class="settings_headings" style="margin-bottom: 24px;">
+                    <h2>My Profile</h2>
+                    <p>Update your display name and view your account details.</p>
+                </div>
+
+                <div class="profile-card">
+                    <div class="profile-avatar-row">
+                        <div class="profile-avatar-circle" id="profileAvatarCircle">A</div>
+                        <div>
+                            <div class="profile-avatar-label" id="profileDisplayName">Loading…</div>
+                            <div class="profile-avatar-sublabel" id="profileDisplayRole"></div>
+                        </div>
+                    </div>
+
+                    <form class="profile-form" id="profile-form" novalidate>
+                        <div class="form-group">
+                            <label for="profile-fullname">Full Name</label>
+                            <input type="text" id="profile-fullname" name="fullName"
+                                   placeholder="Enter your full name" required autocomplete="name">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-email">Email Address</label>
+                            <input type="email" id="profile-email" name="email"
+                                   placeholder="—" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-role">Role</label>
+                            <input type="text" id="profile-role" name="role"
+                                   placeholder="—" readonly>
+                        </div>
+
+                        <button type="submit" class="btn-save-profile" id="profile-save-btn">
+                            <i class="fa-solid fa-check"></i> Save Changes
+                        </button>
+                        <p class="profile-msg" id="profile-msg"></p>
+                    </form>
+                </div>
+            </main>
+        </div>
+
+        <script type="module" src="js/profile.js"></script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown();
+        </script>
+    </body>
+</html>

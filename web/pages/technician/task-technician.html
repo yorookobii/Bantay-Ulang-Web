@@ -293,5 +293,13 @@
         <script src="js/dashboard-technician.js"></script>
         <script src="js/task-technician.js"></script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
+        <script type="module">
+            import { loadUserProfile } from '../shared/js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from '../shared/js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>

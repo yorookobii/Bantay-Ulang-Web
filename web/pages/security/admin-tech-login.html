@@ -3,101 +3,175 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Admin & Technician Login - Bantay Ulang</title>
+        <title>Sign in — Bantay Ulang</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <link rel="stylesheet" href="./admin-tech-login.css">
     </head>
     <body>
-        <main class="page-shell">
-            <section class="brand-panel">
-                <div class="brand-content">
-                    <div class="brand-badge">
-                        <i class="fa-solid fa-water"></i>
-                        Bantay Ulang Access Portal
-                    </div>
 
-                    <div class="brand-logo-row">
-                        <img class="brand-logo" src="../../assets/img/logo-one-removebg-preview.png" alt="Bantay Ulang logo">
-                        <div>
-                            <p style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(165, 243, 252, 0.92);">Bulacan Monitoring System</p>
-                            <h1 class="brand-title">Secure admin and technician entry</h1>
-                        </div>
-                    </div>
+        <!-- 1. Full-bleed photo background + soft dark veil -->
+        <div class="photo-bg" aria-hidden="true">
+            <div class="photo-veil" id="photo-veil"></div>
+        </div>
 
-                    <p class="brand-copy">
-                        Monitor operations, coordinate response work, and keep authorized team members moving through one verified login flow. Access is granted from Firebase Authentication plus your Firestore user profile.
-                    </p>
+        <!-- 2. Top bar: logo + wordmark + system status pill -->
+        <header class="top-bar">
+            <div class="brand-identity">
+                <img class="brand-icon"
+                     src="../../assets/img/logo-one.png"
+                     alt="Bantay Ulang logo"
+                     draggable="false">
+                <span class="wordmark">Bantay Ulang</span>
+            </div>
+            <div class="status-pill" role="status" aria-label="System status: all systems online">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="pill-text">all systems online · 1 aquaponics unit</span>
+            </div>
+        </header>
 
-                    <div class="role-grid">
-                        <article class="role-card">
-                            <i class="fa-solid fa-shield-halved"></i>
-                            <h2>Admin access</h2>
-                            <p>Directs authorized admins to the operations dashboard for oversight, analytics, and system controls.</p>
-                        </article>
-                        <article class="role-card">
-                            <i class="fa-solid fa-screwdriver-wrench"></i>
-                            <h2>Technician access</h2>
-                            <p>Routes technicians to their field dashboard and task workspace after role validation.</p>
-                        </article>
-                    </div>
-                </div>
+        <!-- 3. Welcome hero — decorative, fades and drifts up on scroll -->
+        <div class="welcome-hero" id="welcome-hero" aria-hidden="true">
+            <p class="hero-eyebrow">Aquaponics Water Monitoring</p>
+            <h1 class="hero-headline">Welcome back to<br>Bantay Ulang</h1>
+            <p class="hero-sub">
+                Clear water, healthy harvest.<br>
+                Sign in to watch your water quality in real time.
+            </p>
+        </div>
 
-                <div class="brand-footer">
-                    <i class="fa-solid fa-circle-info"></i>
-                    <p>Make sure each Firestore user record includes a valid role such as <strong>admin</strong> or <strong>technician</strong> before using this login page.</p>
-                </div>
-            </section>
+        <!-- 4. Scroll cue — fades out as sheet rises -->
+        <div class="scroll-cue" id="scroll-cue" aria-hidden="true">
+            <span>Scroll to sign in</span>
+            <i class="fa-solid fa-chevron-down"></i>
+        </div>
 
-            <section class="login-panel">
-                <div class="panel-head">
-                    <span class="eyebrow">
-                        <i class="fa-solid fa-lock"></i>
-                        Authorized Login
-                    </span>
-                    <h1>Sign in to continue</h1>
-                </div>
+        <!-- 5. Login sheet — rises from bottom on scroll -->
+        <div class="login-sheet" id="login-sheet">
+            <div class="sheet-grabber" aria-hidden="true"></div>
 
-                <form class="auth-form" id="login-form">
+            <div class="sheet-inner">
+                <h2 class="sheet-heading">Sign in</h2>
+                <p class="sheet-sub">Welcome back — let's check on your ponds.</p>
+
+                <form class="auth-form" id="login-form" novalidate>
+
                     <div class="field">
-                        <label for="email">Email address</label>
+                        <label for="email">Work email</label>
                         <div class="field-wrap">
-                            <i class="fa-solid fa-envelope field-icon"></i>
-                            <input class="field-input" type="email" id="email" name="email" placeholder="name@bantayulang.com" autocomplete="username" required>
+                            <input class="field-input" type="email" id="email" name="email"
+                                   placeholder="you@farm.ph"
+                                   autocomplete="username" required>
                         </div>
                     </div>
 
                     <div class="field">
                         <label for="password">Password</label>
                         <div class="field-wrap">
-                            <i class="fa-solid fa-key field-icon"></i>
-                            <input class="field-input password-input" type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
-                            <button class="password-toggle" type="button" id="toggle-password" aria-label="Show password">
+                            <input class="field-input password-input" type="password"
+                                   id="password" name="password"
+                                   placeholder="Enter your password"
+                                   autocomplete="current-password" required>
+                            <button class="password-toggle" type="button"
+                                    id="toggle-password" aria-label="Show password">
                                 <i class="fa-regular fa-eye" id="toggle-password-icon"></i>
                             </button>
                         </div>
                     </div>
 
-                    <div class="form-meta">
-                        <label class="remember-me" for="remember-session">
-                            <input type="checkbox" id="remember-session" name="remember-session" checked>
-                            Keep me signed in on this device
-                        </label>
-                        <div class="role-hint">
-                            <i class="fa-solid fa-user-check"></i>
-                            Admins and technicians only
-                        </div>
+                    <label class="remember-me" for="remember-session">
+                        <input type="checkbox" id="remember-session" name="remember-session" checked>
+                        Keep me signed in on this station
+                    </label>
+
+                    <button class="submit-btn" id="submit-btn" type="submit">
+                        Sign in to dashboard
+                    </button>
+
+                    <div class="message is-info" id="form-message"
+                         role="alert" aria-live="polite">
+                        Waiting for your credentials.
                     </div>
 
-                    <button class="submit-btn" id="submit-btn" type="submit">Login to Bantay Ulang</button>
-                    <div class="message is-info" id="form-message" role="alert" aria-live="polite">Waiting for your credentials.</div>
-                </form>
 
-                
-            </section>
-        </main>
+                </form>
+            </div>
+        </div>
+
+        <!--
+            Scroll-driven sheet-rise animation.
+            Runs as a classic (non-module) script so it executes synchronously
+            before the Firebase module loads — setting initial positions
+            in the same frame the browser first paints.
+        -->
+        <script>
+        (function () {
+            var sheet = document.getElementById('login-sheet');
+            var hero  = document.getElementById('welcome-hero');
+            var cue   = document.getElementById('scroll-cue');
+            var veil  = document.getElementById('photo-veil');
+
+            var PEEK          = 116; // px of card initially visible above the viewport bottom
+            var BOTTOM_OFFSET = 24;  // must match CSS bottom: 24px on .login-sheet
+
+            function easeInOutQuad(t) {
+                return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            }
+
+            function render(rawProgress) {
+                // Full card-rise effect happens over the first 50% of page scroll
+                var p = Math.min(rawProgress * 2, 1);
+                var e = easeInOutQuad(p);
+
+                /*
+                   Card is centered via translateX(-50%) (left: 50% in CSS).
+                   The Y offset accounts for the CSS bottom: 24px so that only
+                   PEEK px of the card top are visible at scroll position 0.
+                */
+                var hidden = Math.max(sheet.offsetHeight - PEEK + BOTTOM_OFFSET, 0);
+                sheet.style.transform =
+                    'translateX(-50%) translateY(' + Math.round(hidden * (1 - e)) + 'px)';
+
+                // Hero fades out and drifts upward
+                hero.style.opacity   = Math.max(1 - e * 1.8, 0);
+                hero.style.transform = 'translateY(' + Math.round(e * -44) + 'px)';
+
+                // Scroll cue fades out quickly in the first quarter of card travel
+                cue.style.opacity = Math.max(1 - e * 4, 0);
+
+                // Veil deepens subtly as form comes into focus
+                veil.style.background =
+                    'rgba(5,18,20,' + (0.40 + e * 0.18).toFixed(3) + ')';
+            }
+
+            var motionOK = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (!motionOK) {
+                // Skip scroll theatre — surface the form immediately
+                sheet.style.transform   = 'translateX(-50%) translateY(0)';
+                hero.style.opacity      = '0';
+                cue.style.opacity       = '0';
+                veil.style.background   = 'rgba(5,18,20,0.58)';
+                return;
+            }
+
+            function onScroll() {
+                var max = document.documentElement.scrollHeight - window.innerHeight;
+                render(max > 0 ? window.scrollY / max : 1);
+            }
+
+            // Set initial positions before the first paint
+            render(0);
+
+            window.addEventListener('scroll', onScroll, { passive: true });
+            window.addEventListener('resize', onScroll, { passive: true });
+
+            // Handle reload with pre-existing scroll position
+            requestAnimationFrame(onScroll);
+        })();
+        </script>
 
         <script type="module" src="./admin-tech-login.js"></script>
     </body>

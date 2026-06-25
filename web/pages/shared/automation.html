@@ -4,10 +4,9 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-        <title>Automation Controls - Bantay Ulang Bulacan</title>
+        <title>Automation — Bantay Ulang</title>
         <link rel="stylesheet" href="css/automation.css">
-
-      
+        <link rel="stylesheet" href="css/feeding.css">
     </head>
     <body>
         <div class="app">
@@ -30,7 +29,6 @@
                     <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
                     <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
                     <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
-
                 </ul>
                 <div class="sidebar-footer">
                     <div class="user-profile">
@@ -45,7 +43,6 @@
 
             <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
-            <!-- Topbar -->
             <header class="topbar">
                 <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
                 <div class="search-container">
@@ -54,10 +51,6 @@
                         <input type="text" placeholder="Search">
                     </div>
                 </div>
-
-
-
-                <!-- Right Side Items -->
                 <div class="topbar-right">
                     <div class="notification-container">
                         <div class="notification-icon">
@@ -93,79 +86,291 @@
                 <header class="page-header">
                     <div class="page-title-block">
                         <h1>Automation Controls</h1>
-                        <p>Manage automated feeding, filtration, and environmental regulation workflows.</p>
+                        <p>Manage automated feeding schedules and review feeding history.</p>
                     </div>
-                   
                 </header>
 
-                <div class="workflow-list">
-                    <div class="workflow-card">
-                        <div class="workflow-card-left">
-                            <div class="workflow-icon active"><i class="fa-solid fa-bolt"></i></div>
-                            <div class="workflow-info">
-                                <div class="workflow-title">Morning Feeding</div>
-                                <div class="workflow-schedule">
-                                    <i class="fa-regular fa-clock"></i>
-                                    <span>Scheduled • Time: 08:00 AM</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="workflow-card-right">
-                            <div class="workflow-last-run">
-                                <div class="label">Last run</div>
-                                <div class="value">Today, 08:00 AM</div>
-                            </div>
-                            <input type="checkbox" id="workflow-toggle-1" class="workflow-toggle-input" checked aria-label="Toggle Morning Feeding">
-                            <label class="workflow-toggle" for="workflow-toggle-1"></label>
-                        </div>
+                <!-- ── Feeding Schedule ──────────────────────────────────────── -->
+                <section class="feeding-section" aria-labelledby="scheduleTitle">
+                    <h2 class="feeding-section-title" id="scheduleTitle">
+                        <i class="fa-solid fa-clock"></i> Feeding Schedule
+                    </h2>
+
+                    <div style="margin-bottom: 16px;">
+                        <button class="btn-new-workflow" id="btnAddSchedule" type="button">
+                            <i class="fa-solid fa-plus"></i> Add Schedule
+                        </button>
                     </div>
 
-                    <div class="workflow-card">
-                        <div class="workflow-card-left">
-                            <div class="workflow-icon active"><i class="fa-solid fa-bolt"></i></div>
-                            <div class="workflow-info">
-                                <div class="workflow-title">Afternoon Feeding</div>
-                                <div class="workflow-schedule">
-                                    <i class="fa-regular fa-clock"></i>
-                                    <span>Scheduled • Time: 12:00 PM</span>
-                                </div>
+                    <div id="scheduleFormWrap" style="display: none; margin-bottom: 20px;">
+                        <form id="scheduleForm" class="feeding-form" novalidate autocomplete="off">
+                            <div class="feeding-form-group">
+                                <label for="schedFeedTime">Time <span style="color:#dc2626">*</span></label>
+                                <input type="time" id="schedFeedTime" name="feedTime" required>
                             </div>
-                        </div>
-                        <div class="workflow-card-right">
-                            <div class="workflow-last-run">
-                                <div class="label">Last run</div>
-                                <div class="value">Today, 12:00 PM</div>
+                            <div class="feeding-form-group">
+                                <label for="schedFeedType">Feed Type <span style="color:#dc2626">*</span></label>
+                                <select id="schedFeedType" name="feedType" required>
+                                    <option value="">— Select —</option>
+                                    <option value="Starter Feed">Starter Feed</option>
+                                    <option value="Grower Feed">Grower Feed</option>
+                                    <option value="Finisher Feed">Finisher Feed</option>
+                                    <option value="Pellet Feed">Pellet Feed</option>
+                                    <option value="Live Feed">Live Feed</option>
+                                    <option value="Supplemental Feed">Supplemental Feed</option>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
-                            <input type="checkbox" id="workflow-toggle-2" class="workflow-toggle-input" checked aria-label="Toggle Afternoon Feeding">
-                            <label class="workflow-toggle" for="workflow-toggle-2"></label>
-                        </div>
+                            <div class="feeding-form-group">
+                                <label for="schedAmount">Amount (grams) <span style="color:#dc2626">*</span></label>
+                                <input type="number" id="schedAmount" name="amount" min="0" step="0.1" placeholder="e.g. 250" required>
+                            </div>
+                            <div class="feeding-form-actions">
+                                <button type="submit" class="fr-btn fr-btn-primary">
+                                    <i class="fa-solid fa-check"></i> Save Schedule
+                                </button>
+                                <button type="button" class="fr-btn fr-btn-secondary" id="btnCancelSchedule">
+                                    <i class="fa-solid fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </form>
+                        <div id="schedFeedback" class="fr-feedback" aria-live="polite"></div>
                     </div>
 
-                    <div class="workflow-card">
-                        <div class="workflow-card-left">
-                            <div class="workflow-icon active"><i class="fa-solid fa-bolt"></i></div>
-                            <div class="workflow-info">
-                                <div class="workflow-title">Evening Feeding</div>
-                                <div class="workflow-schedule">
-                                    <i class="fa-regular fa-clock"></i>
-                                    <span>Scheduled • Time: 06:00 PM</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="workflow-card-right">
-                            <div class="workflow-last-run">
-                                <div class="label">Last run</div>
-                                <div class="value">Yesterday, 06:00 PM</div>
-                            </div>
-                            <input type="checkbox" id="workflow-toggle-3" class="workflow-toggle-input" checked aria-label="Toggle Evening Feeding">
-                            <label class="workflow-toggle" for="workflow-toggle-3"></label>
-                        </div>
+                    <div id="scheduleLoading" class="fr-loading">
+                        <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading schedules…
                     </div>
-                </div>
+                    <div id="scheduleList" class="workflow-list"></div>
+                </section>
+
+                <!-- ── Add Feeding Record ────────────────────────────────────── -->
+                <section class="feeding-section" aria-labelledby="frFormTitle">
+                    <h2 class="feeding-section-title" id="frFormTitle">
+                        <i class="fa-solid fa-plus-circle"></i> Add Feeding Record
+                    </h2>
+
+                    <form id="frForm" novalidate autocomplete="off">
+                        <div class="feeding-form">
+                            <div class="feeding-form-group">
+                                <label for="frFeedType">Feed Type <span style="color:#dc2626">*</span></label>
+                                <select id="frFeedType" name="feedType" required>
+                                    <option value="">— Select —</option>
+                                    <option value="Starter Feed">Starter Feed</option>
+                                    <option value="Grower Feed">Grower Feed</option>
+                                    <option value="Finisher Feed">Finisher Feed</option>
+                                    <option value="Pellet Feed">Pellet Feed</option>
+                                    <option value="Live Feed">Live Feed</option>
+                                    <option value="Supplemental Feed">Supplemental Feed</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="feeding-form-group">
+                                <label for="frAmount">Amount (grams) <span style="color:#dc2626">*</span></label>
+                                <input type="number" id="frAmount" name="amount" min="0" step="0.1" placeholder="e.g. 250" required>
+                            </div>
+                            <div class="feeding-form-group">
+                                <label for="frFeedingTime">Feeding Time</label>
+                                <input type="datetime-local" id="frFeedingTime" name="feedingTime">
+                            </div>
+                            <div class="feeding-form-group" style="grid-column: 1 / -1;">
+                                <label for="frNotes">Notes</label>
+                                <textarea id="frNotes" name="notes" placeholder="Optional observations or remarks…"></textarea>
+                            </div>
+                            <div class="feeding-form-actions">
+                                <button type="submit" class="fr-btn fr-btn-primary">
+                                    <i class="fa-solid fa-plus"></i> Add Record
+                                </button>
+                                <button type="reset" class="fr-btn fr-btn-secondary">
+                                    <i class="fa-solid fa-rotate-left"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="frFeedback" class="fr-feedback" aria-live="polite"></div>
+                </section>
+
+                <!-- ── Feeding Records Table ─────────────────────────────────── -->
+                <section class="feeding-section" aria-labelledby="frTableTitle">
+                    <h2 class="feeding-section-title" id="frTableTitle">
+                        <i class="fa-solid fa-list"></i> Feeding Records
+                    </h2>
+
+                    <div id="frLoading" class="fr-loading">
+                        <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading records…
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="fr-table">
+                            <thead>
+                                <tr>
+                                    <th>Feed Type</th>
+                                    <th>Amount</th>
+                                    <th>Feeding Time</th>
+                                    <th>Notes</th>
+                                    <th>Created At</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="frTbody"></tbody>
+                        </table>
+                    </div>
+                </section>
             </main>
         </div>
 
         <script src="js/automation.js"></script>
-        <script type="module" src="../../assets/js/firebase-init.js"></script>
+        <script type="module" src="js/feeding.js"></script>
+        <script type="module">
+            import { db, auth } from "./js/firebase.js";
+            import {
+                collection, addDoc, deleteDoc, doc,
+                query, orderBy, onSnapshot, serverTimestamp, updateDoc
+            } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+            import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+            const SCHED_COLL = "feeding_schedules";
+            let currentUid = null;
+            onAuthStateChanged(auth, u => { currentUid = u ? u.uid : null; });
+
+            function escHtml(s) {
+                return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+            }
+
+            function fmt12(t) {
+                if (!t) return "—";
+                const [h, m] = t.split(":").map(Number);
+                const ampm = h >= 12 ? "PM" : "AM";
+                const h12 = h % 12 || 12;
+                return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+            }
+
+            const btnAdd   = document.getElementById("btnAddSchedule");
+            const formWrap = document.getElementById("scheduleFormWrap");
+            const btnCancel = document.getElementById("btnCancelSchedule");
+
+            function showForm(show) {
+                formWrap.style.display = show ? "block" : "none";
+                btnAdd.innerHTML = show
+                    ? '<i class="fa-solid fa-times"></i> Cancel'
+                    : '<i class="fa-solid fa-plus"></i> Add Schedule';
+            }
+
+            btnAdd.addEventListener("click", () => showForm(formWrap.style.display !== "block"));
+            btnCancel.addEventListener("click", () => { document.getElementById("scheduleForm").reset(); showForm(false); });
+
+            const schedFeedback = document.getElementById("schedFeedback");
+            function showSchedFeedback(msg, type) {
+                schedFeedback.textContent = msg;
+                schedFeedback.className = `fr-feedback ${type}`;
+                setTimeout(() => { schedFeedback.className = "fr-feedback"; }, 4000);
+            }
+
+            document.getElementById("scheduleForm").addEventListener("submit", async e => {
+                e.preventDefault();
+                const form = e.target;
+                const feedTime = form.feedTime.value;
+                const feedType = form.feedType.value;
+                const amount   = parseFloat(form.amount.value);
+
+                let valid = true;
+                if (!feedTime) { form.feedTime.classList.add("invalid"); valid = false; } else form.feedTime.classList.remove("invalid");
+                if (!feedType) { form.feedType.classList.add("invalid"); valid = false; } else form.feedType.classList.remove("invalid");
+                if (isNaN(amount) || amount < 0) { form.amount.classList.add("invalid"); valid = false; } else form.amount.classList.remove("invalid");
+                if (!valid) return;
+
+                const btn = form.querySelector("button[type=submit]");
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+                try {
+                    await addDoc(collection(db, SCHED_COLL), {
+                        feedTime, feedType, amount,
+                        enabled: true,
+                        createdBy: currentUid ?? "unknown",
+                        createdAt: serverTimestamp()
+                    });
+                    form.reset();
+                    showForm(false);
+                    showSchedFeedback("Schedule saved.", "success");
+                } catch (err) {
+                    console.error("Error saving schedule:", err);
+                    showSchedFeedback("Failed to save schedule.", "error");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Save Schedule';
+                }
+            });
+
+            const schedList    = document.getElementById("scheduleList");
+            const schedLoading = document.getElementById("scheduleLoading");
+
+            onSnapshot(
+                query(collection(db, SCHED_COLL), orderBy("feedTime")),
+                snap => {
+                    if (schedLoading) schedLoading.style.display = "none";
+                    if (snap.empty) {
+                        schedList.innerHTML = '<p class="fr-empty">No feeding schedules configured.</p>';
+                        return;
+                    }
+                    schedList.innerHTML = snap.docs.map(d => {
+                        const s = d.data();
+                        return `
+                        <div class="workflow-card">
+                            <div class="workflow-card-left">
+                                <div class="workflow-icon ${s.enabled ? "active" : "inactive"}">
+                                    <i class="fa-solid fa-clock"></i>
+                                </div>
+                                <div class="workflow-info">
+                                    <div class="workflow-title">${escHtml(s.feedType)}</div>
+                                    <div class="workflow-schedule">
+                                        <i class="fa-regular fa-clock"></i>
+                                        <span>${fmt12(s.feedTime)} &middot; ${Number(s.amount).toLocaleString()} g</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="workflow-card-right">
+                                <input type="checkbox" id="st-${d.id}" class="workflow-toggle-input sched-toggle"
+                                       data-id="${d.id}" ${s.enabled ? "checked" : ""} aria-label="Enable schedule">
+                                <label class="workflow-toggle" for="st-${d.id}"></label>
+                                <button class="fr-btn-icon sched-delete" data-id="${d.id}" title="Delete schedule">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>`;
+                    }).join("");
+                },
+                err => {
+                    if (schedLoading) schedLoading.style.display = "none";
+                    console.error("feeding_schedules listener error:", err);
+                    schedList.innerHTML = '<p class="fr-empty" style="color:#dc2626">Failed to load schedules.</p>';
+                }
+            );
+
+            schedList.addEventListener("change", async e => {
+                const cb = e.target.closest(".sched-toggle");
+                if (!cb) return;
+                await updateDoc(doc(db, SCHED_COLL, cb.dataset.id), { enabled: cb.checked });
+            });
+
+            schedList.addEventListener("click", async e => {
+                const btn = e.target.closest(".sched-delete");
+                if (!btn) return;
+                if (!confirm("Delete this schedule? This cannot be undone.")) return;
+                btn.disabled = true;
+                try {
+                    await deleteDoc(doc(db, SCHED_COLL, btn.dataset.id));
+                } catch {
+                    btn.disabled = false;
+                }
+            });
+        </script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>

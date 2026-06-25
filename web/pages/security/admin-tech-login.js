@@ -6,19 +6,18 @@ import {
     setPersistence,
     signInWithEmailAndPassword,
     signOut
-} from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
     collection,
-    doc,
-    getDoc,
     getDocs,
     limit,
     query,
     where
-} from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const USERS_COLLECTION = "users";
 const SESSION_KEY = "bantay-ulang-auth-user";
+const RESTORE_FLAG = "bantay-ulang-restore";
 const ROLE_ROUTES = {
     admin: "../shared/dashboard.html",
     technician: "../technician/dashboard-technician.html"
@@ -32,6 +31,13 @@ const submitButton = document.getElementById("submit-btn");
 const messageEl = document.getElementById("form-message");
 const togglePasswordButton = document.getElementById("toggle-password");
 const togglePasswordIcon = document.getElementById("toggle-password-icon");
+
+// Read and immediately consume the restore flag synchronously on every page
+// load. It is only present when this same tab set it right before a successful
+// login redirect, so it is never present on a direct URL visit, bookmark open,
+// or new-tab navigation.
+const allowSessionRestore = sessionStorage.getItem(RESTORE_FLAG) === "1";
+sessionStorage.removeItem(RESTORE_FLAG);
 
 let initialAuthCheckDone = false;
 
@@ -121,40 +127,14 @@ async function findProfileByField(fieldName, value) {
 }
 
 async function getUserProfile(firebaseUser) {
-    const directRefs = [doc(db, USERS_COLLECTION, firebaseUser.uid)];
+    if (!firebaseUser.email) return null;
 
-    if (firebaseUser.email) {
-        directRefs.push(doc(db, USERS_COLLECTION, firebaseUser.email));
+    const profile = await findProfileByField("email", firebaseUser.email);
+    if (profile) return profile;
 
-        const lowerEmail = firebaseUser.email.toLowerCase();
-        if (lowerEmail !== firebaseUser.email) {
-            directRefs.push(doc(db, USERS_COLLECTION, lowerEmail));
-        }
-    }
-
-    for (const ref of directRefs) {
-        const snapshot = await getDoc(ref);
-        if (snapshot.exists()) {
-            return { id: snapshot.id, ...snapshot.data() };
-        }
-    }
-
-    const profileByUid = await findProfileByField("uid", firebaseUser.uid);
-    if (profileByUid) {
-        return profileByUid;
-    }
-
-    const profileByEmail = await findProfileByField("email", firebaseUser.email);
-    if (profileByEmail) {
-        return profileByEmail;
-    }
-
-    const lowerEmail = firebaseUser.email ? firebaseUser.email.toLowerCase() : "";
-    if (lowerEmail) {
-        const lowerProfile = await findProfileByField("email", lowerEmail);
-        if (lowerProfile) {
-            return lowerProfile;
-        }
+    const lowerEmail = firebaseUser.email.toLowerCase();
+    if (lowerEmail !== firebaseUser.email) {
+        return findProfileByField("email", lowerEmail);
     }
 
     return null;
@@ -193,6 +173,9 @@ async function validateAndRoute(firebaseUser, rememberSession) {
 
     saveSessionProfile(sessionUser, rememberSession);
     setMessage("Login successful. Redirecting to your workspace...", "success");
+    // Arm the flag before the redirect so onAuthStateChanged on any page that
+    // loads next (e.g. after a mid-redirect reload) can safely restore this session.
+    sessionStorage.setItem(RESTORE_FLAG, "1");
     window.setTimeout(function() {
         window.location.href = ROLE_ROUTES[role];
     }, 450);
@@ -235,7 +218,8 @@ form.addEventListener("submit", async function(event) {
             "auth/invalid-credential": "Incorrect email or password. Please try again.",
             "auth/invalid-email": "Please enter a valid email address.",
             "auth/missing-password": "Please enter your password.",
-            "auth/too-many-requests": "Too many attempts were made. Please wait a moment before trying again."
+            "auth/too-many-requests": "Too many attempts were made. Please wait a moment before trying again.",
+            "auth/network-request-failed": "Network error — check your internet connection and try again."
         };
 
         setMessage(errorMessages[error.code] || "Unable to log in right now. Please check your account details and try again.", "error");
@@ -252,6 +236,18 @@ onAuthStateChanged(auth, async function(firebaseUser) {
     initialAuthCheckDone = true;
 
     if (!firebaseUser) {
+        setMessage("Waiting for your credentials.", "info");
+        return;
+    }
+
+    // A cached Firebase Auth token exists, but only restore it when this tab
+    // deliberately set the flag during its own login flow. Without the flag the
+    // user arrived here directly (bookmark, typed URL, back button) and must
+    // log in manually — sign out the stale token so the form works normally.
+    if (!allowSessionRestore) {
+        try {
+            await signOut(auth);
+        } catch (_) { /* stale token clear is best-effort */ }
         setMessage("Waiting for your credentials.", "info");
         return;
     }

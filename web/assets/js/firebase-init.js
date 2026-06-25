@@ -1,9 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-storage.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDK4Bw3fQpJGlt5kqDJvz8w-xQdZZLQO2M",
@@ -26,14 +25,13 @@ try {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-const rtdb = getDatabase(app);
 const storage = getStorage(app);
 
 // Expose services for non-module scripts.
 window.firebaseApp = app;
-window.firebaseServices = { auth, db, rtdb, storage, analytics };
+window.firebaseServices = { auth, db, storage, analytics };
 document.dispatchEvent(new CustomEvent("firebase-ready", {
-    detail: { app, auth, db, rtdb, storage, analytics }
+    detail: { app, auth, db, storage, analytics }
 }));
 
-export { app, auth, db, rtdb, storage, analytics };
+export { app, auth, db, storage, analytics };

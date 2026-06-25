@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-import 'dart:async';
 import 'dart:math';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'landing_page.dart';
 import 'tasks.dart';
 import 'yield.dart';
 import 'profile.dart';
 
 class LogsPage extends StatefulWidget {
-  const LogsPage({Key? key}) : super(key: key);
+  const LogsPage({super.key});
 
   @override
   State<LogsPage> createState() => _LogsPageState();
@@ -28,13 +25,8 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
   late GlobalKey<ScaffoldState> _scaffoldKey;
   late AnimationController _fadeController;
 
-  List<Map<String, dynamic>> _logs = [];
-  StreamSubscription<QuerySnapshot>? _logsSub;
-
-  List<Map<String, dynamic>> get ulangLogs =>
-      _logs.where((l) => l['type'] == 'ulang').toList();
-  List<Map<String, dynamic>> get plantLogs =>
-      _logs.where((l) => l['type'] == 'plant').toList();
+  final List<Map<String, dynamic>> ulangLogs = [];
+  final List<Map<String, dynamic>> plantLogs = [];
 
   final sizeController = TextEditingController();
   final weightController = TextEditingController();
@@ -50,71 +42,17 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-
+    
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..forward();
-
-    _initListener();
   }
 
   @override
   void dispose() {
-    _logsSub?.cancel();
     _fadeController.dispose();
     super.dispose();
-  }
-
-  void _initListener() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    _logsSub = FirebaseFirestore.instance
-        .collection('logs')
-        .where('createdBy', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .listen((snap) {
-      if (!mounted) return;
-      setState(() {
-        _logs = snap.docs.map((doc) {
-          return {'id': doc.id, ...doc.data()};
-        }).toList();
-      });
-    });
-  }
-
-  Future<void> _saveUlangLog() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('logs').add({
-      'title': sizeController.text,
-      'description': weightController.text,
-      'type': 'ulang',
-      'createdAt': FieldValue.serverTimestamp(),
-      'createdBy': uid,
-    });
-    sizeController.clear();
-    weightController.clear();
-  }
-
-  Future<void> _savePlantLog() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('logs').add({
-      'title': selectedPlantName ?? '',
-      'description':
-          '${plantHeightController.text} | ${selectedPlantStage ?? ''} | ${plantConditionController.text}',
-      'type': 'plant',
-      'createdAt': FieldValue.serverTimestamp(),
-      'createdBy': uid,
-    });
-    setState(() {
-      selectedPlantName = null;
-      selectedPlantStage = null;
-    });
-    plantHeightController.clear();
-    plantConditionController.clear();
   }
 
   // =======================
@@ -134,10 +72,11 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
       double total = 0;
 
       for (var log in ulangLogs) {
-        final ts = log['createdAt'];
-        DateTime d = ts is Timestamp ? ts.toDate() : DateTime.now();
-        if (d.year == day.year && d.month == day.month && d.day == day.day) {
-          total += parseWeight(log['description'] ?? '');
+        DateTime d = log['date'];
+        if (d.year == day.year &&
+            d.month == day.month &&
+            d.day == day.day) {
+          total += parseWeight(log['weight']);
         }
       }
 
@@ -321,9 +260,16 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
-                            if (sizeController.text.isNotEmpty &&
-                                weightController.text.isNotEmpty) {
-                              _saveUlangLog();
+                            if (sizeController.text.isNotEmpty && weightController.text.isNotEmpty) {
+                              setState(() {
+                                ulangLogs.insert(0, {
+                                  "size": sizeController.text,
+                                  "weight": weightController.text,
+                                  "date": selectedDate
+                                });
+                                sizeController.clear();
+                                weightController.clear();
+                              });
                             }
                           },
                           borderRadius: BorderRadius.circular(8),
@@ -406,7 +352,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "Laki: ${log['title'] ?? ''}",
+                                    "Laki: ${log['size']}",
                                     style: GoogleFonts.poppins(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -414,7 +360,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
                                     ),
                                   ),
                                   Text(
-                                    "Bigat: ${log['description'] ?? ''}",
+                                    "Bigat: ${log['weight']}",
                                     style: GoogleFonts.poppins(
                                       fontSize: 12,
                                       color: const Color(0xFF6B7280),
@@ -516,11 +462,20 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
-                            if (selectedPlantName != null &&
-                                plantHeightController.text.isNotEmpty &&
-                                plantConditionController.text.isNotEmpty &&
-                                selectedPlantStage != null) {
-                              _savePlantLog();
+                            if (selectedPlantName != null && plantHeightController.text.isNotEmpty && plantConditionController.text.isNotEmpty && selectedPlantStage != null) {
+                              setState(() {
+                                plantLogs.insert(0, {
+                                  "name": selectedPlantName,
+                                  "height": plantHeightController.text,
+                                  "condition": plantConditionController.text,
+                                  "stage": selectedPlantStage,
+                                  "date": plantDate
+                                });
+
+                                selectedPlantName = null;
+                                plantHeightController.clear();
+                                plantConditionController.clear();
+                              });
                             }
                           },
                           borderRadius: BorderRadius.circular(8),
@@ -603,19 +558,27 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    log['title'] ?? "Plant",
+                                    log['name'] ?? "Plant",
                                     style: GoogleFonts.poppins(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: const Color(0xFF0F766E),
                                     ),
                                   ),
-                                  if ((log['description'] ?? '').isNotEmpty)
+                                  Text(
+                                    "Height: ${log['height']} | Stage: ${log['stage'] ?? '-'}",
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: const Color(0xFF6B7280),
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                  if (log['condition'] != null && log['condition']!.isNotEmpty)
                                     Text(
-                                      log['description'] ?? '',
+                                      "Condition: ${log['condition']}",
                                       style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        color: const Color(0xFF6B7280),
+                                        fontSize: 11,
+                                        color: const Color(0xFF9CA3AF),
                                         fontWeight: FontWeight.w400,
                                       ),
                                     ),
@@ -954,7 +917,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
         ],
       ),
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         hint: Text(
           hint,
@@ -1051,7 +1014,7 @@ class _LogsPageState extends State<LogsPage> with TickerProviderStateMixin {
 class GlassmorphicCard extends StatelessWidget {
   final Widget child;
 
-  const GlassmorphicCard({Key? key, required this.child}) : super(key: key);
+  const GlassmorphicCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {

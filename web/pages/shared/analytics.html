@@ -181,7 +181,7 @@
                     <div class="metric-card">
                         <div class="metric-icon"><i class="fa-solid fa-calendar-days"></i></div>
                         <div class="metric-label">Estimated Harvest Date</div>
-                        <div class="metric-value">April 12, 2026</div>
+                        <div class="metric-value" id="harvest-date-value">--</div>
                         <div class="metric-desc">Based on growth rate</div>
                     </div>
                     <div class="metric-card">
@@ -203,6 +203,156 @@
                         <div class="metric-desc">Optimal range: 1.1 - 1.4</div>
                     </div>
                 </div>
+
+                <!-- ── Yield Prediction & Income Forecast ───────────────── -->
+                <section class="yield-section yp-loading" id="ypSection">
+                    <div class="yp-section-header">
+                        <div>
+                            <h2 class="yp-section-title">Yield Prediction &amp; Income Forecast</h2>
+                            <p class="yp-section-subtitle">Live calculations from current cycle parameters and real-time water quality sensors.</p>
+                        </div>
+                        <span class="yp-badge" id="yp-last-updated">--</span>
+                    </div>
+
+                    <div class="yp-main-grid">
+                        <!-- Left: Inputs + calculation breakdown -->
+                        <div class="yp-card yp-inputs-card">
+                            <div class="yp-card-title">
+                                <i class="fa-solid fa-seedling"></i> Cycle Parameters
+                            </div>
+                            <div class="yp-input-grid">
+                                <div class="yp-input-item">
+                                    <span class="yp-input-label">Initial Stock</span>
+                                    <span class="yp-input-value" id="yp-initial-stock">--</span>
+                                </div>
+                                <div class="yp-input-item">
+                                    <span class="yp-input-label">Survival Rate</span>
+                                    <span class="yp-input-value" id="yp-survival-rate">--</span>
+                                </div>
+                                <div class="yp-input-item">
+                                    <span class="yp-input-label">Avg Weight / Piece</span>
+                                    <span class="yp-input-value" id="yp-avg-weight">--</span>
+                                </div>
+                                <div class="yp-input-item">
+                                    <span class="yp-input-label">Est. Harvest Date</span>
+                                    <span class="yp-input-value" id="yp-harvest-date">--</span>
+                                </div>
+                            </div>
+
+                            <div class="yp-divider"></div>
+
+                            <div class="yp-card-title" style="margin-bottom: 14px;">
+                                <i class="fa-solid fa-calculator"></i> Calculation
+                            </div>
+                            <div class="yp-calc-steps">
+                                <div class="yp-calc-row">
+                                    <div class="yp-calc-left">
+                                        <span class="yp-calc-label">Base Yield</span>
+                                        <span class="yp-calc-note">stock × survival × weight</span>
+                                    </div>
+                                    <span class="yp-calc-value" id="yp-base-yield">--</span>
+                                </div>
+                                <div class="yp-calc-row">
+                                    <div class="yp-calc-left">
+                                        <span class="yp-calc-label">Water Quality Score</span>
+                                        <span class="yp-calc-note">based on sensor readings</span>
+                                    </div>
+                                    <span class="yp-calc-value yp-wq-label" id="yp-wq-score-label">--</span>
+                                </div>
+                                <div class="yp-wq-bar-wrap">
+                                    <div class="yp-wq-bar" id="yp-wq-bar"></div>
+                                </div>
+                                <div class="yp-wq-bar-meta">
+                                    <span class="yp-wq-range-label">0.50 (poor)</span>
+                                    <span class="yp-wq-score-display" id="yp-wq-score-display">--</span>
+                                    <span class="yp-wq-range-label">1.00 (optimal)</span>
+                                </div>
+                                <div class="yp-calc-row yp-calc-result">
+                                    <div class="yp-calc-left">
+                                        <span class="yp-calc-label">Adjusted Yield</span>
+                                        <span class="yp-calc-note">base yield × WQ score</span>
+                                    </div>
+                                    <span class="yp-calc-value" id="yp-adjusted-yield">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Big yield + income breakdown -->
+                        <div class="yp-right-col">
+                            <div class="yp-yield-banner">
+                                <div class="yp-yield-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                                <div class="yp-yield-label">Predicted Yield</div>
+                                <div class="yp-yield-big" id="yp-yield-big">-- kg</div>
+                                <div class="yp-yield-sub">Adjusted for current water quality</div>
+                            </div>
+
+                            <div class="yp-income-header">
+                                <i class="fa-solid fa-peso-sign"></i> Expected Income Range
+                            </div>
+                            <div class="yp-income-grid">
+                                <div class="yp-income-card yp-income-min">
+                                    <div class="yp-income-tier">
+                                        <i class="fa-solid fa-arrow-down"></i> Minimum
+                                    </div>
+                                    <div class="yp-income-amount" id="yp-income-min">₱--</div>
+                                    <div class="yp-income-rate">at ₱250 / kg</div>
+                                </div>
+                                <div class="yp-income-card yp-income-avg">
+                                    <div class="yp-income-tier">
+                                        <i class="fa-solid fa-minus"></i> Average
+                                    </div>
+                                    <div class="yp-income-amount" id="yp-income-avg">₱--</div>
+                                    <div class="yp-income-rate">at ₱425 / kg</div>
+                                </div>
+                                <div class="yp-income-card yp-income-max">
+                                    <div class="yp-income-tier">
+                                        <i class="fa-solid fa-arrow-up"></i> Maximum
+                                    </div>
+                                    <div class="yp-income-amount" id="yp-income-max">₱--</div>
+                                    <div class="yp-income-rate">at ₱600 / kg</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sensor score breakdown -->
+                    <div class="yp-sensor-breakdown">
+                        <div class="yp-sb-title">
+                            <i class="fa-solid fa-droplet"></i> Water Quality Score Breakdown
+                        </div>
+                        <div class="yp-sb-grid">
+                            <div class="yp-sb-item">
+                                <span class="yp-sb-name">pH Level</span>
+                                <span class="yp-sb-score" id="yp-sensor-phLevel">--</span>
+                            </div>
+                            <div class="yp-sb-item">
+                                <span class="yp-sb-name">Water Temp</span>
+                                <span class="yp-sb-score" id="yp-sensor-waterTemp">--</span>
+                            </div>
+                            <div class="yp-sb-item">
+                                <span class="yp-sb-name">Dissolved O₂</span>
+                                <span class="yp-sb-score" id="yp-sensor-dissolvedOxygen">--</span>
+                            </div>
+                            <div class="yp-sb-item">
+                                <span class="yp-sb-name">Salinity</span>
+                                <span class="yp-sb-score" id="yp-sensor-salinity">--</span>
+                            </div>
+                            <div class="yp-sb-item">
+                                <span class="yp-sb-name">Turbidity</span>
+                                <span class="yp-sb-score" id="yp-sensor-turbidity">--</span>
+                            </div>
+                            <div class="yp-sb-item">
+                                <span class="yp-sb-name">Water Level</span>
+                                <span class="yp-sb-score" id="yp-sensor-waterLevel">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading overlay (visible until first data arrives) -->
+                    <div class="yp-loading-overlay">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Loading cycle data…
+                    </div>
+                </section>
 
                 <!-- Analytics Recommendation -->
                 <section class="recommendation-section">
@@ -263,5 +413,17 @@
         </div>
         <script src="js/analytics.js"></script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
+        <script type="module">
+            import { initYieldPrediction } from "./js/yieldPrediction.js";
+            initYieldPrediction();
+        </script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>

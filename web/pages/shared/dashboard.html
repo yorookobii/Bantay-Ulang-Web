@@ -91,13 +91,16 @@
             <main class="content">
                 <header class="page-header">
                     <div class="page-title-block">
-                        <h1>Admin Overview</h1>
-                        <p>System management & oversight for Bantay Ulang Bulacan</p>
+                        <h1 id="welcome-heading">Welcome back!</h1>
+                        <p id="welcome-datetime" class="welcome-datetime"></p>
                     </div>
                     <button type="button" class="btn-report" id="generateReportBtn" aria-label="Generate report">
                         <i class="fa-solid fa-file-lines"></i> Generate Report
                     </button>
                 </header>
+
+                <!-- Top Alert Banner -->
+                <div id="top-alert-banner" class="top-alert-banner" aria-live="polite"></div>
 
                 <!-- Metrics Row -->
                 <div class="metrics-row">
@@ -240,5 +243,13 @@
         <button type="button" class="help-fab" aria-label="Help"><i class="fa-solid fa-question"></i></button>
 
         <script type="module" src="js/dashboard.js"></script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown({ handleToggle: false });
+        </script>
     </body>
 </html>

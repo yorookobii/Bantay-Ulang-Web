@@ -6,7 +6,7 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <title>Real-Time Monitoring - Bantay Ulang Bulacan</title>
         <link rel="stylesheet" href="css/real-time-monitoring.css">
-       
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     </head>
     <body>
         <div class="app">
@@ -170,13 +170,13 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card" data-sensor="nitrate" data-base="5" data-min="0" data-max="20" data-unit=" ppm" data-decimals="0">
+                        <div class="sensor-card" data-sensor="water-level" data-base="1.50" data-min="0.50" data-max="3.00" data-unit=" m" data-decimals="2">
                             <div class="sensor-head">
                                 <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
-                            <div class="sensor-name">Nitrate</div>
-                            <div class="sensor-value">5 ppm</div>
+                            <div class="sensor-name">Water Level</div>
+                            <div class="sensor-value">1.50 m</div>
                             <div class="sensor-meta">
                                 <span>Location: Main Tank</span>
                                 <span class="sensor-updated">Updated: Just now</span>
@@ -187,7 +187,64 @@
             </main>
         </div>
 
+        <!-- Sensor History Modal -->
+        <div id="sensorHistoryModal" class="sh-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shModalTitle">
+            <div class="sh-modal">
+                <div class="sh-modal-header">
+                    <div>
+                        <h2 class="sh-modal-title" id="shModalTitle">Sensor History</h2>
+                        <p class="sh-modal-subtitle" id="shModalSubtitle">Last 24 Hours</p>
+                    </div>
+                    <button class="sh-modal-close" id="shModalClose" aria-label="Close modal">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="sh-modal-body">
+                    <div class="sh-modal-toggle">
+                        <button class="sh-toggle-btn active" data-range="24h">24 Hours</button>
+                        <button class="sh-toggle-btn" data-range="7d">7 Days</button>
+                        <button class="sh-toggle-btn" data-range="30d">30 Days</button>
+                    </div>
+                    <div class="sh-safe-range-row">
+                        <span class="sh-safe-dot"></span>
+                        <span id="shSafeRangeText" class="sh-safe-text"></span>
+                    </div>
+                    <div class="sh-chart-area">
+                        <canvas id="shChart"></canvas>
+                        <div id="shLoadingState" class="sh-overlay-state">
+                            <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading data…
+                        </div>
+                        <div id="shEmptyState" class="sh-overlay-state sh-hidden">
+                            No readings found for this time period.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script src="js/real-time-monitoring.js"></script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
+        <script type="module">
+            import { receiveSensorData } from "./js/sensorReadings.js";
+            import { startAlertsEngine } from "./js/alertsEngine.js";
+            import { initSensorHistoryModal } from "./js/sensorHistoryModal.js";
+
+            startAlertsEngine();
+            initSensorHistoryModal();
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", () => receiveSensorData());
+            } else {
+                receiveSensorData();
+            }
+        </script>
+        <script type="module">
+            import { loadUserProfile } from './js/userProfile.js';
+            loadUserProfile();
+        </script>
+        <script type="module">
+            import { initDropdown } from './js/dropdownActions.js';
+            initDropdown();
+        </script>
     </body>
 </html>

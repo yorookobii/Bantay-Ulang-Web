@@ -197,10 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (barEl) barEl.style.width = cfg.pct + '%';
         });
 
-        var yieldEl = document.getElementById('predictedYieldValue');
-        var confEl = document.getElementById('predictedYieldConfidence');
-        if (yieldEl) yieldEl.textContent = rand(128, 158, 1) + ' kg';
-        if (confEl) confEl.textContent = 'Confidence: ' + rand(84, 95, 0) + '%';
     }
 
     var runBtn = document.getElementById('runSimulationBtn') || document.querySelector('.btn-run-simulation');
