@@ -5,7 +5,8 @@ import {
     orderBy,
     limit,
     getDocs,
-    onSnapshot
+    onSnapshot,
+    updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ─── Sensor key list (matches Firestore schema) ────────────────────────────────
@@ -173,12 +174,26 @@ export async function initYieldPrediction() {
     let growthData   = null;
     let latestSensor = window.latestSensorReading ?? null;
 
-    // Fetch the most recent growth cycle once
+    // Fetch the most recent growth cycle once; sync expectedYield if stale/missing
     try {
         const snap = await getDocs(
             query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1))
         );
-        if (!snap.empty) growthData = snap.docs[0].data();
+        if (!snap.empty) {
+            const docSnap = snap.docs[0];
+            growthData = docSnap.data();
+
+            const computed = (Number(growthData.initialStock)      || 0)
+                           * ((Number(growthData.survivalRate)     || 0) / 100)
+                           * ((Number(growthData.avgWeightPerPiece) || 0) / 1000);
+            const stored   = Number(growthData.expectedYield);
+
+            if (!Number.isFinite(stored) || Math.abs(stored - computed) > 0.001) {
+                updateDoc(docSnap.ref, { expectedYield: computed }).catch(err =>
+                    console.warn("yieldPrediction: could not sync expectedYield:", err)
+                );
+            }
+        }
     } catch (err) {
         console.warn("yieldPrediction: could not load growth_indicators:", err);
     }

@@ -212,6 +212,48 @@
                     <p class="threshold_saved_msg" id="threshold-saved-msg">Thresholds saved successfully.</p>
                 </form>
             </div>
+            <!-- Growth Parameters Section -->
+            <div class="system_threshold">
+                <div id="growth_headings">
+                    <h2>Growth Parameters – Expected Yield</h2>
+                    <p class="threshold_section_desc">Set the current production cycle values. Expected yield is recalculated automatically using: <strong>initialStock × (survivalRate ÷ 100) × avgWeightPerPiece ÷ 1000</strong>.</p>
+                </div>
+                <form id="growth-form" class="threshold_form">
+                    <div class="threshold_row">
+                        <div class="threshold_param">
+                            <label for="gi_initialStock">Initial Stock</label>
+                            <span class="unit">pieces stocked</span>
+                            <input type="number" id="gi_initialStock" name="gi_initialStock" min="0" step="1" placeholder="e.g. 10000" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label for="gi_survivalRate">Survival Rate</label>
+                            <span class="unit">% (0 – 100)</span>
+                            <input type="number" id="gi_survivalRate" name="gi_survivalRate" min="0" max="100" step="0.1" placeholder="e.g. 80" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label for="gi_avgWeightPerPiece">Avg Weight / Piece</label>
+                            <span class="unit">grams per piece</span>
+                            <input type="number" id="gi_avgWeightPerPiece" name="gi_avgWeightPerPiece" min="0" step="0.1" placeholder="e.g. 150" required>
+                        </div>
+                        <div class="threshold_param">
+                            <label>Expected Yield</label>
+                            <span class="unit">kg (auto-calculated)</span>
+                            <span id="gi_expectedYield_preview" style="display:block; padding: 10px 0 0; font-size: 16px; font-weight: 600; color: #059669;">-- kg</span>
+                        </div>
+                    </div>
+                    <div class="threshold_row">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div>
+                            <button type="submit" class="btn-save-threshold">
+                                <i class="fa-solid fa-check"></i> Save parameters
+                            </button>
+                        </div>
+                    </div>
+                    <p class="threshold_saved_msg" id="growth-saved-msg"></p>
+                </form>
+            </div>
         </main>
         </div>
 

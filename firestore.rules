@@ -3,13 +3,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: check if the requesting user has the 'admin' role
     function isAdmin() {
       return request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Helper: check if the user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -18,8 +16,11 @@ service cloud.firestore {
     // users
     // -------------------------------------------------------------------------
     match /users/{userId} {
-      // A user can read/write their own document; admins can read/write any user doc.
-      allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
+      // Any authenticated user can read user documents.
+      // Needed so the web admin login can fetch any user doc to verify their role.
+      allow read: if isAuthenticated();
+
+      // Users can write their own document; admins can write any user document.
       allow write: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
     }
 
@@ -27,19 +28,29 @@ service cloud.firestore {
     // sensor_readings
     // -------------------------------------------------------------------------
     match /sensor_readings/{docId} {
-      // Any authenticated user can read; unauthenticated (ESP32) can create.
-      allow read:   if isAuthenticated();
+      // Authenticated users (web + Flutter) can read.
+      allow read: if isAuthenticated();
+
+      // ESP32 writes without auth — no authentication required for create.
       allow create: if true;
+
+      // Only admins can update or delete sensor readings.
+      allow update, delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
     // alerts
     // -------------------------------------------------------------------------
     match /alerts/{docId} {
-      // Authenticated users can read; unauthenticated (ESP32 / system) can
-      // create and update (e.g. auto-resolve alerts).
-      allow read:          if isAuthenticated();
+      // Authenticated users can read alerts.
+      allow read: if isAuthenticated();
+
+      // ESP32 / alertsEngine (unauthenticated server logic) can create and
+      // auto-resolve (update) alerts.
       allow create, update: if true;
+
+      // Only admins can delete alert documents.
+      allow delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -54,15 +65,11 @@ service cloud.firestore {
     // ulang_growth_records
     // -------------------------------------------------------------------------
     match /ulang_growth_records/{docId} {
-      // Any authenticated user can read all records.
       allow read: if isAuthenticated();
 
-      // Users can create their own records only.
       allow create: if isAuthenticated() &&
                        request.resource.data.recordedBy == request.auth.uid;
 
-      // Users cannot update or delete others' records.
-      // Admins can update and delete any record.
       allow update: if isAdmin() ||
                        (isAuthenticated() &&
                         resource.data.recordedBy == request.auth.uid);
@@ -85,34 +92,49 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // logs
+    // logs  (Flutter: filter by createdBy / assignedTo)
     // -------------------------------------------------------------------------
     match /logs/{docId} {
-      // Users can read/write their own log entries; admins can read/write all.
-      allow read, write: if isAdmin() ||
-                            (isAuthenticated() &&
-                             (resource.data.createdBy == request.auth.uid ||
-                              resource.data.assignedTo == request.auth.uid));
+      // Admins see all logs; other users see only logs they created or are
+      // assigned to (Flutter assignedTo filter preserved).
+      allow read: if isAdmin() ||
+                    (isAuthenticated() &&
+                     (resource.data.createdBy == request.auth.uid ||
+                      resource.data.assignedTo == request.auth.uid));
 
-      // Allow creating a new log if the createdBy field matches the requester.
+      // Any authenticated user can create a log they own.
       allow create: if isAuthenticated() &&
                        request.resource.data.createdBy == request.auth.uid;
+
+      // Admins or the log creator can update; only admins can delete.
+      allow update: if isAdmin() ||
+                       (isAuthenticated() &&
+                        resource.data.createdBy == request.auth.uid);
+
+      allow delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
-    // tasks
+    // tasks  (Flutter: filter by createdBy / assignedTo)
     // -------------------------------------------------------------------------
     match /tasks/{docId} {
-      // Users can read/write tasks they created or are assigned to;
-      // admins can read/write all.
-      allow read, write: if isAdmin() ||
-                            (isAuthenticated() &&
-                             (resource.data.createdBy == request.auth.uid ||
-                              resource.data.assignedTo == request.auth.uid));
+      // Admins see all tasks; other users see only tasks they created or are
+      // assigned to (Flutter assignedTo filter preserved).
+      allow read: if isAdmin() ||
+                    (isAuthenticated() &&
+                     (resource.data.createdBy == request.auth.uid ||
+                      resource.data.assignedTo == request.auth.uid));
 
-      // Allow creating a new task if the createdBy field matches the requester.
+      // Any authenticated user can create a task they own.
       allow create: if isAuthenticated() &&
                        request.resource.data.createdBy == request.auth.uid;
+
+      // Admins or the task creator can update; only admins can delete.
+      allow update: if isAdmin() ||
+                       (isAuthenticated() &&
+                        resource.data.createdBy == request.auth.uid);
+
+      allow delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------

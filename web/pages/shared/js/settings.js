@@ -1,5 +1,8 @@
 import { auth, db } from './firebase.js';
-import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {
+    doc, getDoc, setDoc,
+    collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
 const THRESHOLDS_DOC = doc(db, 'settings', 'thresholds');
@@ -71,6 +74,105 @@ if (form) {
     });
 }
 
+// ── Growth Parameters ─────────────────────────────────────────────────────────
+
+const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_survivalRate', 'gi_avgWeightPerPiece'];
+const GROWTH_FIELD_MAP = {
+    gi_initialStock:      'initialStock',
+    gi_survivalRate:      'survivalRate',
+    gi_avgWeightPerPiece: 'avgWeightPerPiece',
+};
+let growthDocRef = null;
+
+function calcExpectedYield(initialStock, survivalRate, avgWeightPerPiece) {
+    const s = Number(initialStock)      || 0;
+    const r = Number(survivalRate)      || 0;
+    const w = Number(avgWeightPerPiece) || 0;
+    return s * (r / 100) * (w / 1000);
+}
+
+function updateYieldPreview() {
+    const s = document.getElementById('gi_initialStock')?.value;
+    const r = document.getElementById('gi_survivalRate')?.value;
+    const w = document.getElementById('gi_avgWeightPerPiece')?.value;
+    const y = calcExpectedYield(s, r, w);
+    const el = document.getElementById('gi_expectedYield_preview');
+    if (el) el.textContent = (s || r || w) ? y.toFixed(3) + ' kg' : '-- kg';
+}
+
+async function loadGrowthParams() {
+    try {
+        const snap = await getDocs(
+            query(collection(db, 'growth_indicators'), orderBy('timestamp', 'desc'), limit(1))
+        );
+        if (!snap.empty) {
+            growthDocRef = snap.docs[0].ref;
+            const data   = snap.docs[0].data();
+            GROWTH_PARAM_IDS.forEach(id => {
+                const el    = document.getElementById(id);
+                const field = GROWTH_FIELD_MAP[id];
+                if (el && data[field] != null) el.value = data[field];
+            });
+            updateYieldPreview();
+        }
+    } catch (err) {
+        console.warn('[settings] Could not load growth_indicators:', err);
+    }
+}
+
+async function saveGrowthParams() {
+    const initialStock      = parseFloat(document.getElementById('gi_initialStock')?.value)      || 0;
+    const survivalRate      = parseFloat(document.getElementById('gi_survivalRate')?.value)      || 0;
+    const avgWeightPerPiece = parseFloat(document.getElementById('gi_avgWeightPerPiece')?.value) || 0;
+    const expectedYield     = calcExpectedYield(initialStock, survivalRate, avgWeightPerPiece);
+
+    const payload = { initialStock, survivalRate, avgWeightPerPiece, expectedYield, timestamp: serverTimestamp() };
+
+    if (growthDocRef) {
+        await setDoc(growthDocRef, payload, { merge: true });
+    } else {
+        const ref = await addDoc(collection(db, 'growth_indicators'), payload);
+        growthDocRef = ref;
+    }
+}
+
+// Live preview — update whenever any growth input changes
+GROWTH_PARAM_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateYieldPreview);
+});
+
+// Growth form submit
+const growthForm  = document.getElementById('growth-form');
+const growthMsgEl = document.getElementById('growth-saved-msg');
+
+if (growthForm) {
+    growthForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = growthForm.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        try {
+            await saveGrowthParams();
+            if (growthMsgEl) {
+                growthMsgEl.textContent  = 'Growth parameters saved successfully.';
+                growthMsgEl.style.color  = '';
+                growthMsgEl.classList.add('show');
+                setTimeout(() => growthMsgEl.classList.remove('show'), 3000);
+            }
+        } catch (err) {
+            console.error('[settings] Growth params save failed:', err);
+            if (growthMsgEl) {
+                growthMsgEl.textContent = 'Failed to save. Check your connection and try again.';
+                growthMsgEl.style.color = '#dc2626';
+                growthMsgEl.classList.add('show');
+                setTimeout(() => { growthMsgEl.classList.remove('show'); growthMsgEl.style.color = ''; }, 4000);
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '✓ Save parameters'; }
+        }
+    });
+}
+
 // ── Auth guard — load thresholds once user is confirmed ───────────────────────
 
 onAuthStateChanged(auth, (user) => {
@@ -79,6 +181,7 @@ onAuthStateChanged(auth, (user) => {
         return;
     }
     loadThresholds();
+    loadGrowthParams();
 });
 
 // ── Sidebar: mobile open/close ────────────────────────────────────────────────
