@@ -100,6 +100,86 @@ function showToast(msg, type = 'success') {
     t._timer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ── Build a pending user card ─────────────────────────────────────────────
+function buildPendingCard(uid, data, canEdit) {
+    const name    = data.fullName || data.displayName || 'Unknown User';
+    const email   = data.email   || '';
+    const role    = (data.role   || 'user').toLowerCase();
+    const initial = name.charAt(0).toUpperCase();
+
+    const card = document.createElement('div');
+    card.className = 'user_container pending-card';
+    card.dataset.uid = uid;
+
+    card.innerHTML = `
+        <div class="user_profile">
+            <span class="user-initial">${initial}</span>
+        </div>
+        <div class="user_information">
+            <h4>${name}</h4>
+            <p>${email}</p>
+        </div>
+        <div class="user_controls">
+            <div class="ctrl-group">
+                <label>Role</label>
+                <select class="um-select role-select"${canEdit ? '' : ' disabled'}>
+                    <option value="admin"${role === 'admin' ? ' selected' : ''}>Admin</option>
+                    <option value="technician"${role === 'technician' ? ' selected' : ''}>Technician</option>
+                    <option value="user"${role === 'user' ? ' selected' : ''}>User</option>
+                </select>
+            </div>
+            <div class="ctrl-group">
+                <label>Status</label>
+                <span class="um-pending-badge">Pending</span>
+            </div>
+        </div>
+        <div class="user_actions pending-actions">
+            <button class="um-approve-btn" title="Approve this user"${canEdit ? '' : ' disabled'}>
+                <i class="fas fa-check"></i> Approve
+            </button>
+            <button class="um-delete-btn" title="Remove user from Firestore"${canEdit ? '' : ' disabled'}>
+                <i class="fas fa-trash-alt"></i> Delete
+            </button>
+        </div>
+    `;
+
+    if (!canEdit) return card;
+
+    const roleSel = card.querySelector('.role-select');
+    roleSel.addEventListener('change', async (e) => {
+        const newRole = e.target.value;
+        const prevRole = role;
+        try {
+            await updateDoc(doc(db, 'users', uid), { role: newRole });
+            showToast(`Role updated to ${newRole.charAt(0).toUpperCase() + newRole.slice(1)}`);
+        } catch (err) {
+            roleSel.value = prevRole;
+            showToast('Failed to update role: ' + (err.code || err.message), 'error');
+        }
+    });
+
+    card.querySelector('.um-approve-btn').addEventListener('click', async () => {
+        try {
+            await updateDoc(doc(db, 'users', uid), { status: 'active' });
+            showToast(`${name} approved and set to Active`);
+        } catch (err) {
+            showToast('Failed to approve: ' + (err.code || err.message), 'error');
+        }
+    });
+
+    card.querySelector('.um-delete-btn').addEventListener('click', async () => {
+        if (!confirm(`Delete "${name}" from Firestore? This cannot be undone.`)) return;
+        try {
+            await deleteDoc(doc(db, 'users', uid));
+            showToast(`${name} removed`);
+        } catch (err) {
+            showToast('Failed to delete: ' + (err.code || err.message), 'error');
+        }
+    });
+
+    return card;
+}
+
 // ── Build a single user card ──────────────────────────────────────────────
 function buildCard(uid, data, canEdit) {
     const name    = data.fullName || data.displayName || 'Unknown User';
@@ -207,14 +287,37 @@ function makeRenderUsers(canEdit) {
         if (loading) loading.style.display = 'none';
         container.innerHTML = '';
 
+        const pending = [];
         const byRole = { admin: [], technician: [], user: [] };
         snapshot.forEach(d => {
-            const role = (d.data().role || 'user').toLowerCase();
+            const data   = d.data();
+            const status = (data.status || 'active').toLowerCase();
+            if (status === 'pending') {
+                pending.push({ uid: d.id, data });
+                return;
+            }
+            const role = (data.role || 'user').toLowerCase();
             const bucket = byRole[role] ?? byRole.user;
-            bucket.push({ uid: d.id, data: d.data() });
+            bucket.push({ uid: d.id, data });
         });
 
-        let total = 0;
+        let total = pending.length;
+
+        if (pending.length > 0) {
+            const section = document.createElement('section');
+            section.className = 'user_section';
+            section.innerHTML = `
+                <h3 class="user_section_title pending">
+                    <i class="fa-solid fa-user-clock"></i> Pending Approval
+                    <span class="um-count">${pending.length}</span>
+                </h3>
+                <div class="user_cards"></div>
+            `;
+            const grid = section.querySelector('.user_cards');
+            for (const { uid, data } of pending) grid.appendChild(buildPendingCard(uid, data, canEdit));
+            container.appendChild(section);
+        }
+
         for (const g of GROUPS) {
             const list = byRole[g.key];
             if (!list || list.length === 0) continue;

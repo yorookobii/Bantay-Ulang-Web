@@ -403,7 +403,7 @@ class _YieldEstimationPageState extends State<YieldEstimationPage> with TickerPr
         setState(() => _isLoading = false);
         return;
       }
-      final data = snap.docs.first.data() as Map<String, dynamic>;
+      final data = snap.docs.first.data();
       setState(() {
         _expectedYield   = (data['expectedYield']     as num?)?.toDouble();
         _avgWeight       = (data['avgWeightPerPiece'] as num?)?.toDouble();

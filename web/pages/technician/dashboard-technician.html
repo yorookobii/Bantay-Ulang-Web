@@ -93,12 +93,12 @@
                             <div class="card-icon-wrap blue"><i class="fa-solid fa-wrench"></i></div>
                             <span class="card-label">HARDWARE</span>
                         </div>
-                        <div class="card-value">4/6</div>
-                        <div class="card-desc">Systems Operational</div>
+                        <div class="card-value" id="hw-value">—</div>
+                        <div class="card-desc" id="hw-desc">Active alerts</div>
                         <div class="card-meta">
-                            <span class="meta-item warn ing">2 Warning</span>
-                            <span class="dot">•</span>
-                            <span class="meta-item offline">1 Offline</span>
+                            <span class="meta-item warning" id="hw-meta-warn"></span>
+                            <span class="dot" id="hw-meta-dot">•</span>
+                            <span class="meta-item offline" id="hw-meta-offline"></span>
                         </div>
                     </div>
                     <div class="summary-card">
@@ -106,12 +106,12 @@
                             <div class="card-icon-wrap purple"><i class="fa-solid fa-clipboard-list"></i></div>
                             <span class="card-label">TASKS</span>
                         </div>
-                        <div class="card-value">4</div>
-                        <div class="card-desc">Pending Tasks</div>
+                        <div class="card-value" id="tasks-value">—</div>
+                        <div class="card-desc" id="tasks-desc">Pending tasks</div>
                         <div class="card-meta">
-                            <span class="meta-item progress">1 In Progress</span>
+                            <span class="meta-item progress" id="tasks-meta-progress"></span>
                             <span class="dot">•</span>
-                            <span class="meta-item done">2 Done</span>
+                            <span class="meta-item done" id="tasks-meta-done"></span>
                         </div>
                     </div>
                     <div class="summary-card schedule-card">
@@ -119,9 +119,9 @@
                             <div class="card-icon-wrap orange"><i class="fa-solid fa-calendar-days"></i></div>
                             <span class="card-label">SCHEDULE</span>
                         </div>
-                        <div class="card-value">Today</div>
-                        <div class="card-next">Next Maintenance</div>
-                        <div class="card-detail">Sample Maintenance</div>
+                        <div class="card-value" id="sched-value"></div>
+                        <div class="card-next" id="sched-next"></div>
+                        <div class="card-detail" id="sched-detail">Today</div>
                     </div>
                 </div>
 
@@ -135,8 +135,8 @@
                     </div>
                     <div class="urgent-task-list" id="technician-tasks-list">
                         <div class="urgent-task-card critical">
-                            <span class="task-badge critical">CRITICAL</span>
-                            <div class="task-name">Check DO Sensor Unit</div>
+                            <span class="task-badge critical"></span>
+                            <div class="task-name"></div>
                             <div class="task-meta">
                                 <span><i class="fa-regular fa-clock"></i> Today</span>
                                 <span><i class="fa-solid fa-location-dot"></i> All Tanks</span>
@@ -144,8 +144,8 @@
                             <button type="button" class="btn-start">Start Task</button>
                         </div>
                         <div class="urgent-task-card high">
-                            <span class="task-badge high">HIGH</span>
-                            <div class="task-name">Calibrate pH Probe</div>
+                            <span class="task-badge high"></span>
+                            <div class="task-name"></div>
                             <div class="task-meta">
                                 <span><i class="fa-regular fa-clock"></i> Today</span>
                                 <span><i class="fa-solid fa-location-dot"></i> All Tanks</span>
@@ -164,7 +164,7 @@
         </script>
         <script type="module">
             import { initDropdown } from '../shared/js/dropdownActions.js';
-            initDropdown();
+            initDropdown({ handleToggle: false });
         </script>
     </body>
 </html>

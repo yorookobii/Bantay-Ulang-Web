@@ -744,7 +744,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         .snapshots()
         .listen((snap) {
       if (snap.docs.isNotEmpty && mounted) {
-        setState(() => _sensorData = snap.docs.first.data() as Map<String, dynamic>);
+        setState(() => _sensorData = snap.docs.first.data());
       }
     });
 
@@ -757,7 +757,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         .listen((snap) {
       if (mounted) {
         setState(() => _alerts = snap.docs
-            .map((d) => d.data() as Map<String, dynamic>)
+            .map((d) => d.data())
             .toList());
       }
     });
@@ -770,7 +770,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         .snapshots()
         .listen((snap) {
       if (snap.docs.isNotEmpty && mounted) {
-        final data = snap.docs.first.data() as Map<String, dynamic>;
+        final data = snap.docs.first.data();
         final cs = _fmtDate(data['cycleStart']);
         final ce = _fmtDate(data['cycleEnd']);
         setState(() {

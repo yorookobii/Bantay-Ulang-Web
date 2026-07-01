@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'landing_page.dart';
-import 'landing_user.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});

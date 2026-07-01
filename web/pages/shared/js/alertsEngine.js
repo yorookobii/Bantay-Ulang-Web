@@ -114,6 +114,149 @@ function buildMessage(param, value, isHigh) {
     return `${label} is ${direction} the safe range. Current: ${valueStr}. Safe range: ${safeRangeStr}. ${suggestion}`.trim();
 }
 
+// ── Auto-task generation playbook ────────────────────────────────────────────
+
+const TASK_PLAYBOOK = {
+    phLevel: {
+        low: {
+            title:    "Magdagdag ng Buffer sa Tubig",
+            desc:     "Bumaba ang pH ng tubig. Maglagay ng kaunting potassium bicarbonate o dinurog na shell/eggshell sa tubig. Huwag biglain — unti-unti lang.",
+            assignTo: "farmer"
+        },
+        high: {
+            title:    "Bawasan Muna ang Pagpapakain",
+            desc:     "Mataas ang pH ngayon. Bawasan muna ang dami ng pagkain na ibibigay sa ulang. I-check din kung malinis ang panggaling ng tubig.",
+            assignTo: "farmer"
+        }
+    },
+    dissolvedOxygen: {
+        low: {
+            title:    "Bawasan ang Pagpapakain, Linisin ang Tubig",
+            desc:     "Mababa ang oxygen sa tubig. Bawasan ang pagkain at tanggalin ang mga nakikitang dumi o tira-tira sa tubig.",
+            assignTo: "farmer"
+        }
+    },
+    turbidity: {
+        high: {
+            title:    "Bawasan ang Pagpapakain, Alisin ang Dumi",
+            desc:     "Malabo ang tubig ngayon. Bawasan muna ang pagkain at alisin ang nakikitang dumi sa tubig.",
+            assignTo: "farmer"
+        }
+    },
+    waterTemp: {
+        high: {
+            title:    "I-check ang Lilim/Shade",
+            desc:     "Mataas ang temperatura ng tubig. I-check kung sapat ang lilim para hindi sobrang init ang araw na tumatama sa tangke.",
+            assignTo: "farmer"
+        }
+    },
+    salinity: {
+        low: {
+            title:    "I-check ang Pinagmumulan ng Tubig",
+            desc:     "Hindi normal ang lasa/asin ng tubig. I-check kung may halong maalat na tubig o ulan.",
+            assignTo: "farmer"
+        },
+        high: {
+            title:    "I-check ang Pinagmumulan ng Tubig",
+            desc:     "Hindi normal ang lasa/asin ng tubig. I-check kung may halong maalat na tubig o ulan.",
+            assignTo: "farmer"
+        }
+    },
+    waterLevel: {
+        low: {
+            title:    "I-check ang Pump/Tubo, Baka May Tagas",
+            desc:     "Bumababa ang lebel ng tubig. I-check ang pump at mga tubo kung may tagas o barado.",
+            assignTo: "technician"
+        },
+        high: {
+            title:    "I-check ang Drainage/Overflow",
+            desc:     "Sumosobra ang tubig. I-check ang drainage kung barado o sira.",
+            assignTo: "technician"
+        }
+    }
+};
+
+// Returns the Firestore UID of the first matching user.
+// Queries by role only (single-field index) and filters status in memory.
+async function findFirstUserByRole(role, requireActive = false) {
+    try {
+        const snap = await getDocs(
+            query(collection(db, "users"), where("role", "==", role))
+        );
+        if (snap.empty) return null;
+        if (!requireActive) return snap.docs[0].id;
+        const match = snap.docs.find(d => d.data().status === "active");
+        return match ? match.id : null;
+    } catch {
+        return null;
+    }
+}
+
+// Queries tasks by parameter only (avoids composite index) then filters status in memory.
+async function hasPendingTask(param) {
+    try {
+        const q = query(collection(db, "tasks"), where("parameterTriggered", "==", param));
+        console.log(`[alertsEngine] hasPendingTask: querying tasks where parameterTriggered == "${param}"`);
+        const snap = await getDocs(q);
+        console.log(`[alertsEngine] hasPendingTask: found ${snap.size} task doc(s) for "${param}"`);
+        return snap.docs.some(d => {
+            const s = d.data().status;
+            return s !== "done" && s !== "completed";
+        });
+    } catch (err) {
+        console.error(`[alertsEngine] hasPendingTask: Firestore query failed for "${param}" — check security rules on tasks collection.`, err);
+        return false; // fail open so the task creation still proceeds
+    }
+}
+
+async function autoCreateTask(param, severity, isHigh) {
+    console.log(`[alertsEngine] autoCreateTask() entered — param=${param}, severity=${severity}, isHigh=${isHigh}`);
+
+    const direction = isHigh ? "high" : "low";
+    const playbook  = (TASK_PLAYBOOK[param] || {})[direction];
+    if (!playbook) {
+        console.warn(`[alertsEngine] autoCreateTask: no playbook entry for ${param}/${direction} — skipping.`);
+        return;
+    }
+
+    const pending = await hasPendingTask(param);
+    if (pending) {
+        console.log(`[alertsEngine] autoCreateTask: skipping ${param} — unresolved task already exists.`);
+        return;
+    }
+
+    let assignedTo;
+    if (playbook.assignTo === "technician") {
+        assignedTo = await findFirstUserByRole("technician");
+    } else {
+        assignedTo = await findFirstUserByRole("user", true);
+        if (!assignedTo) {
+            console.warn(`[alertsEngine] autoCreateTask: no active farmer (role=user, status=active) found — assignedTo will be null.`);
+            assignedTo = null;
+        }
+    }
+
+    console.log(`[alertsEngine] autoCreateTask: writing task to Firestore — title="${playbook.title}", assignedTo=${assignedTo}`);
+    try {
+        await addDoc(collection(db, "tasks"), {
+            title:              playbook.title,
+            description:        playbook.desc,
+            status:             "pending",
+            createdAt:          serverTimestamp(),
+            createdBy:          "system",
+            parameterTriggered: param,
+            severityTriggered:  severity,
+            assignedTo,
+            assignedRole:       playbook.assignTo
+        });
+        console.log(`[alertsEngine] Auto-task created for ${param} (${direction}, ${severity}).`);
+    } catch (err) {
+        console.error(`[alertsEngine] autoCreateTask: addDoc failed — check security rules on tasks collection.`, err);
+    }
+}
+
+// ── Alert helpers ─────────────────────────────────────────────────────────────
+
 // Queries by parameter only (single-field index, no composite index needed) then
 // filters status and deviceId in memory to avoid requiring a composite Firestore index.
 async function findActiveAlert(param, deviceId) {
@@ -146,6 +289,8 @@ async function handleParameter(param, value, deviceId) {
         if (existing) {
             // Update the live alert with the latest value and recalculated severity.
             await updateDoc(existing.ref, { currentValue: value, message, severity });
+            // Task may not exist yet if alert pre-dates the task engine — create it if missing.
+            await autoCreateTask(param, severity, aboveMax);
         } else {
             await addDoc(collection(db, "alerts"), {
                 type:         alertType,
@@ -158,6 +303,8 @@ async function handleParameter(param, value, deviceId) {
                 createdAt: serverTimestamp(),
                 deviceId
             });
+            // Auto-create a matching task for this new alert.
+            await autoCreateTask(param, severity, aboveMax);
         }
     } else if (existing) {
         // Parameter returned to safe range — resolve the alert.

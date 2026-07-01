@@ -407,6 +407,60 @@ main {
 }
 .user_section_title.admins i { color: #8b5cf6; }
 
+/* ── Pending section title ───────────────────────────────────────────── */
+.user_section_title.pending {
+    border-bottom-color: #f59e0b;
+    color: #b45309;
+}
+.user_section_title.pending i { color: #f59e0b; }
+
+/* ── Pending card highlight ──────────────────────────────────────────── */
+.user_container.pending-card {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+.user_container.pending-card:hover {
+    border-color: #fbbf24;
+}
+
+/* ── Pending status badge ────────────────────────────────────────────── */
+.um-pending-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border: 1px solid #fbbf24;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #92400e;
+    background: #fef3c7;
+}
+
+/* ── Approve button ──────────────────────────────────────────────────── */
+.um-approve-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #ecfdf5;
+    border: 1px solid #6ee7b7;
+    border-radius: 20px;
+    color: #065f46;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+.um-approve-btn:hover { background: #d1fae5; border-color: #34d399; }
+.um-approve-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+/* ── Pending actions row (approve + delete side by side) ─────────────── */
+.pending-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
 /* ── Count badge in section headings ─────────────────────────────────── */
 .um-count {
     margin-left: auto;

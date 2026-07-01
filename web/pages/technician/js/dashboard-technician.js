@@ -1,6 +1,6 @@
 import { auth, db } from "../../../assets/js/firebase-init.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
-import { collection, getDocs, orderBy, query, where } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { collection, getDocs, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -12,6 +12,14 @@ function clearSavedAuthSession() {
     } catch (error) {
         console.warn("Unable to clear saved auth session.", error);
     }
+}
+
+function getSessionProfileId() {
+    try {
+        const raw = localStorage.getItem(AUTH_SESSION_KEY) || sessionStorage.getItem(AUTH_SESSION_KEY);
+        if (raw) return JSON.parse(raw)?.profileId || null;
+    } catch (_) {}
+    return null;
 }
 
 async function handleLogout(logoutElement, profileDropdown) {
@@ -178,8 +186,8 @@ function renderTechnicianTasks(tasks) {
     });
 }
 
-async function loadTechnicianTasks(currentUser) {
-    if (!currentUser?.uid) {
+async function loadTechnicianTasks(assignedToId) {
+    if (!assignedToId) {
         renderNoAssignedTasks();
         return;
     }
@@ -187,7 +195,7 @@ async function loadTechnicianTasks(currentUser) {
     try {
         const tasksQuery = query(
             collection(db, "tasks"),
-            where("assignedTo", "==", currentUser.uid),
+            where("assignedTo", "==", assignedToId),
             orderBy("createdAt", "desc")
         );
 
@@ -203,6 +211,54 @@ async function loadTechnicianTasks(currentUser) {
     }
 }
 
+async function loadSummaryCards(assignedToId) {
+    const now = new Date();
+    const schedValue = document.getElementById("sched-value");
+    const schedNext  = document.getElementById("sched-next");
+    if (schedValue) schedValue.textContent = now.toLocaleDateString("en-US", { weekday: "long" });
+    if (schedNext)  schedNext.textContent  = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    try {
+        const tasksSnap = await getDocs(
+            query(collection(db, "tasks"), where("assignedTo", "==", assignedToId))
+        );
+        var pending = 0, inProgress = 0, done = 0;
+        tasksSnap.forEach(function(d) {
+            var s = String(d.data().status || "pending").toLowerCase();
+            if (s === "in-progress" || s === "in_progress") { inProgress++; }
+            else if (s === "done" || s === "completed") { done++; }
+            else { pending++; }
+        });
+        var tasksValue = document.getElementById("tasks-value");
+        var tasksDesc  = document.getElementById("tasks-desc");
+        var tasksProg  = document.getElementById("tasks-meta-progress");
+        var tasksDone  = document.getElementById("tasks-meta-done");
+        if (tasksValue) tasksValue.textContent = pending;
+        if (tasksDesc)  tasksDesc.textContent  = pending === 1 ? "Pending task" : "Pending tasks";
+        if (tasksProg)  tasksProg.textContent   = inProgress + " In Progress";
+        if (tasksDone)  tasksDone.textContent   = done + " Done";
+    } catch (error) {
+        console.error("Unable to load task summary:", error);
+    }
+
+    try {
+        var alertsSnap = await getDocs(
+            query(collection(db, "alerts"), where("status", "==", "active"))
+        );
+        var count   = alertsSnap.size;
+        var hwValue = document.getElementById("hw-value");
+        var hwDesc  = document.getElementById("hw-desc");
+        var hwWarn  = document.getElementById("hw-meta-warn");
+        var hwDot   = document.getElementById("hw-meta-dot");
+        if (hwValue) hwValue.textContent = count;
+        if (hwDesc)  hwDesc.textContent  = count === 1 ? "Active alert" : "Active alerts";
+        if (hwWarn)  hwWarn.textContent  = count > 0 ? "Needs attention" : "All clear";
+        if (hwDot)   hwDot.style.display = count > 0 ? "" : "none";
+    } catch (error) {
+        console.error("Unable to load hardware summary:", error);
+    }
+}
+
 function initTechnicianTasks() {
     onAuthStateChanged(auth, function(currentUser) {
         if (!currentUser) {
@@ -210,7 +266,9 @@ function initTechnicianTasks() {
             return;
         }
 
-        loadTechnicianTasks(currentUser);
+        var assignedToId = getSessionProfileId() || currentUser.uid;
+        loadTechnicianTasks(assignedToId);
+        loadSummaryCards(assignedToId);
     });
 }
 
