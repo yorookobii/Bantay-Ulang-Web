@@ -121,9 +121,9 @@
                             <div class="card-icon population"><i class="fa-solid fa-water"></i></div>
                             <span class="card-title">Total Yield Expected</span>
                         </div>
-                        <div class="card-value"></div>
+                        <div class="card-value" id="total-yield-value">-- kg</div>
                         <div class="card-trend negative">
-                        </div>  
+                        </div>
                     </div>
                     <div class="metric-card">
                         <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
@@ -148,15 +148,17 @@
                             </div>
                             <div class="chart-header-controls">
                                 <select class="chart-dropdown" id="envTrendsParamDropdown" aria-label="Select water parameter">
-                                    <option value="ph">pH</option>
-                                    <option value="do">Dissolved Oxygen (mg/L)</option>
-                                    <option value="temp">Temperature (°C)</option>
+                                    <option value="phLevel">pH</option>
+                                    <option value="dissolvedOxygen">Dissolved Oxygen (mg/L)</option>
+                                    <option value="waterTemp">Temperature (°C)</option>
                                     <option value="salinity">Salinity (ppt)</option>
                                     <option value="turbidity">Turbidity (NTU)</option>
-                                    <option value="nitrate">Nitrate (ppm)</option>
+                                    <option value="waterLevel">Water Level (m)</option>
                                 </select>
-                                <select class="chart-dropdown" aria-label="Time range">
-                                    <option>Last 24 Hours</option>
+                                <select class="chart-dropdown" id="envTrendsRangeDropdown" aria-label="Time range">
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
                                 </select>
                             </div>
                         </div>
@@ -167,11 +169,13 @@
                     <div class="chart-card">
                         <div class="chart-header">
                             <div>
-                                <div class="chart-title">Mortality Rate <span class="mortality-badge">3.4% Weekly Average</span></div>
+                                <div class="chart-title">Mortality Rate</div>
+                                <div class="chart-subtitle">Derived from survival rate (growth indicators)</div>
                             </div>
                         </div>
-                        <div class="chart-wrap">
-                            <canvas id="mortalityChart"></canvas>
+                        <div class="mortality-stat">
+                            <div class="mortality-stat-value" id="mortalityRateValue">--%</div>
+                            <div class="mortality-stat-count" id="mortalitySurvivingCount">-- of -- surviving</div>
                         </div>
                     </div>
                 </div>

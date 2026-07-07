@@ -1,38 +1,9 @@
 import { auth, db } from "./firebase.js";
-import { collection, doc, getDocs, getDoc, limit, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-const defaultEnvLabels = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"];
-const defaultEnvParamData = {
-    ph:       { label: "pH", data: [7.0, 7.1, 7.2, 7.3, 7.2, 7.1, 7.2], yMin: 6.5, yMax: 8 },
-    do:       { label: "Dissolved Oxygen (mg/L)", data: [6.2, 6.4, 6.8, 6.5, 6.6, 6.4, 6.3], yMin: 5, yMax: 9 },
-    temp:     { label: "Temperature (°C)", data: [23, 23.5, 24, 25, 26, 25.5, 24.5], yMin: 20, yMax: 30 },
-    salinity: { label: "Salinity (ppt)", data: [14, 14.5, 15, 15, 15.2, 15, 14.8], yMin: 12, yMax: 18 },
-    turbidity:{ label: "Turbidity (NTU)", data: [3.2, 3.0, 3.5, 3.8, 3.6, 3.4, 3.3], yMin: 2, yMax: 6 },
-    nitrate:  { label: "Nitrate (ppm)", data: [4, 5, 5.5, 6, 5, 4.5, 4], yMin: 0, yMax: 20 }
-};
-const defaultMortalityLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const defaultMortalityValues = [3.2, 3.5, 3.1, 3.8, 3.4, 3.2, 3.6];
-const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
-
-let envTrendLabels = [...defaultEnvLabels];
-let envParamData = cloneEnvParamData(defaultEnvParamData);
-let mortalityLabels = [...defaultMortalityLabels];
-let mortalityValues = [...defaultMortalityValues];
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
-
-function syncDashboardFirestoreState() {
-    window.dashboardFirestoreState = {
-        envTrendLabels: [...envTrendLabels],
-        envParamData: cloneEnvParamData(envParamData),
-        mortalityLabels: [...mortalityLabels],
-        mortalityValues: [...mortalityValues]
-    };
-}
-
-syncDashboardFirestoreState();
 
 function clearSavedAuthSession() {
     try {
@@ -69,24 +40,6 @@ async function handleLogout(logoutElement, profileDropdown) {
     }
 }
 
-function cloneEnvParamData(source) {
-    return Object.fromEntries(
-        Object.entries(source).map(([key, value]) => [key, { ...value, data: [...value.data] }])
-    );
-}
-
-function getNumberField(data, keys) {
-    for (const key of keys) {
-        const value = data?.[key];
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) {
-            return Number(value);
-        }
-    }
-
-    return null;
-}
-
 function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
         const value = data?.[key];
@@ -108,17 +61,6 @@ function toDateValue(value) {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatTimeLabel(value, fallback) {
-    const date = toDateValue(value);
-    if (!date) return fallback;
-
-    return date.toLocaleTimeString("en-PH", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-    });
-}
-
 function formatLogTime(value, fallback = "Just now") {
     const date = toDateValue(value);
     if (!date) return fallback;
@@ -129,26 +71,24 @@ function formatLogTime(value, fallback = "Just now") {
     });
 }
 
-function computeRange(values, fallbackMin, fallbackMax) {
-    const numericValues = values.filter((value) => typeof value === "number" && Number.isFinite(value));
-    if (!numericValues.length) return { min: fallbackMin, max: fallbackMax };
-
-    const min = Math.min(...numericValues);
-    const max = Math.max(...numericValues);
-
-    if (min === max) {
-        const pad = Math.max(Math.abs(min) * 0.15, 0.5);
-        return { min: min - pad, max: max + pad };
-    }
-
-    const pad = Math.max((max - min) * 0.15, 0.5);
-    return { min: min - pad, max: max + pad };
-}
-
 function setTotalYieldValue(value) {
     const totalYieldValue = document.getElementById("total-yield-value");
     if (totalYieldValue && value) {
         totalYieldValue.textContent = String(value);
+    }
+}
+
+async function loadTotalYieldExpected() {
+    try {
+        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
+        if (snap.empty) return;
+
+        const expectedYield = Number(snap.docs[0].data().expectedYield);
+        if (!Number.isFinite(expectedYield)) return;
+
+        setTotalYieldValue(expectedYield.toFixed(1) + " kg");
+    } catch (err) {
+        console.warn("dashboard: unable to load growth_indicators for total yield expected:", err);
     }
 }
 
@@ -165,15 +105,6 @@ function setActiveAlertsValue(count) {
             ? '<i class="fa-solid fa-arrow-up"></i> Action required'
             : '<i class="fa-solid fa-check"></i> No active alerts';
     }
-}
-
-function setMortalityBadge(values) {
-    const mortalityBadge = document.getElementById("mortality-average-badge");
-    const numericValues = values.filter((value) => typeof value === "number" && Number.isFinite(value));
-    if (!mortalityBadge || !numericValues.length) return;
-
-    const average = numericValues.reduce((total, value) => total + value, 0) / numericValues.length;
-    mortalityBadge.textContent = average.toFixed(1) + "% Weekly Average";
 }
 
 function createLogItem(entry) {
@@ -233,167 +164,8 @@ function renderRecentLogs(entries) {
     });
 }
 
-function applyTotalYieldSnapshot(snapshot) {
-    snapshot.forEach((doc) => {
-        const data = doc.data();
-        const totalYield = getTextField(data, ["message", "totalYield", "yield", "value"], "");
-        console.log("Yield ID:", doc.id);
-        console.log("Yield Data:", data);
-
-        if (totalYield) {
-            setTotalYieldValue(totalYield);
-        }
-    });
-}
-
 function applyActiveAlertsSnapshot(snapshot) {
     setActiveAlertsValue(snapshot.size);
-}
-
-function applyEnvironmentSnapshot(snapshot) {
-    const envDocs = snapshot.docs;
-    if (!envDocs.length) return;
-
-    if (envDocs.length === 1) {
-        const singleDoc = envDocs[0].data();
-        const labels = Array.isArray(singleDoc.labels)
-            ? singleDoc.labels.map((label, index) => String(label || index + 1))
-            : null;
-
-        if (labels) {
-            const nextEnvParamData = cloneEnvParamData(defaultEnvParamData);
-            let hasSeries = false;
-
-            Object.entries(defaultEnvParamData).forEach(([key, config]) => {
-                const seriesSource = Array.isArray(singleDoc[key])
-                    ? singleDoc[key]
-                    : key === "do" && Array.isArray(singleDoc.dissolvedOxygen)
-                        ? singleDoc.dissolvedOxygen
-                        : key === "temp" && Array.isArray(singleDoc.temperature)
-                            ? singleDoc.temperature
-                            : null;
-
-                if (!seriesSource) return;
-
-                const series = seriesSource.map((value) => {
-                    if (typeof value === "number" && Number.isFinite(value)) return value;
-                    if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) {
-                        return Number(value);
-                    }
-                    return null;
-                });
-
-                if (series.some((value) => value !== null)) {
-                    const range = computeRange(series, config.yMin, config.yMax);
-                    nextEnvParamData[key].data = series;
-                    nextEnvParamData[key].yMin = range.min;
-                    nextEnvParamData[key].yMax = range.max;
-                    hasSeries = true;
-                }
-            });
-
-            if (hasSeries) {
-                envTrendLabels = labels;
-                envParamData = nextEnvParamData;
-                syncDashboardFirestoreState();
-                return;
-            }
-        }
-    }
-
-    const trendPoints = envDocs
-        .map((doc, index) => {
-            const data = doc.data();
-            const loggedAt = toDateValue(data.timestamp || data.loggedAt || data.createdAt || data.date);
-
-            return {
-                sortValue: loggedAt ? loggedAt.getTime() : index,
-                label: getTextField(data, ["label", "timeLabel"], formatTimeLabel(loggedAt, doc.id)),
-                ph: getNumberField(data, ["ph"]),
-                do: getNumberField(data, ["do", "dissolvedOxygen", "dissolved_oxygen"]),
-                temp: getNumberField(data, ["temp", "temperature"]),
-                salinity: getNumberField(data, ["salinity"]),
-                turbidity: getNumberField(data, ["turbidity"]),
-                nitrate: getNumberField(data, ["nitrate"])
-            };
-        })
-        .sort((a, b) => a.sortValue - b.sortValue);
-
-    if (!trendPoints.length) return;
-
-    const nextEnvParamData = cloneEnvParamData(defaultEnvParamData);
-    envTrendLabels = trendPoints.map((point, index) => point.label || ("Point " + (index + 1)));
-
-    Object.entries(defaultEnvParamData).forEach(([key, config]) => {
-        const series = trendPoints.map((point) => (typeof point[key] === "number" ? point[key] : null));
-        if (!series.some((value) => value !== null)) return;
-
-        const range = computeRange(series, config.yMin, config.yMax);
-        nextEnvParamData[key].data = series;
-        nextEnvParamData[key].yMin = range.min;
-        nextEnvParamData[key].yMax = range.max;
-    });
-
-    envParamData = nextEnvParamData;
-    syncDashboardFirestoreState();
-}
-
-function applyMortalitySnapshot(snapshot) {
-    const mortalityDocs = snapshot.docs;
-    if (!mortalityDocs.length) return;
-
-    if (mortalityDocs.length === 1) {
-        const singleDoc = mortalityDocs[0].data();
-        const labels = Array.isArray(singleDoc.labels)
-            ? singleDoc.labels
-            : Array.isArray(singleDoc.days)
-                ? singleDoc.days
-                : null;
-        const values = Array.isArray(singleDoc.values)
-            ? singleDoc.values
-            : Array.isArray(singleDoc.data)
-                ? singleDoc.data
-                : Array.isArray(singleDoc.rates)
-                    ? singleDoc.rates
-                    : null;
-
-        if (labels && values) {
-            mortalityLabels = labels.map((label, index) => String(label || index + 1));
-            mortalityValues = values.map((value) => {
-                if (typeof value === "number" && Number.isFinite(value)) return value;
-                if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) {
-                    return Number(value);
-                }
-                return 0;
-            });
-            setMortalityBadge(mortalityValues);
-            syncDashboardFirestoreState();
-            return;
-        }
-    }
-
-    const mortalityPoints = mortalityDocs
-        .map((doc, index) => {
-            const data = doc.data();
-            const loggedAt = toDateValue(data.timestamp || data.loggedAt || data.createdAt || data.date);
-            const label = getTextField(data, ["label", "day"], doc.id);
-            const shortLabel = label.slice(0, 3);
-
-            return {
-                sortValue: loggedAt ? loggedAt.getTime() : (dayOrder[shortLabel] ?? index),
-                label: shortLabel,
-                value: getNumberField(data, ["value", "rate", "mortality", "mortalityRate", "percentage", "percent"])
-            };
-        })
-        .filter((point) => point.value !== null)
-        .sort((a, b) => a.sortValue - b.sortValue);
-
-    if (!mortalityPoints.length) return;
-
-    mortalityLabels = mortalityPoints.map((point) => point.label);
-    mortalityValues = mortalityPoints.map((point) => point.value);
-    setMortalityBadge(mortalityValues);
-    syncDashboardFirestoreState();
 }
 
 function applyRecentLogsSnapshot(snapshot) {
@@ -423,36 +195,15 @@ function applyRecentLogsSnapshot(snapshot) {
 }
 
 async function loadData() {
-    const [yieldResult, alertsResult, envResult, mortalityResult, logsResult] = await Promise.allSettled([
-        getDocs(collection(db, "test_connection")),
+    const [alertsResult, logsResult] = await Promise.allSettled([
         getDocs(query(collection(db, "alerts"), where("status", "==", "active"))),
-        getDocs(collection(db, "environmental_trends")),
-        getDocs(collection(db, "mortality_rates")),
         getDocs(query(collection(db, "logs"), orderBy("createdAt", "desc"), limit(5)))
     ]);
-
-    if (yieldResult.status === "fulfilled") {
-        applyTotalYieldSnapshot(yieldResult.value);
-    } else {
-        console.warn("Unable to load test_connection collection.", yieldResult.reason);
-    }
 
     if (alertsResult.status === "fulfilled") {
         applyActiveAlertsSnapshot(alertsResult.value);
     } else {
         console.warn("Unable to load active alerts from alerts collection.", alertsResult.reason);
-    }
-
-    if (envResult.status === "fulfilled") {
-        applyEnvironmentSnapshot(envResult.value);
-    } else {
-        console.warn("Unable to load environmental_trends collection.", envResult.reason);
-    }
-
-    if (mortalityResult.status === "fulfilled") {
-        applyMortalitySnapshot(mortalityResult.value);
-    } else {
-        console.warn("Unable to load mortality_rates collection.", mortalityResult.reason);
     }
 
     if (logsResult.status === "fulfilled") {
@@ -461,403 +212,462 @@ async function loadData() {
         console.warn("Unable to load logs collection.", logsResult.reason);
     }
 }
- (function() {
-                function init() {
-                    var container = document.querySelector('.topbar');
-                    if (!container) return;
-                    var notifDropdown = container.querySelector('.notification-dropdown');
-                    var profileDropdown =   container.querySelector('.profile-dropdown');
-                    var notifBtn = container.querySelector('.notification-icon');
-                    var profileBtn = container.querySelector('.admin-profile');
-                    if (notifBtn && notifDropdown) {
-                        notifBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            notifDropdown.classList.toggle('show');
-                            if (profileDropdown) profileDropdown.classList.remove('show');
-                        });
-                    }
-                    if (profileBtn && profileDropdown) {
-                        profileBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            profileDropdown.classList.toggle('show');
-                            if (notifDropdown) notifDropdown.classList.remove('show');
-                        });
-                    }
-                    document.addEventListener('click', function(e) {
-                        if (container.contains(e.target)) return;
-                        if (notifDropdown) notifDropdown.classList.remove('show');
-                        if (profileDropdown) profileDropdown.classList.remove('show');
-                    });
-                    var logoutMenuItem = document.getElementById('logoutMenuItem');
-                    if (logoutMenuItem) {
-                        logoutMenuItem.addEventListener('click', function() {
-                            handleLogout(logoutMenuItem, profileDropdown);
-                        });
-                    }
 
-                    var sidebar = document.getElementById('sidebar');
-                    var overlay = document.getElementById('sidebarOverlay');
-                    var menuBtn = document.getElementById('topbarMenuBtn');
-                    var app = document.querySelector('.app');
-                    if (sidebar && overlay && menuBtn) {
-                        menuBtn.addEventListener('click', function() {
-                            sidebar.classList.add('open');
-                            overlay.classList.add('show');
-                            overlay.setAttribute('aria-hidden', 'false');
-                        });
-                        overlay.addEventListener('click', function() {
-                            sidebar.classList.remove('open');
-                            overlay.classList.remove('show');
-                            overlay.setAttribute('aria-hidden', 'true');
-                        });
-                    }
+// ── Environmental Trends (sensor_readings) ─────────────────────────────────
 
-                    /* Sidebar toggle: collapse on desktop, close drawer on mobile */
-                    var sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-                    if (sidebar && app && sidebarToggleBtn) {
-                        function isMobile() { return window.innerWidth <= 768; }
-                        function setCollapsed(collapsed) {
-                            if (collapsed) {
-                                sidebar.classList.add('collapsed');
-                                app.classList.add('sidebar-collapsed');
-                            } else {
-                                sidebar.classList.remove('collapsed');
-                                app.classList.remove('sidebar-collapsed');
-                            }
-                            try { localStorage.setItem('dashboard-sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
-                        }
-                        sidebarToggleBtn.addEventListener('click', function() {
-                            if (isMobile()) {
-                                sidebar.classList.remove('open');
-                                if (overlay) {
-                                    overlay.classList.remove('show');
-                                    overlay.setAttribute('aria-hidden', 'true');
-                                }
-                            } else {
-                                var collapsed = !sidebar.classList.contains('collapsed');
-                                setCollapsed(collapsed);
-                                sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-                            }
-                        });
-                        /* Restore collapsed state on desktop */
-                        if (!isMobile()) {
-                            try {
-                                var saved = localStorage.getItem('dashboard-sidebar-collapsed');
-                                if (saved === '1') setCollapsed(true);
-                                if (saved === '1') sidebarToggleBtn.setAttribute('aria-label', 'Expand sidebar');
-                            } catch (e) {}
-                        }
-                    }
+const ENV_PARAM_CONFIG = {
+    phLevel:         { label: "pH",                       yMin: 6.5, yMax: 8.5, color: "#2563eb" },
+    dissolvedOxygen: { label: "Dissolved Oxygen (mg/L)",   yMin: 5,   yMax: 9,   color: "#0891b2" },
+    waterTemp:       { label: "Temperature (°C)",          yMin: 20,  yMax: 32,  color: "#dc2626" },
+    salinity:        { label: "Salinity (ppt)",            yMin: 0,   yMax: 18,  color: "#7c3aed" },
+    turbidity:       { label: "Turbidity (NTU)",           yMin: 0,   yMax: 25,  color: "#b45309" },
+    waterLevel:      { label: "Water Level (m)",           yMin: 0.5, yMax: 2.0, color: "#0d9488" }
+};
 
-                    /* Generate Report modal – useful data in tables */
-                    var reportOverlay = document.getElementById('reportModalOverlay');
-                    var reportModal = document.getElementById('reportModal');
-                    var reportTableContainer = document.getElementById('reportTableContainer');
-                    var reportMetaEl = document.getElementById('reportMeta');
-                    var generateReportBtn = document.getElementById('generateReportBtn');
-                    var reportModalClose = document.getElementById('reportModalClose');
-                    var reportModalCancel = document.getElementById('reportModalCancel');
-                    var reportPrintPdf = document.getElementById('reportPrintPdf');
+const ENV_RANGE_CONFIG = {
+    "24h": { ms: 24 * 60 * 60 * 1000,      label: "Last 24 Hours" },
+    "7d":  { ms: 7  * 24 * 60 * 60 * 1000, label: "Last 7 Days" },
+    "30d": { ms: 30 * 24 * 60 * 60 * 1000, label: "Last 30 Days" }
+};
 
-                    function buildReportTable() {
-                        var dateStr = new Date().toLocaleDateString('en-PH', {
-                            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        });
-                        if (reportMetaEl) reportMetaEl.textContent = 'Bantay Ulang Bulacan — Generated ' + dateStr;
+function computeRange(values, fallbackMin, fallbackMax) {
+    const numericValues = values.filter((value) => typeof value === "number" && Number.isFinite(value));
+    if (!numericValues.length) return { min: fallbackMin, max: fallbackMax };
 
-                        var html = '';
+    const min = Math.min(...numericValues);
+    const max = Math.max(...numericValues);
 
-                        html += '<div class="report-table-wrap">';
-                        html += '<div class="report-section-title">Key metrics</div>';
-                        html += '<table class="report-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
-                        html += '<tr><td>Total Yield Expected</td><td>55 kg</td></tr>';
-                        html += '<tr><td>Average Mortality Rate (Throughout the Week)</td><td>3.4%</td></tr>';
-                        html += '<tr><td>Estimated Harvest Date</td><td>Mar 15, 2026</td></tr>';
-                        html += '<tr><td>Mortality Risk</td><td>Low</td></tr>';
-                        html += '</tbody></table></div>';
+    if (min === max) {
+        const pad = Math.max(Math.abs(min) * 0.15, 0.5);
+        return { min: min - pad, max: max + pad };
+    }
 
-                        html += '<div class="report-table-wrap">';
-                        html += '<div class="report-section-title">Logged Water Parameters Data</div>';
-                        html += '<table class="report-table"><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Logged At</th></tr></thead><tbody>';
-                        html += '<tr><td>pH</td><td>7.2</td><td>—</td><td>Today, 10:30 AM</td></tr>';
-                        html += '<tr><td>Temperature</td><td>28</td><td>°C</td><td>Today, 10:30 AM</td></tr>';
-                        html += '<tr><td>Dissolved Oxygen</td><td>6.5</td><td>mg/L</td><td>Today, 10:30 AM</td></tr>';
-                        html += '<tr><td>Salinity</td><td>15</td><td>ppt</td><td>Today, 10:30 AM</td></tr>';
-                        html += '<tr><td>Nitrate</td><td>2.1</td><td>mg/L</td><td>Today, 09:00 AM</td></tr>';
-                        html += '<tr><td>Ammonia</td><td>0.25</td><td>mg/L</td><td>Today, 09:00 AM</td></tr>';
-                        html += '</tbody></table></div>';
+    const pad = Math.max((max - min) * 0.15, 0.5);
+    return { min: min - pad, max: max + pad };
+}
 
-                        html += '<div class="report-table-wrap">';
-                        html += '<div class="report-section-title">Logged Plant Sensors Data</div>';
-                        html += '<table class="report-table"><thead><tr><th>Sensor / Metric</th><th>Value</th><th>Unit</th><th>Logged At</th></tr></thead><tbody>';
-                        html += '<tr><td>Nitrogen Level</td><td>88</td><td>%</td><td>Today, 08:45 AM</td></tr>';
-                        html += '<tr><td>Plant Height (Section A)</td><td>42</td><td>cm</td><td>Today, 08:45 AM</td></tr>';
-                        html += '<tr><td>Leaf Condition Index</td><td>Good</td><td>—</td><td>Today, 08:45 AM</td></tr>';
-                        html += '<tr><td>Growth Stage</td><td>Vegetative</td><td>—</td><td>Today, 08:45 AM</td></tr>';
-                        html += '<tr><td>Water Filtration Contribution</td><td>92</td><td>%</td><td>Yesterday, 4:00 PM</td></tr>';
-                        html += '</tbody></table></div>';
+function formatEnvLabel(date, rangeKey) {
+    if (rangeKey === "24h") {
+        return date.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" });
+    }
+    return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
-                        if (reportTableContainer) reportTableContainer.innerHTML = html;
-                    }
+async function fetchEnvTrends(paramKey, rangeKey) {
+    const cutoff = new Date(Date.now() - ENV_RANGE_CONFIG[rangeKey].ms);
+    const snap = await getDocs(query(
+        collection(db, "sensor_readings"),
+        where("timestamp", ">=", Timestamp.fromDate(cutoff)),
+        orderBy("timestamp", "asc"),
+        limit(500)
+    ));
 
-                    function openReportModal() {
-                        buildReportTable();
-                        if (reportOverlay) {
-                            reportOverlay.classList.add('show');
-                            reportOverlay.setAttribute('aria-hidden', 'false');
-                        }
-                    }
-                    function closeReportModal() {
-                        if (reportOverlay) {
-                            reportOverlay.classList.remove('show');
-                            reportOverlay.setAttribute('aria-hidden', 'true');
-                        }
-                    }
+    return snap.docs
+        .map((docSnap) => {
+            const data = docSnap.data();
+            const date = toDateValue(data.timestamp);
+            const value = data[paramKey];
+            if (!date || typeof value !== "number" || !Number.isFinite(value)) return null;
+            return { label: formatEnvLabel(date, rangeKey), value };
+        })
+        .filter(Boolean);
+}
 
-                    if (generateReportBtn) generateReportBtn.addEventListener('click', openReportModal);
-                    if (reportModalClose) reportModalClose.addEventListener('click', closeReportModal);
-                    if (reportModalCancel) reportModalCancel.addEventListener('click', closeReportModal);
-                    if (reportOverlay) reportOverlay.addEventListener('click', function(e) {
-                        if (e.target === reportOverlay) closeReportModal();
-                    });
-                    if (reportModal) reportModal.addEventListener('click', function(e) { e.stopPropagation(); });
-                    if (reportPrintPdf) reportPrintPdf.addEventListener('click', function() { window.print(); });
-                }
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', init);
-                } else {
-                    init();
-                }
-            })();
+async function updateEnvTrendsChart(chart, paramDropdown, rangeDropdown) {
+    if (!chart) return;
 
-            // ── Welcome message ───────────────────────────────────────────────────────
+    const paramKey = paramDropdown ? paramDropdown.value : "phLevel";
+    const rangeKey = rangeDropdown ? rangeDropdown.value : "24h";
+    const config = ENV_PARAM_CONFIG[paramKey] || ENV_PARAM_CONFIG.phLevel;
 
-            function loadWelcomeData() {
-                const headingEl  = document.getElementById('welcome-heading');
-                const datetimeEl = document.getElementById('welcome-datetime');
+    try {
+        const points = await fetchEnvTrends(paramKey, rangeKey);
+        const labels = points.map((point) => point.label);
+        const values = points.map((point) => point.value);
+        const range = computeRange(values, config.yMin, config.yMax);
 
-                function updateDatetime() {
-                    if (!datetimeEl) return;
-                    const now = new Date();
-                    const datePart = now.toLocaleDateString('en-PH', {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                    });
-                    const timePart = now.toLocaleTimeString('en-PH', {
-                        hour: 'numeric', minute: '2-digit', hour12: true
-                    });
-                    datetimeEl.textContent = datePart + ' · ' + timePart;
-                }
+        chart.data.labels = labels;
+        chart.data.datasets[0].label = config.label;
+        chart.data.datasets[0].data = values;
+        chart.data.datasets[0].borderColor = config.color;
+        chart.data.datasets[0].backgroundColor = config.color + "1a";
+        chart.options.scales.y.min = range.min;
+        chart.options.scales.y.max = range.max;
+        chart.update();
+    } catch (err) {
+        console.warn("dashboard: unable to load sensor_readings for environmental trends:", err);
+    }
+}
 
-                updateDatetime();
-                setInterval(updateDatetime, 60000);
+// ── Mortality Rate (growth_indicators) ──────────────────────────────────────
 
-                const unsub = onAuthStateChanged(auth, async function(user) {
-                    unsub();
-                    if (!user || !headingEl) return;
-                    try {
-                        var snap = await getDoc(doc(db, 'users', user.uid));
-                        var data = snap.exists() ? snap.data() : {};
-                        var name = data.fullName || user.displayName ||
-                                   (user.email ? user.email.split('@')[0] : 'there');
-                        headingEl.textContent = 'Welcome back, ' + name + '!';
-                    } catch (err) {
-                        console.warn('[dashboard] Could not load user name:', err);
-                    }
-                });
-            }
+async function loadMortalityStat() {
+    const rateEl = document.getElementById("mortalityRateValue");
+    const countEl = document.getElementById("mortalitySurvivingCount");
+    if (!rateEl && !countEl) return;
 
-            // ── Most important active alert ───────────────────────────────────────────
+    try {
+        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
+        if (snap.empty) return;
 
-            var SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+        const data = snap.docs[0].data();
+        const initialStock = Number(data.initialStock);
+        const survivalRate = Number(data.survivalRate);
 
-            var PARAM_LABELS = {
-                phLevel: 'pH Level',
-                waterTemp: 'Water Temperature',
-                dissolvedOxygen: 'Dissolved Oxygen',
-                salinity: 'Salinity',
-                turbidity: 'Turbidity',
-                waterLevel: 'Water Level'
-            };
+        if (!Number.isFinite(initialStock) || !Number.isFinite(survivalRate)) return;
 
-            function renderAlertBanner(container, alertData, totalCount) {
-                var sev        = alertData.severity || 'low';
-                var paramLabel = PARAM_LABELS[alertData.parameter] || alertData.parameter || 'Parameter';
-                var value      = alertData.currentValue != null ? alertData.currentValue : '—';
-                var safeRange  = alertData.safeRange || '—';
-                var message    = alertData.message   || '';
-                var moreCount  = totalCount > 1 ? totalCount - 1 : 0;
-                var moreHtml   = moreCount > 0
-                    ? '<span class="tab-meta-sep">·</span>' +
-                      '<span class="tab-more">' + moreCount + ' more active alert' + (moreCount > 1 ? 's' : '') + '</span>'
-                    : '';
+        const mortalityRate = 100 - survivalRate;
+        const surviving = Math.round(initialStock * (survivalRate / 100));
 
-                container.className = 'top-alert-banner top-alert-banner--' + sev;
-                container.innerHTML =
-                    '<div class="tab-icon-wrap"><i class="fa-solid ' + iconForSev(sev) + '"></i></div>' +
-                    '<div class="tab-content">' +
-                        '<div class="tab-top-row">' +
-                            '<span class="tab-param-name">' + paramLabel + '</span>' +
-                            '<span class="tab-sev-badge tab-sev-badge--' + sev + '">' + sev.toUpperCase() + '</span>' +
-                        '</div>' +
-                        '<p class="tab-message">' + message + '</p>' +
-                        '<div class="tab-meta-row">' +
-                            '<span class="tab-meta-item">Current: <strong>' + value + '</strong></span>' +
-                            '<span class="tab-meta-sep">·</span>' +
-                            '<span class="tab-meta-item">Safe range: <strong>' + safeRange + '</strong></span>' +
-                            moreHtml +
-                        '</div>' +
-                    '</div>' +
-                    '<a href="real-time-monitoring.html" class="tab-action-btn">View All Alerts →</a>';
-            }
+        if (rateEl) rateEl.textContent = mortalityRate.toFixed(1) + "%";
+        if (countEl) countEl.textContent = `${surviving} of ${initialStock} surviving`;
+    } catch (err) {
+        console.warn("dashboard: unable to load growth_indicators for mortality rate:", err);
+    }
+}
 
-            function renderNoBanner(container) {
-                container.className = 'top-alert-banner top-alert-banner--ok';
-                container.innerHTML =
-                    '<div class="tab-icon-wrap"><i class="fa-solid fa-circle-check"></i></div>' +
-                    '<div class="tab-content">' +
-                        '<span class="tab-param-name">All parameters are within safe range 🌊</span>' +
-                    '</div>';
-            }
-
-            function iconForSev(sev) {
-                if (sev === 'critical') return 'fa-triangle-exclamation';
-                if (sev === 'high')     return 'fa-circle-exclamation';
-                return 'fa-circle-info';
-            }
-
-            async function loadTopAlert() {
-                var bannerEl = document.getElementById('top-alert-banner');
-                if (!bannerEl) return;
-                try {
-                    var snap = await getDocs(
-                        query(collection(db, 'alerts'), where('status', '==', 'active'))
-                    );
-                    if (snap.empty) { renderNoBanner(bannerEl); return; }
-
-                    var topData = null;
-                    var topRank = -1;
-                    var topTime = 0;
-
-                    snap.docs.forEach(function(d) {
-                        var data = d.data();
-                        var rank = SEVERITY_RANK[data.severity] || 0;
-                        var t    = (data.createdAt && data.createdAt.seconds) ? data.createdAt.seconds : 0;
-                        if (rank > topRank || (rank === topRank && t > topTime)) {
-                            topRank = rank;
-                            topData = data;
-                            topTime = t;
-                        }
-                    });
-
-                    if (topData) {
-                        renderAlertBanner(bannerEl, topData, snap.size);
-                    } else {
-                        renderNoBanner(bannerEl);
-                    }
-                } catch (err) {
-                    console.warn('[dashboard] Could not load top alert:', err);
-                }
-            }
-
-            document.addEventListener('DOMContentLoaded', async function() {
-                loadWelcomeData();
-                loadTopAlert();
-                await loadData();
-
-                var envCtx = document.getElementById('envTrendsChart');
-                var paramDropdown = document.getElementById('envTrendsParamDropdown');
-                var envTrendsChart = null;
-
-                var envParamData = {
-                    ph:       { label: 'pH',           data: [7.0, 7.1, 7.2, 7.3, 7.2, 7.1, 7.2], yMin: 6.5, yMax: 8 },
-                    do:       { label: 'Dissolved Oxygen (mg/L)', data: [6.2, 6.4, 6.8, 6.5, 6.6, 6.4, 6.3], yMin: 5, yMax: 9 },
-                    temp:     { label: 'Temperature (°C)',        data: [23, 23.5, 24, 25, 26, 25.5, 24.5], yMin: 20, yMax: 30 },
-                    salinity: { label: 'Salinity (ppt)',         data: [14, 14.5, 15, 15, 15.2, 15, 14.8], yMin: 12, yMax: 18 },
-                    turbidity:{ label: 'Turbidity (NTU)',        data: [3.2, 3.0, 3.5, 3.8, 3.6, 3.4, 3.3], yMin: 2, yMax: 6 },
-                    nitrate:  { label: 'Nitrate (ppm)',          data: [4, 5, 5.5, 6, 5, 4.5, 4], yMin: 0, yMax: 20 }
-                };
-
-                var dashboardFirestoreState = window.dashboardFirestoreState || {};
-                envParamData = dashboardFirestoreState.envParamData || envParamData;
-                var envLabels = dashboardFirestoreState.envTrendLabels || ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
-                var mortalityChartLabels = dashboardFirestoreState.mortalityLabels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                var mortalityChartValues = dashboardFirestoreState.mortalityValues || [3.2, 3.5, 3.1, 3.8, 3.4, 3.2, 3.6];
-
-                function getEnvParamKey() {
-                    return paramDropdown ? paramDropdown.value : 'ph';
-                }
-
-                function updateEnvTrendsChart() {
-                    var key = getEnvParamKey();
-                    var cfg = envParamData[key] || envParamData.ph;
-                    if (!envTrendsChart) return;
-                    envTrendsChart.data.labels = envLabels;
-                    envTrendsChart.data.datasets[0].label = cfg.label;
-                    envTrendsChart.data.datasets[0].data = cfg.data;
-                    envTrendsChart.options.scales.y.min = cfg.yMin;
-                    envTrendsChart.options.scales.y.max = cfg.yMax;
-                    envTrendsChart.update();
-                }
-
-                if (envCtx) {
-                    var key = getEnvParamKey();
-                    var cfg = envParamData[key] || envParamData.ph;
-                    envTrendsChart = new Chart(envCtx.getContext('2d'), {
-                        type: 'line',
-                        data: {
-                            labels: envLabels,
-                            datasets: [{
-                                label: cfg.label,
-                                data: cfg.data,
-                                borderColor: '#10b981',
-                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                fill: true,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: false, min: cfg.yMin, max: cfg.yMax, grid: { color: '#f3f4f6' } },
-                                x: { grid: { display: false } }
-                            }
-                        }
-                    });
-                    if (paramDropdown) {
-                        paramDropdown.addEventListener('change', updateEnvTrendsChart);
-                    }
-                }
-
-                var mortCtx = document.getElementById('mortalityChart');
-                if (mortCtx) {
-                    new Chart(mortCtx.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels: mortalityChartLabels,
-                            datasets: [{
-                                label: 'Mortality %',
-                                data: mortalityChartValues,
-                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                                borderColor: '#dc2626',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: true, max: 6, grid: { color: '#f3f4f6' } },
-                                x: { grid: { display: false } }
-                            }
-                        }
-                    });
-                }
-                
+(function() {
+    function init() {
+        var container = document.querySelector('.topbar');
+        if (!container) return;
+        var notifDropdown = container.querySelector('.notification-dropdown');
+        var profileDropdown =   container.querySelector('.profile-dropdown');
+        var notifBtn = container.querySelector('.notification-icon');
+        var profileBtn = container.querySelector('.admin-profile');
+        if (notifBtn && notifDropdown) {
+            notifBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                notifDropdown.classList.toggle('show');
+                if (profileDropdown) profileDropdown.classList.remove('show');
             });
+        }
+        if (profileBtn && profileDropdown) {
+            profileBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('show');
+                if (notifDropdown) notifDropdown.classList.remove('show');
+            });
+        }
+        document.addEventListener('click', function(e) {
+            if (container.contains(e.target)) return;
+            if (notifDropdown) notifDropdown.classList.remove('show');
+            if (profileDropdown) profileDropdown.classList.remove('show');
+        });
+        var logoutMenuItem = document.getElementById('logoutMenuItem');
+        if (logoutMenuItem) {
+            logoutMenuItem.addEventListener('click', function() {
+                handleLogout(logoutMenuItem, profileDropdown);
+            });
+        }
 
+        var sidebar = document.getElementById('sidebar');
+        var overlay = document.getElementById('sidebarOverlay');
+        var menuBtn = document.getElementById('topbarMenuBtn');
+        var app = document.querySelector('.app');
+        if (sidebar && overlay && menuBtn) {
+            menuBtn.addEventListener('click', function() {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+                overlay.setAttribute('aria-hidden', 'false');
+            });
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+                overlay.setAttribute('aria-hidden', 'true');
+            });
+        }
 
+        /* Sidebar toggle: collapse on desktop, close drawer on mobile */
+        var sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        if (sidebar && app && sidebarToggleBtn) {
+            function isMobile() { return window.innerWidth <= 768; }
+            function setCollapsed(collapsed) {
+                if (collapsed) {
+                    sidebar.classList.add('collapsed');
+                    app.classList.add('sidebar-collapsed');
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    app.classList.remove('sidebar-collapsed');
+                }
+                try { localStorage.setItem('dashboard-sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
+            }
+            sidebarToggleBtn.addEventListener('click', function() {
+                if (isMobile()) {
+                    sidebar.classList.remove('open');
+                    if (overlay) {
+                        overlay.classList.remove('show');
+                        overlay.setAttribute('aria-hidden', 'true');
+                    }
+                } else {
+                    var collapsed = !sidebar.classList.contains('collapsed');
+                    setCollapsed(collapsed);
+                    sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+                }
+            });
+            /* Restore collapsed state on desktop */
+            if (!isMobile()) {
+                try {
+                    var saved = localStorage.getItem('dashboard-sidebar-collapsed');
+                    if (saved === '1') setCollapsed(true);
+                    if (saved === '1') sidebarToggleBtn.setAttribute('aria-label', 'Expand sidebar');
+                } catch (e) {}
+            }
+        }
 
-            
+        /* Generate Report modal – useful data in tables */
+        var reportOverlay = document.getElementById('reportModalOverlay');
+        var reportModal = document.getElementById('reportModal');
+        var reportTableContainer = document.getElementById('reportTableContainer');
+        var reportMetaEl = document.getElementById('reportMeta');
+        var generateReportBtn = document.getElementById('generateReportBtn');
+        var reportModalClose = document.getElementById('reportModalClose');
+        var reportModalCancel = document.getElementById('reportModalCancel');
+        var reportPrintPdf = document.getElementById('reportPrintPdf');
+
+        function buildReportTable() {
+            var dateStr = new Date().toLocaleDateString('en-PH', {
+                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            if (reportMetaEl) reportMetaEl.textContent = 'Bantay Ulang Bulacan — Generated ' + dateStr;
+
+            var html = '';
+
+            html += '<div class="report-table-wrap">';
+            html += '<div class="report-section-title">Key metrics</div>';
+            html += '<table class="report-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
+            html += '<tr><td>Total Yield Expected</td><td>55 kg</td></tr>';
+            html += '<tr><td>Average Mortality Rate (Throughout the Week)</td><td>3.4%</td></tr>';
+            html += '<tr><td>Estimated Harvest Date</td><td>Mar 15, 2026</td></tr>';
+            html += '<tr><td>Mortality Risk</td><td>Low</td></tr>';
+            html += '</tbody></table></div>';
+
+            html += '<div class="report-table-wrap">';
+            html += '<div class="report-section-title">Logged Water Parameters Data</div>';
+            html += '<table class="report-table"><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Logged At</th></tr></thead><tbody>';
+            html += '<tr><td>pH</td><td>7.2</td><td>—</td><td>Today, 10:30 AM</td></tr>';
+            html += '<tr><td>Temperature</td><td>28</td><td>°C</td><td>Today, 10:30 AM</td></tr>';
+            html += '<tr><td>Dissolved Oxygen</td><td>6.5</td><td>mg/L</td><td>Today, 10:30 AM</td></tr>';
+            html += '<tr><td>Salinity</td><td>15</td><td>ppt</td><td>Today, 10:30 AM</td></tr>';
+            html += '<tr><td>Nitrate</td><td>2.1</td><td>mg/L</td><td>Today, 09:00 AM</td></tr>';
+            html += '<tr><td>Ammonia</td><td>0.25</td><td>mg/L</td><td>Today, 09:00 AM</td></tr>';
+            html += '</tbody></table></div>';
+
+            html += '<div class="report-table-wrap">';
+            html += '<div class="report-section-title">Logged Plant Sensors Data</div>';
+            html += '<table class="report-table"><thead><tr><th>Sensor / Metric</th><th>Value</th><th>Unit</th><th>Logged At</th></tr></thead><tbody>';
+            html += '<tr><td>Nitrogen Level</td><td>88</td><td>%</td><td>Today, 08:45 AM</td></tr>';
+            html += '<tr><td>Plant Height (Section A)</td><td>42</td><td>cm</td><td>Today, 08:45 AM</td></tr>';
+            html += '<tr><td>Leaf Condition Index</td><td>Good</td><td>—</td><td>Today, 08:45 AM</td></tr>';
+            html += '<tr><td>Growth Stage</td><td>Vegetative</td><td>—</td><td>Today, 08:45 AM</td></tr>';
+            html += '<tr><td>Water Filtration Contribution</td><td>92</td><td>%</td><td>Yesterday, 4:00 PM</td></tr>';
+            html += '</tbody></table></div>';
+
+            if (reportTableContainer) reportTableContainer.innerHTML = html;
+        }
+
+        function openReportModal() {
+            buildReportTable();
+            if (reportOverlay) {
+                reportOverlay.classList.add('show');
+                reportOverlay.setAttribute('aria-hidden', 'false');
+            }
+        }
+        function closeReportModal() {
+            if (reportOverlay) {
+                reportOverlay.classList.remove('show');
+                reportOverlay.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        if (generateReportBtn) generateReportBtn.addEventListener('click', openReportModal);
+        if (reportModalClose) reportModalClose.addEventListener('click', closeReportModal);
+        if (reportModalCancel) reportModalCancel.addEventListener('click', closeReportModal);
+        if (reportOverlay) reportOverlay.addEventListener('click', function(e) {
+            if (e.target === reportOverlay) closeReportModal();
+        });
+        if (reportModal) reportModal.addEventListener('click', function(e) { e.stopPropagation(); });
+        if (reportPrintPdf) reportPrintPdf.addEventListener('click', function() { window.print(); });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+
+// ── Welcome message ───────────────────────────────────────────────────────
+
+function loadWelcomeData() {
+    const headingEl  = document.getElementById('welcome-heading');
+    const datetimeEl = document.getElementById('welcome-datetime');
+
+    function updateDatetime() {
+        if (!datetimeEl) return;
+        const now = new Date();
+        const datePart = now.toLocaleDateString('en-PH', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const timePart = now.toLocaleTimeString('en-PH', {
+            hour: 'numeric', minute: '2-digit', hour12: true
+        });
+        datetimeEl.textContent = datePart + ' · ' + timePart;
+    }
+
+    updateDatetime();
+    setInterval(updateDatetime, 60000);
+
+    const unsub = onAuthStateChanged(auth, async function(user) {
+        unsub();
+        if (!user || !headingEl) return;
+        try {
+            var snap = await getDoc(doc(db, 'users', user.uid));
+            var data = snap.exists() ? snap.data() : {};
+            var name = data.fullName || user.displayName ||
+                       (user.email ? user.email.split('@')[0] : 'there');
+            headingEl.textContent = 'Welcome back, ' + name + '!';
+        } catch (err) {
+            console.warn('[dashboard] Could not load user name:', err);
+        }
+    });
+}
+
+// ── Most important active alert ───────────────────────────────────────────
+
+var SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+
+var PARAM_LABELS = {
+    phLevel: 'pH Level',
+    waterTemp: 'Water Temperature',
+    dissolvedOxygen: 'Dissolved Oxygen',
+    salinity: 'Salinity',
+    turbidity: 'Turbidity',
+    waterLevel: 'Water Level'
+};
+
+function renderAlertBanner(container, alertData, totalCount) {
+    var sev        = alertData.severity || 'low';
+    var paramLabel = PARAM_LABELS[alertData.parameter] || alertData.parameter || 'Parameter';
+    var value      = alertData.currentValue != null ? alertData.currentValue : '—';
+    var safeRange  = alertData.safeRange || '—';
+    var message    = alertData.message   || '';
+    var moreCount  = totalCount > 1 ? totalCount - 1 : 0;
+    var moreHtml   = moreCount > 0
+        ? '<span class="tab-meta-sep">·</span>' +
+          '<span class="tab-more">' + moreCount + ' more active alert' + (moreCount > 1 ? 's' : '') + '</span>'
+        : '';
+
+    container.className = 'top-alert-banner top-alert-banner--' + sev;
+    container.innerHTML =
+        '<div class="tab-icon-wrap"><i class="fa-solid ' + iconForSev(sev) + '"></i></div>' +
+        '<div class="tab-content">' +
+            '<div class="tab-top-row">' +
+                '<span class="tab-param-name">' + paramLabel + '</span>' +
+                '<span class="tab-sev-badge tab-sev-badge--' + sev + '">' + sev.toUpperCase() + '</span>' +
+            '</div>' +
+            '<p class="tab-message">' + message + '</p>' +
+            '<div class="tab-meta-row">' +
+                '<span class="tab-meta-item">Current: <strong>' + value + '</strong></span>' +
+                '<span class="tab-meta-sep">·</span>' +
+                '<span class="tab-meta-item">Safe range: <strong>' + safeRange + '</strong></span>' +
+                moreHtml +
+            '</div>' +
+        '</div>' +
+        '<a href="real-time-monitoring.html" class="tab-action-btn">View All Alerts →</a>';
+}
+
+function renderNoBanner(container) {
+    container.className = 'top-alert-banner top-alert-banner--ok';
+    container.innerHTML =
+        '<div class="tab-icon-wrap"><i class="fa-solid fa-circle-check"></i></div>' +
+        '<div class="tab-content">' +
+            '<span class="tab-param-name">All parameters are within safe range 🌊</span>' +
+        '</div>';
+}
+
+function iconForSev(sev) {
+    if (sev === 'critical') return 'fa-triangle-exclamation';
+    if (sev === 'high')     return 'fa-circle-exclamation';
+    return 'fa-circle-info';
+}
+
+async function loadTopAlert() {
+    var bannerEl = document.getElementById('top-alert-banner');
+    if (!bannerEl) return;
+    try {
+        var snap = await getDocs(
+            query(collection(db, 'alerts'), where('status', '==', 'active'))
+        );
+        if (snap.empty) { renderNoBanner(bannerEl); return; }
+
+        var topData = null;
+        var topRank = -1;
+        var topTime = 0;
+
+        snap.docs.forEach(function(d) {
+            var data = d.data();
+            var rank = SEVERITY_RANK[data.severity] || 0;
+            var t    = (data.createdAt && data.createdAt.seconds) ? data.createdAt.seconds : 0;
+            if (rank > topRank || (rank === topRank && t > topTime)) {
+                topRank = rank;
+                topData = data;
+                topTime = t;
+            }
+        });
+
+        if (topData) {
+            renderAlertBanner(bannerEl, topData, snap.size);
+        } else {
+            renderNoBanner(bannerEl);
+        }
+    } catch (err) {
+        console.warn('[dashboard] Could not load top alert:', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    loadWelcomeData();
+    loadTopAlert();
+    loadMortalityStat();
+    loadTotalYieldExpected();
+    await loadData();
+
+    var envCtx = document.getElementById('envTrendsChart');
+    var paramDropdown = document.getElementById('envTrendsParamDropdown');
+    var rangeDropdown = document.getElementById('envTrendsRangeDropdown');
+    var envTrendsChart = null;
+
+    if (envCtx) {
+        envTrendsChart = new Chart(envCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '',
+                    data: [],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        var refreshEnvTrends = function() {
+            updateEnvTrendsChart(envTrendsChart, paramDropdown, rangeDropdown);
+        };
+
+        if (paramDropdown) paramDropdown.addEventListener('change', refreshEnvTrends);
+        if (rangeDropdown) rangeDropdown.addEventListener('change', refreshEnvTrends);
+
+        refreshEnvTrends();
+    }
+});

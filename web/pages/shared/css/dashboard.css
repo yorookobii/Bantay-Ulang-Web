@@ -228,6 +228,26 @@
                 margin-left: 8px;
             }
 
+            .mortality-stat {
+                height: 260px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .mortality-stat-value {
+                font-size: 48px;
+                font-weight: 700;
+                color: #b91c1c;
+            }
+
+            .mortality-stat-count {
+                font-size: 14px;
+                color: #6b7280;
+            }
+
             .chart-wrap {
                 position: relative;
                 height: 260px;
