@@ -1,15 +1,14 @@
 import { db } from "./firebase.js";
 import {
     collection,
-    doc,
     query,
     where,
     getDocs,
-    getDoc,
     addDoc,
     updateDoc,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { loadThresholds, getRanges } from "./thresholds.js";
 
 /*
  * Firestore — alerts collection
@@ -29,33 +28,6 @@ import {
  *   resolvedAt   : timestamp – server timestamp when alert was resolved (resolved docs only)
  *   deviceId     : string    – originating device identifier, e.g. "ESP32-001"
  */
-
-const SAFE_RANGES = {
-    phLevel: {
-        min: 6.5,  max: 8.5,
-        unit: "",     label: "pH Level",          safeRangeStr: "6.5 – 8.5"
-    },
-    waterTemp: {
-        min: 22,   max: 32,
-        unit: "°C",   label: "Water Temperature", safeRangeStr: "22 – 32°C"
-    },
-    dissolvedOxygen: {
-        min: 5,    max: null,
-        unit: "mg/L", label: "Dissolved Oxygen",  safeRangeStr: "> 5 mg/L"
-    },
-    salinity: {
-        min: null, max: 5,
-        unit: "ppt",  label: "Salinity",          safeRangeStr: "0 – 5 ppt"
-    },
-    turbidity: {
-        min: null, max: 25,
-        unit: "NTU",  label: "Turbidity",         safeRangeStr: "< 25 NTU"
-    },
-    waterLevel: {
-        min: 0.5,  max: 2.0,
-        unit: "m",    label: "Water Level",       safeRangeStr: "0.5 – 2.0 m"
-    }
-};
 
 const SUGGESTIONS = {
     phLevel: {
@@ -104,7 +76,7 @@ function computeSeverity(value, min, max) {
 }
 
 function buildMessage(param, value, isHigh) {
-    const { label, unit, safeRangeStr } = SAFE_RANGES[param];
+    const { label, unit, safeRangeStr } = getRanges()[param];
     const direction = isHigh ? "above" : "below";
     const suggestion = (SUGGESTIONS[param] || {})[isHigh ? "high" : "low"] || "";
     const display = Number.isFinite(value)
@@ -271,7 +243,7 @@ async function findActiveAlert(param, deviceId) {
 }
 
 async function handleParameter(param, value, deviceId) {
-    const { min, max, safeRangeStr } = SAFE_RANGES[param];
+    const { min, max, safeRangeStr } = getRanges()[param];
     const hasMin = min !== null && min !== undefined;
     const hasMax = max !== null && max !== undefined;
 
@@ -326,44 +298,10 @@ async function handleParameter(param, value, deviceId) {
 export async function processSensorReading(data) {
     const deviceId = data.deviceId || "unknown";
     await Promise.all(
-        Object.keys(SAFE_RANGES)
+        Object.keys(getRanges())
             .filter(param => data[param] != null && Number.isFinite(Number(data[param])))
             .map(param => handleParameter(param, Number(data[param]), deviceId))
     );
-}
-
-// ── Firestore threshold loading ───────────────────────────────────────────────
-
-async function loadThresholdsFromFirestore() {
-    try {
-        const snap = await getDoc(doc(db, "settings", "thresholds"));
-        if (!snap.exists()) return;
-        const t = snap.data();
-
-        if (t.ph_min        != null) SAFE_RANGES.phLevel.min          = t.ph_min;
-        if (t.ph_max        != null) SAFE_RANGES.phLevel.max          = t.ph_max;
-        if (t.temp_min      != null) SAFE_RANGES.waterTemp.min        = t.temp_min;
-        if (t.temp_max      != null) SAFE_RANGES.waterTemp.max        = t.temp_max;
-        if (t.o2_min        != null) SAFE_RANGES.dissolvedOxygen.min  = t.o2_min;
-        if (t.salinity_min  != null) SAFE_RANGES.salinity.min         = t.salinity_min;
-        if (t.salinity_max  != null) SAFE_RANGES.salinity.max         = t.salinity_max;
-        if (t.turbidity_max != null) SAFE_RANGES.turbidity.max        = t.turbidity_max;
-        if (t.waterlevel_min != null) SAFE_RANGES.waterLevel.min      = t.waterlevel_min;
-        if (t.waterlevel_max != null) SAFE_RANGES.waterLevel.max      = t.waterlevel_max;
-
-        // Rebuild safeRangeStr labels so alert messages stay accurate.
-        const fmt = (v) => (v == null ? "—" : v);
-        SAFE_RANGES.phLevel.safeRangeStr          = `${fmt(SAFE_RANGES.phLevel.min)} – ${fmt(SAFE_RANGES.phLevel.max)}`;
-        SAFE_RANGES.waterTemp.safeRangeStr         = `${fmt(SAFE_RANGES.waterTemp.min)} – ${fmt(SAFE_RANGES.waterTemp.max)}°C`;
-        SAFE_RANGES.dissolvedOxygen.safeRangeStr   = `> ${fmt(SAFE_RANGES.dissolvedOxygen.min)} mg/L`;
-        SAFE_RANGES.salinity.safeRangeStr          = `${fmt(SAFE_RANGES.salinity.min)} – ${fmt(SAFE_RANGES.salinity.max)} ppt`;
-        SAFE_RANGES.turbidity.safeRangeStr         = `< ${fmt(SAFE_RANGES.turbidity.max)} NTU`;
-        SAFE_RANGES.waterLevel.safeRangeStr        = `${fmt(SAFE_RANGES.waterLevel.min)} – ${fmt(SAFE_RANGES.waterLevel.max)} m`;
-
-        console.log("[alertsEngine] Thresholds loaded from Firestore.");
-    } catch (err) {
-        console.warn("[alertsEngine] Could not load thresholds from Firestore; using defaults.", err);
-    }
 }
 
 /**
@@ -387,7 +325,7 @@ export function startAlertsEngine() {
     });
 
     // Load dynamic thresholds from Firestore in the background.
-    loadThresholdsFromFirestore();
+    loadThresholds();
 
     // Expose on window so the console can confirm the engine loaded and started.
     window.alertsEngine = { processSensorReading };

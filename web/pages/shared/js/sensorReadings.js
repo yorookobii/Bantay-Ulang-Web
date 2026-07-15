@@ -6,6 +6,7 @@ import {
     limit,
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { loadThresholds, getRanges } from "./thresholds.js";
 
 /*
  * Firestore — sensor_readings collection
@@ -50,18 +51,8 @@ const SENSOR_MAP = [
 const STATUS_CSS   = { normal: "optimal",  warning: "warning",  critical: "critical" };
 const STATUS_LABEL = { normal: "OPTIMAL",  warning: "WARNING",  critical: "CRITICAL" };
 
-// Safe ranges per parameter key — mirrors alertsEngine.js SAFE_RANGES
-const SAFE_RANGES = {
-    phLevel:         { min: 6.5,  max: 8.5  },
-    waterTemp:       { min: 22,   max: 32   },
-    dissolvedOxygen: { min: 5,    max: null },
-    salinity:        { min: 0,    max: 5    },
-    turbidity:       { min: null, max: 25   },
-    waterLevel:      { min: 0.5,  max: 2.0  }
-};
-
 function getSensorStatus(key, value) {
-    const range = SAFE_RANGES[key];
+    const range = getRanges()[key];
     if (!range || value == null || !Number.isFinite(Number(value))) return "normal";
     const v = Number(value);
     const { min, max } = range;
@@ -141,9 +132,17 @@ function updateSensorCards(data) {
  * Sets window.sensorDataConnected = true on first successful read so the
  * simulation in real-time-monitoring.js knows to stop overwriting values.
  *
- * Returns the Firestore unsubscribe function — call it to stop listening.
+ * Awaits the (memoized) threshold load before attaching the listener, so the
+ * very first rendered reading already reflects Firestore-configured
+ * thresholds instead of briefly showing status against DEFAULT_RANGES.
+ *
+ * Returns a Promise resolving to the Firestore unsubscribe function — call
+ * it to stop listening.
  */
-export function receiveSensorData() {
+export async function receiveSensorData() {
+    // Memoized — safe to call even if another module (e.g. alertsEngine) already triggered it.
+    await loadThresholds();
+
     const q = query(
         collection(db, "sensor_readings"),
         orderBy("timestamp", "desc"),

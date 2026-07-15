@@ -8,57 +8,8 @@ import {
     onSnapshot,
     updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-// ─── Sensor key list (matches Firestore schema) ────────────────────────────────
-const SENSOR_KEYS = [
-    "phLevel", "waterTemp", "dissolvedOxygen",
-    "salinity", "turbidity", "waterLevel"
-];
-
-// ─── Per-parameter quality scorer (returns 0.0 – 1.0) ─────────────────────────
-function scoreParam(key, value) {
-    if (value == null || !Number.isFinite(Number(value))) return 0.5;
-    const v = Number(value);
-    switch (key) {
-        case "phLevel":
-            if (v >= 6.5 && v <= 8.5)                            return 1.0;
-            if ((v >= 6.0 && v < 6.5) || (v > 8.5 && v <= 9.0)) return 0.6;
-            return 0.3;
-        case "waterTemp":
-            if (v >= 22 && v <= 32)                               return 1.0;
-            if ((v >= 18 && v < 22) || (v > 32 && v <= 36))      return 0.6;
-            return 0.3;
-        case "dissolvedOxygen":
-            if (v >= 7)  return 1.0;
-            if (v >= 5)  return 0.8;
-            if (v >= 3)  return 0.5;
-            return 0.2;
-        case "salinity":
-            if (v >= 0  && v <= 5)  return 1.0;
-            if (v >  5  && v <= 10) return 0.7;
-            if (v >  10 && v <= 15) return 0.5;
-            return 0.3;
-        case "turbidity":
-            if (v <= 10) return 1.0;
-            if (v <= 25) return 0.8;
-            if (v <= 50) return 0.5;
-            return 0.2;
-        case "waterLevel":
-            if (v >= 0.5 && v <= 2.0)                              return 1.0;
-            if ((v >= 0.3 && v < 0.5) || (v > 2.0 && v <= 2.5))  return 0.7;
-            return 0.4;
-        default:
-            return 0.5;
-    }
-}
-
-// Average per-sensor scores, then map [0,1] → [0.5, 1.0] as specified
-function calcWaterQualityScore(sensorData) {
-    if (!sensorData) return 0.75;
-    const scores = SENSOR_KEYS.map(k => scoreParam(k, sensorData[k]));
-    const avg    = scores.reduce((a, b) => a + b, 0) / scores.length;
-    return 0.5 + avg * 0.5;
-}
+import { loadThresholds } from "./thresholds.js";
+import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualityScore.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
 //  Base Yield (kg) = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
@@ -171,6 +122,9 @@ function updateUI(result, cycleData, sensorData) {
 
 // ─── Public init ───────────────────────────────────────────────────────────────
 export async function initYieldPrediction() {
+    // Memoized — safe to call even if another module already triggered it.
+    await loadThresholds();
+
     let growthData   = null;
     let latestSensor = window.latestSensorReading ?? null;
 

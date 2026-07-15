@@ -2,35 +2,49 @@ import { db } from './firebase.js';
 import {
     collection, query, orderBy, limit, onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { loadThresholds, getRanges } from './thresholds.js';
+import { calcWaterQualityScore } from './waterQualityScore.js';
+
+// One-decimal display formatting for parameters whose bounds are conventionally
+// shown with a decimal place (pH, water level) — matches pre-refactor text exactly
+// for default values (e.g. 2.0, not 2) and rounds sanely for admin-configured ones.
+const fmt1 = (n) => Number(n).toFixed(1);
 
 // ── Safe-range recommendation rules ──────────────────────────────────────
 // Each rule's check() returns null when the parameter is in range,
 // or { impact, category, title, desc } when action is needed.
+// Bounds are read live from the shared thresholds module (getRanges()) rather
+// than hardcoded, so both the branching cutoffs and the description text stay
+// in sync with whatever an admin configures in Settings.
 const RULES = [
     {
         key: 'phLevel',
         check(v) {
             const x = parseFloat(v);
             if (!isFinite(x)) return null;
-            if (x < 6.0) return {
+            const { min, max } = getRanges().phLevel;
+            const critLow  = min - 0.5;
+            const critHigh = max + 0.5;
+            const rangeStr = `${fmt1(min)}–${fmt1(max)}`;
+            if (x < critLow) return {
                 impact: 'high', category: 'PH MANAGEMENT',
                 title: 'Critical pH Drop — Immediate Action Needed',
-                desc: `pH is at ${x.toFixed(1)} — critically low (safe range: 6.5–8.5). Apply agricultural lime or buffer solution immediately and suspend feeding until pH stabilizes above 6.5 to prevent ulang stress.`
+                desc: `pH is at ${x.toFixed(1)} — critically low (safe range: ${rangeStr}). Apply agricultural lime or buffer solution immediately and suspend feeding until pH stabilizes above ${fmt1(min)} to prevent ulang stress.`
             };
-            if (x < 6.5) return {
+            if (x < min) return {
                 impact: 'medium', category: 'PH MANAGEMENT',
                 title: 'pH Level Below Safe Range',
-                desc: `pH at ${x.toFixed(1)} is slightly below the 6.5–8.5 optimal range. Gradually add pH buffer, reduce organic load, and increase water circulation to help stabilize levels.`
+                desc: `pH at ${x.toFixed(1)} is slightly below the ${rangeStr} optimal range. Gradually add pH buffer, reduce organic load, and increase water circulation to help stabilize levels.`
             };
-            if (x > 9.0) return {
+            if (x > critHigh) return {
                 impact: 'high', category: 'PH MANAGEMENT',
                 title: 'Critical pH Spike — Immediate Water Exchange',
-                desc: `pH at ${x.toFixed(1)} is critically high (safe range: 6.5–8.5). Perform a 20–25% partial water change immediately and check for algal bloom, which can cause rapid pH spikes.`
+                desc: `pH at ${x.toFixed(1)} is critically high (safe range: ${rangeStr}). Perform a 20–25% partial water change immediately and check for algal bloom, which can cause rapid pH spikes.`
             };
-            if (x > 8.5) return {
+            if (x > max) return {
                 impact: 'medium', category: 'PH MANAGEMENT',
                 title: 'pH Slightly Elevated',
-                desc: `pH at ${x.toFixed(1)} exceeds the 8.5 safe ceiling. Perform a 10–15% partial water exchange and monitor for algal activity, which drives pH up during daylight hours.`
+                desc: `pH at ${x.toFixed(1)} exceeds the ${fmt1(max)} safe ceiling. Perform a 10–15% partial water exchange and monitor for algal activity, which drives pH up during daylight hours.`
             };
             return null;
         }
@@ -40,25 +54,29 @@ const RULES = [
         check(v) {
             const x = parseFloat(v);
             if (!isFinite(x)) return null;
-            if (x < 18) return {
+            const { min, max } = getRanges().waterTemp;
+            const critLow  = min - 4;
+            const critHigh = max + 3; // distinct from scoreParam's +4 tolerable-band edge — preserved as-is
+            const rangeStr = `${min}–${max}°C`;
+            if (x < critLow) return {
                 impact: 'high', category: 'TEMPERATURE CONTROL',
                 title: 'Water Temperature Critically Low',
-                desc: `Temperature at ${x.toFixed(1)}°C is critically low (safe: 22–32°C). Ulang metabolism slows significantly below 18°C, raising disease risk. Use heating elements and reduce water exchange to retain warmth.`
+                desc: `Temperature at ${x.toFixed(1)}°C is critically low (safe: ${rangeStr}). Ulang metabolism slows significantly below ${critLow}°C, raising disease risk. Use heating elements and reduce water exchange to retain warmth.`
             };
-            if (x < 22) return {
+            if (x < min) return {
                 impact: 'medium', category: 'TEMPERATURE CONTROL',
                 title: 'Water Temperature Below Optimal',
-                desc: `Temperature at ${x.toFixed(1)}°C is below the 22–32°C safe range. Reduce water exchange volume, add transparent pond covers to trap solar heat, and shift feeding to warmer midday hours.`
+                desc: `Temperature at ${x.toFixed(1)}°C is below the ${rangeStr} safe range. Reduce water exchange volume, add transparent pond covers to trap solar heat, and shift feeding to warmer midday hours.`
             };
-            if (x > 35) return {
+            if (x > critHigh) return {
                 impact: 'high', category: 'TEMPERATURE CONTROL',
                 title: 'Water Temperature Critically High',
                 desc: `Temperature at ${x.toFixed(1)}°C is dangerously high. Activate emergency aeration immediately, install 50–70% shade netting, and perform a partial water exchange with cooler water to prevent mass mortality.`
             };
-            if (x > 32) return {
+            if (x > max) return {
                 impact: 'medium', category: 'TEMPERATURE CONTROL',
                 title: 'Elevated Water Temperature',
-                desc: `Temperature at ${x.toFixed(1)}°C exceeds the 32°C ceiling. Increase shading coverage, boost aeration to offset reduced oxygen solubility at higher temperatures, and avoid feeding during peak afternoon heat.`
+                desc: `Temperature at ${x.toFixed(1)}°C exceeds the ${max}°C ceiling. Increase shading coverage, boost aeration to offset reduced oxygen solubility at higher temperatures, and avoid feeding during peak afternoon heat.`
             };
             return null;
         }
@@ -68,15 +86,17 @@ const RULES = [
         check(v) {
             const x = parseFloat(v);
             if (!isFinite(x)) return null;
-            if (x < 3) return {
+            const { min } = getRanges().dissolvedOxygen;
+            const critLow = min - 2;
+            if (x < critLow) return {
                 impact: 'high', category: 'OXYGEN MANAGEMENT',
                 title: 'Critical Oxygen Depletion — Emergency Aeration',
-                desc: `Dissolved oxygen at ${x.toFixed(1)} mg/L is critically low (minimum: 5 mg/L). Activate all aerators immediately, reduce feeding by 50%, and remove dead organic matter that consumes available oxygen.`
+                desc: `Dissolved oxygen at ${x.toFixed(1)} mg/L is critically low (minimum: ${min} mg/L). Activate all aerators immediately, reduce feeding by 50%, and remove dead organic matter that consumes available oxygen.`
             };
-            if (x < 5) return {
+            if (x < min) return {
                 impact: 'medium', category: 'OXYGEN MANAGEMENT',
                 title: 'Dissolved Oxygen Below Safe Minimum',
-                desc: `DO at ${x.toFixed(1)} mg/L is below the 5 mg/L safe minimum. Increase aerator speed by 30%, reduce daily feed volume, and inspect for algae overgrowth or organic decay consuming pond oxygen.`
+                desc: `DO at ${x.toFixed(1)} mg/L is below the ${min} mg/L safe minimum. Increase aerator speed by 30%, reduce daily feed volume, and inspect for algae overgrowth or organic decay consuming pond oxygen.`
             };
             return null;
         }
@@ -86,15 +106,17 @@ const RULES = [
         check(v) {
             const x = parseFloat(v);
             if (!isFinite(x)) return null;
-            if (x > 10) return {
+            const { max } = getRanges().salinity;
+            const critHigh = max + 5;
+            if (x > critHigh) return {
                 impact: 'high', category: 'WATER QUALITY',
                 title: 'Critically High Salinity for Freshwater Ulang',
-                desc: `Salinity at ${x.toFixed(1)} ppt is far above the 0–5 ppt range. Perform a 30% fresh water exchange immediately and identify the source of salt intrusion (seawater contamination or excessive evaporation).`
+                desc: `Salinity at ${x.toFixed(1)} ppt is far above the ${max} ppt safe limit. Perform a 30% fresh water exchange immediately and identify the source of salt intrusion (seawater contamination or excessive evaporation).`
             };
-            if (x > 5) return {
+            if (x > max) return {
                 impact: 'medium', category: 'WATER QUALITY',
                 title: 'Elevated Salinity Detected',
-                desc: `Salinity at ${x.toFixed(1)} ppt exceeds the 5 ppt safe limit. Ulang are freshwater species sensitive to salt. Perform a gradual 15% fresh water exchange and monitor salinity closely over the next 24 hours.`
+                desc: `Salinity at ${x.toFixed(1)} ppt exceeds the ${max} ppt safe limit. Ulang are freshwater species sensitive to salt. Perform a gradual 15% fresh water exchange and monitor salinity closely over the next 24 hours.`
             };
             return null;
         }
@@ -104,15 +126,17 @@ const RULES = [
         check(v) {
             const x = parseFloat(v);
             if (!isFinite(x)) return null;
-            if (x > 50) return {
+            const { max } = getRanges().turbidity;
+            const critHigh = max + 25;
+            if (x > critHigh) return {
                 impact: 'high', category: 'WATER QUALITY',
                 title: 'Severely Turbid Water — Immediate Action',
-                desc: `Turbidity at ${x.toFixed(1)} NTU is severely high (safe: below 25 NTU). Halt feeding to reduce waste accumulation, perform a partial water exchange, and check for algal bloom or disturbed pond sediment.`
+                desc: `Turbidity at ${x.toFixed(1)} NTU is severely high (safe: below ${max} NTU). Halt feeding to reduce waste accumulation, perform a partial water exchange, and check for algal bloom or disturbed pond sediment.`
             };
-            if (x > 25) return {
+            if (x > max) return {
                 impact: 'medium', category: 'WATER QUALITY',
                 title: 'High Turbidity Detected',
-                desc: `Turbidity at ${x.toFixed(1)} NTU exceeds the 25 NTU safe limit. Reduce feeding rate by 20%, verify filtration is operating correctly, and inspect for suspended organic particles or sediment disturbance.`
+                desc: `Turbidity at ${x.toFixed(1)} NTU exceeds the ${max} NTU safe limit. Reduce feeding rate by 20%, verify filtration is operating correctly, and inspect for suspended organic particles or sediment disturbance.`
             };
             return null;
         }
@@ -122,25 +146,29 @@ const RULES = [
         check(v) {
             const x = parseFloat(v);
             if (!isFinite(x)) return null;
-            if (x < 0.3) return {
+            const { min, max } = getRanges().waterLevel;
+            const critLow  = min - 0.2;
+            const critHigh = max + 0.5;
+            const rangeStr = `${fmt1(min)}–${fmt1(max)}`;
+            if (x < critLow) return {
                 impact: 'high', category: 'POND MANAGEMENT',
                 title: 'Water Level Critically Low',
-                desc: `Water level at ${x.toFixed(2)} m is critically low (safe: 0.5–2.0 m). Add fresh water immediately to prevent heat stress, oxygen depletion from low water volume, and ulang attempting to escape the pond.`
+                desc: `Water level at ${x.toFixed(2)} m is critically low (safe: ${rangeStr} m). Add fresh water immediately to prevent heat stress, oxygen depletion from low water volume, and ulang attempting to escape the pond.`
             };
-            if (x < 0.5) return {
+            if (x < min) return {
                 impact: 'medium', category: 'POND MANAGEMENT',
                 title: 'Water Level Below Safe Minimum',
-                desc: `Water level at ${x.toFixed(2)} m is below the 0.5 m minimum. Gradually add fresh water and inspect the pond for leaks or unusually high evaporation caused by heat and wind exposure.`
+                desc: `Water level at ${x.toFixed(2)} m is below the ${fmt1(min)} m minimum. Gradually add fresh water and inspect the pond for leaks or unusually high evaporation caused by heat and wind exposure.`
             };
-            if (x > 2.5) return {
+            if (x > critHigh) return {
                 impact: 'high', category: 'POND MANAGEMENT',
                 title: 'Water Level Dangerously High',
-                desc: `Water level at ${x.toFixed(2)} m exceeds the safe maximum of 2.0 m. Open drainage or activate pumping immediately to prevent overflow, which can lead to ulang escapes and reduced oxygen circulation.`
+                desc: `Water level at ${x.toFixed(2)} m exceeds the safe maximum of ${fmt1(max)} m. Open drainage or activate pumping immediately to prevent overflow, which can lead to ulang escapes and reduced oxygen circulation.`
             };
-            if (x > 2.0) return {
+            if (x > max) return {
                 impact: 'low', category: 'POND MANAGEMENT',
                 title: 'Water Level Above Recommended Range',
-                desc: `Water level at ${x.toFixed(2)} m slightly exceeds the 2.0 m recommended maximum. Gradually drain to the recommended level to ensure adequate oxygen circulation near the pond bottom.`
+                desc: `Water level at ${x.toFixed(2)} m slightly exceeds the ${fmt1(max)} m recommended maximum. Gradually drain to the recommended level to ensure adequate oxygen circulation near the pond bottom.`
             };
             return null;
         }
@@ -203,35 +231,6 @@ function renderRecommendations(recs) {
     for (const rec of recs) container.appendChild(buildCard(rec));
 }
 
-// ── Water Quality Score (mirrors yieldPrediction.js — no import to avoid coupling) ─
-const SENSOR_KEYS = ['phLevel', 'waterTemp', 'dissolvedOxygen', 'salinity', 'turbidity', 'waterLevel'];
-
-function scoreParam(key, value) {
-    if (value == null || !isFinite(Number(value))) return 0.5;
-    const v = Number(value);
-    switch (key) {
-        case 'phLevel':
-            return (v >= 6.5 && v <= 8.5) ? 1.0 : ((v >= 6.0 && v < 6.5) || (v > 8.5 && v <= 9.0)) ? 0.6 : 0.3;
-        case 'waterTemp':
-            return (v >= 22 && v <= 32) ? 1.0 : ((v >= 18 && v < 22) || (v > 32 && v <= 36)) ? 0.6 : 0.3;
-        case 'dissolvedOxygen':
-            return v >= 7 ? 1.0 : v >= 5 ? 0.8 : v >= 3 ? 0.5 : 0.2;
-        case 'salinity':
-            return (v >= 0 && v <= 5) ? 1.0 : (v <= 10) ? 0.7 : (v <= 15) ? 0.5 : 0.3;
-        case 'turbidity':
-            return v <= 10 ? 1.0 : v <= 25 ? 0.8 : v <= 50 ? 0.5 : 0.2;
-        case 'waterLevel':
-            return (v >= 0.5 && v <= 2.0) ? 1.0 : ((v >= 0.3 && v < 0.5) || (v > 2.0 && v <= 2.5)) ? 0.7 : 0.4;
-        default:
-            return 0.5;
-    }
-}
-
-function calcWQScore(sensor) {
-    const avg = SENSOR_KEYS.reduce((sum, k) => sum + scoreParam(k, sensor[k]), 0) / SENSOR_KEYS.length;
-    return 0.5 + avg * 0.5;
-}
-
 // ── Update the efficiency donut circle ────────────────────────────────────
 function updateEfficiencyCircle(wqScore) {
     const pct    = Math.round(wqScore * 100);
@@ -261,14 +260,17 @@ function updateEfficiencyCircle(wqScore) {
 }
 
 // ── Public init: subscribe to latest sensor reading ───────────────────────
-export function initAnalyticsRecommendations() {
+export async function initAnalyticsRecommendations() {
+    // Memoized — safe to call even if another module already triggered it.
+    await loadThresholds();
+
     const q = query(collection(db, 'sensor_readings'), orderBy('timestamp', 'desc'), limit(1));
 
     onSnapshot(q, (snap) => {
         if (snap.empty) return;
         const sensor = snap.docs[0].data();
         renderRecommendations(generateRecommendations(sensor));
-        updateEfficiencyCircle(calcWQScore(sensor));
+        updateEfficiencyCircle(calcWaterQualityScore(sensor));
     }, (err) => {
         console.error('analyticsRecommendations snapshot error:', err);
         const container = document.getElementById('rec-cards-container');

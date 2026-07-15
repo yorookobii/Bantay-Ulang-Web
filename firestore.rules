@@ -25,6 +25,15 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // settings  (e.g. settings/thresholds — read by alertsEngine, sensorReadings,
+    // analyticsRecommendations, yieldPrediction, sensorHistoryModal via thresholds.js)
+    // -------------------------------------------------------------------------
+    match /settings/{docId} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
     // sensor_readings
     // -------------------------------------------------------------------------
     match /sensor_readings/{docId} {

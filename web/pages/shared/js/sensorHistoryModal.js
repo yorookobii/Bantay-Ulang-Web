@@ -8,63 +8,61 @@ import {
     getDocs,
     Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { loadThresholds, getRanges } from "./thresholds.js";
 
+// Presentation-only config (chart color, display label/unit). Safe-range
+// bounds and display text are derived live from the shared thresholds
+// module — see buildSafeText() / getRanges() — not stored here.
 const SENSOR_CONFIG = {
     "ph": {
         key: "phLevel",
         label: "pH Level",
         unit: "",
-        safeMin: 6.5,
-        safeMax: 8.5,
-        safeText: "Safe range: 6.5 – 8.5",
         color: "#2563eb"
     },
     "do": {
         key: "dissolvedOxygen",
         label: "Dissolved Oxygen",
         unit: " mg/L",
-        safeMin: 5,
-        safeMax: null,
-        safeText: "Safe range: above 5 mg/L",
         color: "#0891b2"
     },
     "temp": {
         key: "waterTemp",
         label: "Water Temperature",
         unit: "°C",
-        safeMin: 22,
-        safeMax: 32,
-        safeText: "Safe range: 22 – 32°C",
         color: "#dc2626"
     },
     "salinity": {
         key: "salinity",
         label: "Salinity",
         unit: " ppt",
-        safeMin: 0,
-        safeMax: 5,
-        safeText: "Safe range: 0 – 5 ppt",
         color: "#7c3aed"
     },
     "turbidity": {
         key: "turbidity",
         label: "Turbidity",
         unit: " NTU",
-        safeMin: null,
-        safeMax: 25,
-        safeText: "Safe range: below 25 NTU",
         color: "#b45309"
     },
     "water-level": {
         key: "waterLevel",
         label: "Water Level",
         unit: " m",
-        safeMin: 0.5,
-        safeMax: 2.0,
-        safeText: "Safe range: 0.5 – 2.0 m",
         color: "#0d9488"
     }
 };
+
+// Builds this modal's own "Safe range: …" phrasing (distinct from
+// thresholds.js's generic safeRangeStr) from a live { min, max } pair.
+// Read-only — never writes back onto the range object it's given.
+function buildSafeText(range, unit) {
+    const hasMin = range.min != null;
+    const hasMax = range.max != null;
+    if (hasMin && hasMax) return `Safe range: ${range.min} – ${range.max}${unit}`;
+    if (hasMin) return `Safe range: above ${range.min}${unit}`;
+    if (hasMax) return `Safe range: below ${range.max}${unit}`;
+    return "Safe range: —";
+}
 
 const RANGES = {
     "24h": { ms: 24 * 60 * 60 * 1000,       label: "Last 24 Hours" },
@@ -106,7 +104,7 @@ async function fetchHistory(sensorKey, rangeKey) {
         .filter(Boolean);
 }
 
-function buildChart(canvas, config, points, rangeKey) {
+function buildChart(canvas, config, points, rangeKey, range, safeText) {
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
     const labels = points.map(p => formatLabel(p.time, rangeKey));
@@ -116,8 +114,8 @@ function buildChart(canvas, config, points, rangeKey) {
     const dataMax = Math.max(...values);
     const pad     = Math.max((dataMax - dataMin) * 0.3, 0.5);
 
-    const safeMinFill = config.safeMin !== null ? config.safeMin : Math.max(0, dataMin - pad);
-    const safeMaxFill = config.safeMax !== null ? config.safeMax : dataMax + pad;
+    const safeMinFill = range.min != null ? range.min : Math.max(0, dataMin - pad);
+    const safeMaxFill = range.max != null ? range.max : dataMax + pad;
 
     chartInstance = new Chart(canvas, {
         type: "line",
@@ -181,7 +179,7 @@ function buildChart(canvas, config, points, rangeKey) {
                         label: ctx => {
                             if (ctx.dataset.label === "__safeMin") return null;
                             if (ctx.dataset.label === "Safe Zone")
-                                return "  " + config.safeText;
+                                return "  " + safeText;
                             return `  ${config.label}: ${ctx.parsed.y}${config.unit}`;
                         }
                     }
@@ -214,6 +212,10 @@ async function loadAndRender(sensorAttr, rangeKey) {
     const config = SENSOR_CONFIG[sensorAttr];
     if (!config) return;
 
+    await loadThresholds();
+    const range    = getRanges()[config.key];
+    const safeText = buildSafeText(range, config.unit);
+
     const canvas  = document.getElementById("shChart");
     const loading = document.getElementById("shLoadingState");
     const empty   = document.getElementById("shEmptyState");
@@ -222,7 +224,7 @@ async function loadAndRender(sensorAttr, rangeKey) {
     if (canvas)  canvas.classList.add("sh-hidden");
     if (loading) loading.classList.remove("sh-hidden");
     if (empty)   empty.classList.add("sh-hidden");
-    if (safeEl)  safeEl.textContent = config.safeText;
+    if (safeEl)  safeEl.textContent = safeText;
 
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
@@ -236,7 +238,7 @@ async function loadAndRender(sensorAttr, rangeKey) {
         }
 
         if (canvas) canvas.classList.remove("sh-hidden");
-        buildChart(canvas, config, points, rangeKey);
+        buildChart(canvas, config, points, rangeKey, range, safeText);
     } catch (err) {
         console.error("sensorHistoryModal:", err);
         if (loading) loading.classList.add("sh-hidden");
