@@ -34,7 +34,7 @@
                     <div class="user-profile">
                         <div class="user-avatar"><span>A</span></div>
                         <div class="user-info">
-                            <div class="user-name">User Name</div>
+                            <div class="user-name"></div>
                             <div class="user-role">Admin</div>
                         </div>
                     </div>
@@ -45,12 +45,6 @@
 
             <header class="topbar">
                 <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-                <div class="search-container">
-                    <div class="search-bar">
-                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" placeholder="Search">
-                    </div>
-                </div>
                 <div class="topbar-right">
                     <div class="notification-container">
                         <div class="notification-icon">
@@ -67,7 +61,7 @@
                         <div class="admin-profile">
                             <div class="admin-avatar"><span>A</span></div>
                             <div class="admin-info">
-                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-name"></div>
                                 <div class="admin-role">Admin</div>
                             </div>
                             <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
@@ -109,16 +103,9 @@
                                 <input type="time" id="schedFeedTime" name="feedTime" required>
                             </div>
                             <div class="feeding-form-group">
-                                <label for="schedFeedType">Feed Type <span style="color:#dc2626">*</span></label>
-                                <select id="schedFeedType" name="feedType" required>
-                                    <option value="">— Select —</option>
-                                    <option value="Starter Feed">Starter Feed</option>
-                                    <option value="Grower Feed">Grower Feed</option>
-                                    <option value="Finisher Feed">Finisher Feed</option>
-                                    <option value="Pellet Feed">Pellet Feed</option>
-                                    <option value="Live Feed">Live Feed</option>
-                                    <option value="Supplemental Feed">Supplemental Feed</option>
-                                    <option value="Other">Other</option>
+                                <label for="schedFeedType">Feed Type</label>
+                                <select id="schedFeedType" name="feedType" disabled>
+                                    <option value="Pellet Feed" selected>Pellet Feed</option>
                                 </select>
                             </div>
                             <div class="feeding-form-group">
@@ -143,84 +130,10 @@
                     <div id="scheduleList" class="workflow-list"></div>
                 </section>
 
-                <!-- ── Add Feeding Record ────────────────────────────────────── -->
-                <section class="feeding-section" aria-labelledby="frFormTitle">
-                    <h2 class="feeding-section-title" id="frFormTitle">
-                        <i class="fa-solid fa-plus-circle"></i> Add Feeding Record
-                    </h2>
-
-                    <form id="frForm" novalidate autocomplete="off">
-                        <div class="feeding-form">
-                            <div class="feeding-form-group">
-                                <label for="frFeedType">Feed Type <span style="color:#dc2626">*</span></label>
-                                <select id="frFeedType" name="feedType" required>
-                                    <option value="">— Select —</option>
-                                    <option value="Starter Feed">Starter Feed</option>
-                                    <option value="Grower Feed">Grower Feed</option>
-                                    <option value="Finisher Feed">Finisher Feed</option>
-                                    <option value="Pellet Feed">Pellet Feed</option>
-                                    <option value="Live Feed">Live Feed</option>
-                                    <option value="Supplemental Feed">Supplemental Feed</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="feeding-form-group">
-                                <label for="frAmount">Amount (grams) <span style="color:#dc2626">*</span></label>
-                                <input type="number" id="frAmount" name="amount" min="0" step="0.1" placeholder="e.g. 250" required>
-                            </div>
-                            <div class="feeding-form-group">
-                                <label for="frFeedingTime">Feeding Time</label>
-                                <input type="datetime-local" id="frFeedingTime" name="feedingTime">
-                            </div>
-                            <div class="feeding-form-group" style="grid-column: 1 / -1;">
-                                <label for="frNotes">Notes</label>
-                                <textarea id="frNotes" name="notes" placeholder="Optional observations or remarks…"></textarea>
-                            </div>
-                            <div class="feeding-form-actions">
-                                <button type="submit" class="fr-btn fr-btn-primary">
-                                    <i class="fa-solid fa-plus"></i> Add Record
-                                </button>
-                                <button type="reset" class="fr-btn fr-btn-secondary">
-                                    <i class="fa-solid fa-rotate-left"></i> Clear
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <div id="frFeedback" class="fr-feedback" aria-live="polite"></div>
-                </section>
-
-                <!-- ── Feeding Records Table ─────────────────────────────────── -->
-                <section class="feeding-section" aria-labelledby="frTableTitle">
-                    <h2 class="feeding-section-title" id="frTableTitle">
-                        <i class="fa-solid fa-list"></i> Feeding Records
-                    </h2>
-
-                    <div id="frLoading" class="fr-loading">
-                        <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading records…
-                    </div>
-
-                    <div class="table-wrap">
-                        <table class="fr-table">
-                            <thead>
-                                <tr>
-                                    <th>Feed Type</th>
-                                    <th>Amount</th>
-                                    <th>Feeding Time</th>
-                                    <th>Notes</th>
-                                    <th>Created At</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="frTbody"></tbody>
-                        </table>
-                    </div>
-                </section>
             </main>
         </div>
 
         <script src="js/automation.js"></script>
-        <script type="module" src="js/feeding.js"></script>
         <script type="module">
             import { db, auth } from "./js/firebase.js";
             import {

@@ -113,6 +113,15 @@ async function loadGrowthParams() {
                 const field = GROWTH_FIELD_MAP[id];
                 if (el && data[field] != null) el.value = data[field];
             });
+
+            const cycleStartEl = document.getElementById('gi_cycleStart');
+            if (cycleStartEl && data.cycleStart?.toDate) {
+                cycleStartEl.value = data.cycleStart.toDate().toISOString().slice(0, 10);
+            }
+            // One-time check: confirm the latest-by-timestamp doc actually carries
+            // cycleStart (a manually-added field on an older doc would never surface here).
+            console.log('[settings] latest growth_indicators doc has cycleStart:', data.cycleStart != null, data.cycleStart?.toDate?.());
+
             updateYieldPreview();
         }
     } catch (err) {
@@ -126,7 +135,10 @@ async function saveGrowthParams() {
     const avgWeightPerPiece = parseFloat(document.getElementById('gi_avgWeightPerPiece')?.value) || 0;
     const expectedYield     = calcExpectedYield(initialStock, survivalRate, avgWeightPerPiece);
 
-    const payload = { initialStock, survivalRate, avgWeightPerPiece, expectedYield, timestamp: serverTimestamp() };
+    const cycleStartVal = document.getElementById('gi_cycleStart')?.value;
+    const cycleStart     = cycleStartVal ? new Date(cycleStartVal + 'T00:00:00') : null;
+
+    const payload = { initialStock, survivalRate, avgWeightPerPiece, expectedYield, cycleStart, timestamp: serverTimestamp() };
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });

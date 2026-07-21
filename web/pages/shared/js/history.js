@@ -61,6 +61,14 @@ function capitalize(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 function buildRow(data) {
     const tr = document.createElement("tr");
     const status = String(data.status || "normal").toLowerCase();
@@ -148,6 +156,121 @@ function resetPagination() {
     pageCursors = [null];
     currentPage = 0;
     hasMore = false;
+}
+
+// ─── Assigned Task History ────────────────────────────────────────────────────
+// Reads the real "tasks" collection. Two different writers exist in this
+// codebase: assign-actions.js (manual admin assignment, sets assignedToName +
+// assignedToRole) and alertsEngine.js (auto-generated, createdBy: "system",
+// assignedTo may be null, role stored as assignedRole — a different field
+// name than the manual writer uses). Both are checked below; this naming
+// inconsistency is a known system-wide issue, not fixed here.
+
+const TASK_PAGE_SIZE = 20;
+const TASK_COLL = "tasks";
+
+let taskPageCursors = [null];
+let taskCurrentPage = 0;
+let taskHasMore = false;
+
+function buildTaskQuery(cursorDoc) {
+    const clauses = [orderBy("createdAt", "desc")];
+    if (cursorDoc) clauses.push(startAfter(cursorDoc));
+    clauses.push(limit(TASK_PAGE_SIZE));
+    return query(collection(db, TASK_COLL), ...clauses);
+}
+
+const TASK_STATUS_CLASS = { pending: "pending", "in-progress": "in-progress", done: "completed" };
+const TASK_STATUS_LABEL = { pending: "Pending", "in-progress": "In Progress", done: "Done" };
+
+function fmtTaskDate(ts) {
+    const d = ts?.toDate?.();
+    if (!d) return "—";
+    return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }) +
+        " · " + d.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" });
+}
+
+function buildTaskRow(data) {
+    const tr = document.createElement("tr");
+
+    const status      = String(data.status || "pending").toLowerCase();
+    const statusClass = TASK_STATUS_CLASS[status] || "pending";
+    const statusLabel = TASK_STATUS_LABEL[status] || capitalize(status);
+
+    // assignedToRole (assign-actions.js) vs assignedRole (alertsEngine.js) — check both.
+    const role      = data.assignedToRole || data.assignedRole || "";
+    const roleLabel = role ? capitalize(role) : "";
+    const assignee  = data.assignedToName || (data.assignedTo == null ? "Unassigned" : data.assignedTo);
+
+    const source = data.createdBy === "system" ? "System" : "Admin";
+
+    tr.innerHTML = `
+        <td data-label="Date Assigned">${fmtTaskDate(data.createdAt)}</td>
+        <td data-label="Assigned To">
+            <strong>${escHtml(assignee)}</strong>
+            ${roleLabel ? `<div class="assignee-role">${escHtml(roleLabel)}</div>` : ""}
+        </td>
+        <td data-label="Task">${escHtml(data.title || "—")}</td>
+        <td data-label="Status"><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td data-label="Source">${source}</td>
+    `;
+    return tr;
+}
+
+function updateTaskPaginationControls(hasPrev, hasNext) {
+    const prevBtn = document.getElementById("taskPrevBtn");
+    const nextBtn = document.getElementById("taskNextBtn");
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (nextBtn) nextBtn.disabled = !hasNext;
+}
+
+function updateTaskPageInfo(pageIndex, count) {
+    const info = document.getElementById("taskPageInfo");
+    if (!info) return;
+    if (count === 0) { info.textContent = "No records"; return; }
+    const from = pageIndex * TASK_PAGE_SIZE + 1;
+    const to   = pageIndex * TASK_PAGE_SIZE + count;
+    info.textContent = `Showing ${from}–${to}`;
+}
+
+async function loadTaskPage(pageIndex) {
+    const tbody     = document.getElementById("taskHistoryTbody");
+    const loadingEl = document.getElementById("taskHistoryLoading");
+    const errorEl   = document.getElementById("taskHistoryError");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+    if (loadingEl) loadingEl.style.display = "flex";
+    if (errorEl)   errorEl.style.display   = "none";
+
+    try {
+        const snap = await getDocs(buildTaskQuery(taskPageCursors[pageIndex] ?? null));
+        if (loadingEl) loadingEl.style.display = "none";
+
+        if (snap.empty) {
+            tbody.innerHTML = '<tr><td colspan="5" class="sr-empty">No assigned tasks found.</td></tr>';
+            updateTaskPaginationControls(pageIndex > 0, false);
+            updateTaskPageInfo(pageIndex, 0);
+            return;
+        }
+
+        snap.forEach(doc => tbody.appendChild(buildTaskRow(doc.data())));
+
+        taskHasMore = snap.docs.length === TASK_PAGE_SIZE;
+        if (taskHasMore && !taskPageCursors[pageIndex + 1]) {
+            taskPageCursors[pageIndex + 1] = snap.docs[snap.docs.length - 1];
+        }
+
+        updateTaskPaginationControls(pageIndex > 0, taskHasMore);
+        updateTaskPageInfo(pageIndex, snap.docs.length);
+    } catch (err) {
+        if (loadingEl) loadingEl.style.display = "none";
+        if (errorEl) {
+            errorEl.textContent = "Error loading data: " + (err.message || err);
+            errorEl.style.display = "block";
+        }
+        console.error("tasks history error:", err);
+    }
 }
 
 // ─── Topbar / sidebar UI ──────────────────────────────────────────────────────
@@ -271,6 +394,19 @@ function init() {
     });
 
     loadPage(0);
+
+    const taskPrevBtn = document.getElementById("taskPrevBtn");
+    const taskNextBtn = document.getElementById("taskNextBtn");
+
+    taskPrevBtn?.addEventListener("click", () => {
+        if (taskCurrentPage > 0) { taskCurrentPage--; loadTaskPage(taskCurrentPage); }
+    });
+
+    taskNextBtn?.addEventListener("click", () => {
+        if (taskHasMore) { taskCurrentPage++; loadTaskPage(taskCurrentPage); }
+    });
+
+    loadTaskPage(0);
 }
 
 if (document.readyState === "loading") {

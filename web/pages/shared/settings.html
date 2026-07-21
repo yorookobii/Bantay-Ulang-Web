@@ -46,14 +46,6 @@
         <!-- Topbar -->
         <header class="topbar">
             <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-            <div class="search-container">
-                <div class="search-bar">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="search" placeholder="Search">
-                </div>
-            </div>
-
-
 
             <!-- Right Side Items -->
             <div class="topbar-right">
@@ -72,7 +64,7 @@
                     <div class="admin-profile">
                         <div class="admin-avatar"><span>A</span></div>
                         <div class="admin-info">
-                            <div class="admin-name">Juan Dela Cruz</div>
+                            <div class="admin-name"></div>
                             <div class="admin-role">Admin</div>
                         </div>
                         <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
@@ -219,6 +211,13 @@
                     <p class="threshold_section_desc">Set the current production cycle values. Expected yield is recalculated automatically using: <strong>initialStock × (survivalRate ÷ 100) × avgWeightPerPiece ÷ 1000</strong>.</p>
                 </div>
                 <form id="growth-form" class="threshold_form">
+                    <div class="threshold_row">
+                        <div class="threshold_param">
+                            <label for="gi_cycleStart">Cycle Start Date</label>
+                            <span class="unit">start of current cycle</span>
+                            <input type="date" id="gi_cycleStart" name="gi_cycleStart" required>
+                        </div>
+                    </div>
                     <div class="threshold_row">
                         <div class="threshold_param">
                             <label for="gi_initialStock">Initial Stock</label>

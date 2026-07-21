@@ -34,7 +34,7 @@
                     <div class="user-profile">
                         <div class="user-avatar"><span>A</span></div>
                         <div class="user-info">
-                            <div class="user-name">User Name</div>
+                            <div class="user-name"></div>
                             <div class="user-role">Admin</div>
                         </div>
                     </div>
@@ -45,13 +45,6 @@
             <!-- Topbar -->
             <header class="topbar">
                 <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-                <div class="search-container">
-                    <div class="search-bar">
-                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" placeholder="Search">
-                    </div>
-                </div>
-
 
 
                 <!-- Right Side Items -->
@@ -71,7 +64,7 @@
                         <div class="admin-profile">
                             <div class="admin-avatar"><span>A</span></div>
                             <div class="admin-info">
-                                <div class="admin-name">Juan Dela Cruz</div>
+                                <div class="admin-name"></div>
                                 <div class="admin-role">Admin</div>
                             </div>
                             <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
@@ -94,15 +87,15 @@
                         <h1>Growth & Survival Predictions</h1>
                         <p>Ulang survival rates based on current water quality parameters.</p>
                     </div>
-                    <button type="button" class="btn-run-simulation" id="runSimulationBtn">
-                        <i class="fa-solid fa-arrow-trend-up"></i> Run New Simulation
-                    </button>
                 </header>
                 <!-- Analytics Cards -->
                 <div class="analytics-cards">
                     <!-- Survival Projection -->
                     <div class="analytics-card">
-                        <div class="card-title">Survival Projection (Next 4 Weeks)</div>
+                        <div class="card-title">
+                            Survival Projection (Next 4 Weeks)
+                            <span class="yp-badge" style="margin-left:8px;">Sample — Phase 2</span>
+                        </div>
                         <div class="card-subtitle">Predicted population based on current stable parameters</div>
                         <div class="chart-legend">
                             <span class="chart-legend-item">
@@ -118,63 +111,6 @@
                             <canvas id="survivalChart"></canvas>
                         </div>
                     </div>
-                    <!-- Parameter Impact Score -->
-                    <div class="analytics-card">
-                        <div class="card-title">Parameter Impact Score</div>
-                        <div class="card-subtitle">How current metrics are affecting growth potential</div>
-                        <div class="param-row">
-                            <div class="param-head">
-                                <span class="param-label">pH (7.2)</span>
-                            </div>
-                            <div class="param-bar-wrap">
-                                <div class="param-bar dark-green" style="width: 92%;"></div>
-                            </div>
-                        </div>
-                        <div class="param-row">
-                            <div class="param-head">
-                                <span class="param-label">Temp (28°C)</span>
-                            </div>
-                            <div class="param-bar-wrap">
-                                <div class="param-bar dark-green" style="width: 78%;"></div>
-                            </div>
-                        </div>
-                        <div class="param-row">
-                            <div class="param-head">
-                                <span class="param-label">DO (6.5)</span>
-                            </div>
-                            <div class="param-bar-wrap">
-                                <div class="param-bar teal" style="width: 65%;"></div>
-                            </div>
-                        </div>
-                        <div class="param-row">
-                            <div class="param-head">
-                                <span class="param-label">Salinity (15 ppt)</span>
-                            </div>
-                            <div class="param-bar-wrap">
-                                <div class="param-bar dark-green" style="width: 90%;"></div>
-                            </div>
-                        </div>
-                        <div class="param-row">
-                            <div class="param-head">
-                                <span class="param-label">Turbidity (3.5 NTU)</span>
-                            </div>
-                            <div class="param-bar-wrap">
-                                <div class="param-bar teal" style="width: 85%;"></div>
-                            </div>
-                        </div>
-                        <div class="param-row">
-                            <div class="param-head">
-                                <span class="param-label">Nitrate (5 ppm)</span>
-                            </div>
-                            <div class="param-bar-wrap">
-                                <div class="param-bar light-teal" style="width: 88%;"></div>
-                            </div>
-                        </div>
-                        <div class="optimal-state-box">
-                            <i class="fa-solid fa-circle-check"></i>
-                            <span class="text">Optimal State: Your current pH, salinity, turbidity, and nitrate levels are within ideal range for ulang growth.</span>
-                        </div>
-                    </div>
                 </div>
                 <!-- Analytics Metrics Row -->
                 <div class="metrics-row">
@@ -187,20 +123,8 @@
                     <div class="metric-card">
                         <div class="metric-icon"><i class="fa-solid fa-water"></i></div>
                         <div class="metric-label">Predicted Yield</div>
-                        <div class="metric-value" id="predictedYieldValue">142.5 kg</div>
-                        <div class="metric-desc" id="predictedYieldConfidence">Confidence: 89%</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                        <div class="metric-label">Mortality Risk</div>
-                        <div class="metric-value">Low</div>
-                        <div class="metric-desc">Predicted: 12% total</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-icon"><i class="fa-solid fa-bolt"></i></div>
-                        <div class="metric-label">Feed Efficiency</div>
-                        <div class="metric-value">1.2 FCR</div>
-                        <div class="metric-desc">Optimal range: 1.1 - 1.4</div>
+                        <div class="metric-value" id="predictedYieldValue"></div>
+                        <div class="metric-desc" id="predictedYieldConfidence"></div>
                     </div>
                 </div>
 
@@ -208,7 +132,7 @@
                 <section class="yield-section yp-loading" id="ypSection">
                     <div class="yp-section-header">
                         <div>
-                            <h2 class="yp-section-title">Yield Prediction &amp; Income Forecast</h2>
+                            <h2 class="yp-section-title">Yield Prediction &amp; Revenue Forecast</h2>
                             <p class="yp-section-subtitle">Live calculations from current cycle parameters and real-time water quality sensors.</p>
                         </div>
                         <span class="yp-badge" id="yp-last-updated">--</span>
@@ -245,34 +169,12 @@
                                 <i class="fa-solid fa-calculator"></i> Calculation
                             </div>
                             <div class="yp-calc-steps">
-                                <div class="yp-calc-row">
+                                <div class="yp-calc-row yp-calc-result">
                                     <div class="yp-calc-left">
-                                        <span class="yp-calc-label">Base Yield</span>
+                                        <span class="yp-calc-label">Predicted Yield</span>
                                         <span class="yp-calc-note">stock × survival × weight</span>
                                     </div>
                                     <span class="yp-calc-value" id="yp-base-yield">--</span>
-                                </div>
-                                <div class="yp-calc-row">
-                                    <div class="yp-calc-left">
-                                        <span class="yp-calc-label">Water Quality Score</span>
-                                        <span class="yp-calc-note">based on sensor readings</span>
-                                    </div>
-                                    <span class="yp-calc-value yp-wq-label" id="yp-wq-score-label">--</span>
-                                </div>
-                                <div class="yp-wq-bar-wrap">
-                                    <div class="yp-wq-bar" id="yp-wq-bar"></div>
-                                </div>
-                                <div class="yp-wq-bar-meta">
-                                    <span class="yp-wq-range-label">0.50 (poor)</span>
-                                    <span class="yp-wq-score-display" id="yp-wq-score-display">--</span>
-                                    <span class="yp-wq-range-label">1.00 (optimal)</span>
-                                </div>
-                                <div class="yp-calc-row yp-calc-result">
-                                    <div class="yp-calc-left">
-                                        <span class="yp-calc-label">Adjusted Yield</span>
-                                        <span class="yp-calc-note">base yield × WQ score</span>
-                                    </div>
-                                    <span class="yp-calc-value" id="yp-adjusted-yield">--</span>
                                 </div>
                             </div>
                         </div>
@@ -283,11 +185,11 @@
                                 <div class="yp-yield-icon"><i class="fa-solid fa-scale-balanced"></i></div>
                                 <div class="yp-yield-label">Predicted Yield</div>
                                 <div class="yp-yield-big" id="yp-yield-big">-- kg</div>
-                                <div class="yp-yield-sub">Adjusted for current water quality</div>
+                                <div class="yp-yield-sub">Based on stock, survival rate &amp; weight per piece</div>
                             </div>
 
                             <div class="yp-income-header">
-                                <i class="fa-solid fa-peso-sign"></i> Expected Income Range
+                                <i class="fa-solid fa-peso-sign"></i> Expected Revenue Range
                             </div>
                             <div class="yp-income-grid">
                                 <div class="yp-income-card yp-income-min">

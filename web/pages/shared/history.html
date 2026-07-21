@@ -24,7 +24,7 @@
                 <li><a href="real-time-monitoring.html" title="Real-Time Data"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
                 <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
                 <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
-                <li><a href="history.html" class="active" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                <li><a href="history.html" class="active" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span></span></a></li>
                 <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
                 <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
                 <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
@@ -33,7 +33,7 @@
                 <div class="user-profile">
                     <div class="user-avatar"><span>A</span></div>
                     <div class="user-info">
-                        <div class="user-name">User Name</div>
+                        <div class="user-name"></div>
                         <div class="user-role">Admin</div>
                     </div>
                 </div>
@@ -45,14 +45,6 @@
         <!-- Topbar -->
         <header class="topbar">
             <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-            <div class="search-container">
-                <div class="search-bar">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="search" placeholder="Search">
-                </div>
-            </div>
-
-
 
             <!-- Right Side Items -->
             <div class="topbar-right">
@@ -174,6 +166,15 @@
                 <h2 class="history-section-title" id="assigned-task-history-title">
                     <i class="fa-solid fa-clipboard-list"></i> Assigned Task History
                 </h2>
+
+                <!-- Loading -->
+                <div id="taskHistoryLoading" class="sr-loading">
+                    <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading task history…
+                </div>
+
+                <!-- Error -->
+                <div id="taskHistoryError" class="sr-error" style="display:none;"></div>
+
                 <div class="table-wrap">
                     <table class="task-history-table">
                         <thead>
@@ -182,52 +183,24 @@
                                 <th>Assigned To</th>
                                 <th>Task</th>
                                 <th>Status</th>
-                                <th>Priority</th>
+                                <th>Source</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td data-label="Date Assigned">Feb 25, 2025 · 09:00</td>
-                                <td data-label="Assigned To">
-                                    <strong>Maria Santos</strong>
-                                    <div class="assignee-role">Technician</div>
-                                </td>
-                                <td data-label="Task">Inspect filtration system &amp; clean filters</td>
-                                <td data-label="Status"><span class="status-badge completed">Completed</span></td>
-                                <td data-label="Priority">High</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Date Assigned">Feb 24, 2025 · 14:30</td>
-                                <td data-label="Assigned To">
-                                    <strong>Juan Reyes</strong>
-                                    <div class="assignee-role">Practitioner</div>
-                                </td>
-                                <td data-label="Task">Water quality sampling – Main Tank</td>
-                                <td data-label="Status"><span class="status-badge completed">Completed</span></td>
-                                <td data-label="Priority">Medium</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Date Assigned">Feb 25, 2025 · 08:00</td>
-                                <td data-label="Assigned To">
-                                    <strong>Ana Cruz</strong>
-                                    <div class="assignee-role">Technician</div>
-                                </td>
-                                <td data-label="Task">Morning feeding round &amp; tank check</td>
-                                <td data-label="Status"><span class="status-badge in-progress">In Progress</span></td>
-                                <td data-label="Priority">Medium</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Date Assigned">Feb 24, 2025 · 16:00</td>
-                                <td data-label="Assigned To">
-                                    <strong>Pedro Diaz</strong>
-                                    <div class="assignee-role">Practitioner</div>
-                                </td>
-                                <td data-label="Task">pH and DO sensor calibration</td>
-                                <td data-label="Status"><span class="status-badge pending">Pending</span></td>
-                                <td data-label="Priority">High</td>
-                            </tr>
-                        </tbody>
+                        <tbody id="taskHistoryTbody"></tbody>
                     </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="sr-pagination">
+                    <span id="taskPageInfo" class="sr-page-info"></span>
+                    <div class="sr-page-btns">
+                        <button id="taskPrevBtn" class="sr-btn sr-btn-secondary" disabled>
+                            <i class="fa-solid fa-chevron-left"></i> Previous
+                        </button>
+                        <button id="taskNextBtn" class="sr-btn sr-btn-secondary" disabled>
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
             </section>
 

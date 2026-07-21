@@ -93,75 +93,24 @@
                 }
             })();
 
-            /* Live sensor data simulation – runs automatically, no refresh needed */
+            /* Sensor cards: honest loading placeholder until real Firestore data arrives */
             (function() {
-                function runLiveSensors() {
+                function showLoadingState() {
                     var sensorGrid = document.getElementById('sensorGrid');
                     if (!sensorGrid) return;
 
-                    function randInRange(min, max, decimals) {
-                        var v = min + Math.random() * (max - min);
-                        return decimals === 0 ? Math.round(v) : Math.round(v * Math.pow(10, decimals)) / Math.pow(10, decimals);
-                    }
-
-                    function formatUpdated(secAgo) {
-                        if (secAgo < 30) return 'Updated: Just now';
-                        if (secAgo < 60) return 'Updated: &lt; 1 min ago';
-                        var mins = Math.floor(secAgo / 60);
-                        return mins === 1 ? 'Updated: 1 min ago' : 'Updated: ' + mins + ' mins ago';
-                    }
-
-                    var lastUpdate = {};
-
-                    function tick() {
-                        var cards = sensorGrid.querySelectorAll('.sensor-card[data-base]');
-                        var now = Date.now();
-                        cards.forEach(function(card) {
-                            var min = parseFloat(card.getAttribute('data-min'));
-                            var max = parseFloat(card.getAttribute('data-max'));
-                            var unit = card.getAttribute('data-unit') || '';
-                            var decimals = parseInt(card.getAttribute('data-decimals'), 10) || 1;
-                            var valueEl = card.querySelector('.sensor-value');
-                            var updatedEl = card.querySelector('.sensor-updated');
-                            if (!valueEl) return;
-                            var newVal = randInRange(min, max, decimals);
-                            valueEl.textContent = newVal + unit;
-                            var key = card.getAttribute('data-sensor');
-                            if (!lastUpdate[key]) lastUpdate[key] = now;
-                            if (Math.random() < 0.4) lastUpdate[key] = now;
-                            if (updatedEl) {
-                                var secAgo = Math.floor((now - lastUpdate[key]) / 1000);
-                                updatedEl.innerHTML = formatUpdated(secAgo);
-                            }
-                        });
-                    }
-
-                    function runClock() {
-                        var cards = sensorGrid.querySelectorAll('.sensor-card[data-base]');
-                        var now = Date.now();
-                        cards.forEach(function(card) {
-                            var key = card.getAttribute('data-sensor');
-                            var updatedEl = card.querySelector('.sensor-updated');
-                            if (updatedEl && lastUpdate[key]) {
-                                var secAgo = Math.floor((now - lastUpdate[key]) / 1000);
-                                updatedEl.innerHTML = formatUpdated(secAgo);
-                            }
-                        });
-                    }
-
-                    var tickInterval  = setInterval(tick, 3000);
-                    var clockInterval = setInterval(runClock, 1000);
-                    // Exposed so receiveSensorData() can permanently kill both intervals
-                    window.stopSensorSimulation = function() {
-                        clearInterval(tickInterval);
-                        clearInterval(clockInterval);
-                    };
-                    tick();
+                    var cards = sensorGrid.querySelectorAll('.sensor-card[data-sensor]');
+                    cards.forEach(function(card) {
+                        var valueEl   = card.querySelector('.sensor-value');
+                        var updatedEl = card.querySelector('.sensor-updated');
+                        if (valueEl)   valueEl.textContent   = '--';
+                        if (updatedEl) updatedEl.textContent = 'Updated: --';
+                    });
                 }
 
                 if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', runLiveSensors);
+                    document.addEventListener('DOMContentLoaded', showLoadingState);
                 } else {
-                    runLiveSensors();
+                    showLoadingState();
                 }
             })();

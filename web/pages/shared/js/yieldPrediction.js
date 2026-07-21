@@ -12,16 +12,17 @@ import { loadThresholds } from "./thresholds.js";
 import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualityScore.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
-//  Base Yield (kg) = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
-//  Adjusted Yield  = Base Yield × Water Quality Score
-//  Income range    = Adjusted Yield × (250 | 425 | 600)
+//  Yield (kg)   = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
+//  Income range = Yield × (250 | 425 | 600)
+//  wqScore is carried through only for the separate Efficiency Score display
+//  (analyticsRecommendations.js / analytics.js) — it no longer affects yield.
 function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock)      || 0;
     const survivalRate = Number(growthData.survivalRate)      || 0;
     const avgWeightG   = Number(growthData.avgWeightPerPiece) || 0;
 
     const baseYield     = initialStock * (survivalRate / 100) * (avgWeightG / 1000);
-    const adjustedYield = baseYield * wqScore;
+    const adjustedYield = baseYield;
 
     return {
         initialStock,
@@ -65,25 +66,21 @@ function updateUI(result, cycleData, sensorData) {
     setEl("yp-survival-rate", fmt(result.survivalRate, 1) + "%");
     setEl("yp-avg-weight",    fmt(result.avgWeightG, 0) + " g / pc");
 
-    const harvestDate = toDateValue(cycleData.targetHarvestDate ?? cycleData.cycleEnd);
-    setEl("yp-harvest-date", harvestDate
-        ? harvestDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
-        : "--");
+    // Estimated Harvest Date: cycleStart + 150 days (5-month cycle) — single
+    // source shared by both the Yield Prediction card and the Growth/Survival
+    // metric card so they can never disagree.
+    const cycleStartDate = toDateValue(cycleData.cycleStart);
+    const estHarvestDate = cycleStartDate
+        ? new Date(cycleStartDate.getTime() + 150 * 24 * 60 * 60 * 1000)
+        : null;
+    const estHarvestDateStr = estHarvestDate
+        ? estHarvestDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
+        : "--";
+    setEl("yp-harvest-date", estHarvestDateStr);
+    setEl("harvest-date-value", estHarvestDateStr);
 
     // Calculation steps
-    setEl("yp-base-yield",     fmt(result.baseYield, 2) + " kg");
-    setEl("yp-wq-score-label", "× " + fmt(result.wqScore, 2));
-    setEl("yp-adjusted-yield", fmt(result.adjustedYield, 2) + " kg");
-
-    // WQ score bar: maps [0.5, 1.0] → [0%, 100%]
-    const pct      = ((result.wqScore - 0.5) / 0.5) * 100;
-    const barColor = result.wqScore >= 0.85 ? "#059669"
-                   : result.wqScore >= 0.70 ? "#d97706"
-                   : "#dc2626";
-    const bar      = document.getElementById("yp-wq-bar");
-    const scoreEl  = document.getElementById("yp-wq-score-display");
-    if (bar)     { bar.style.width = pct + "%"; bar.style.background = barColor; }
-    if (scoreEl) { scoreEl.textContent = fmt(result.wqScore, 2); scoreEl.style.color = barColor; }
+    setEl("yp-base-yield", fmt(result.baseYield, 2) + " kg");
 
     // Big yield banner
     setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
@@ -117,7 +114,7 @@ function updateUI(result, cycleData, sensorData) {
     const yieldEl = document.getElementById("predictedYieldValue");
     const confEl  = document.getElementById("predictedYieldConfidence");
     if (yieldEl) yieldEl.textContent = fmt(result.adjustedYield, 1) + " kg";
-    if (confEl)  confEl.textContent  = "WQ Score: " + fmt(result.wqScore, 2);
+    if (confEl)  confEl.textContent  = "Based on current cycle data";
 }
 
 // ─── Public init ───────────────────────────────────────────────────────────────

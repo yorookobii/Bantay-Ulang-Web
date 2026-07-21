@@ -292,7 +292,7 @@ function makeRenderUsers(canEdit) {
         snapshot.forEach(d => {
             const data   = d.data();
             const status = (data.status || 'active').toLowerCase();
-            if (status === 'pending') {
+            if (status === 'pending' && data.emailVerified !== false) {
                 pending.push({ uid: d.id, data });
                 return;
             }
