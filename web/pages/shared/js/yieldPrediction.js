@@ -14,15 +14,24 @@ import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualitySc
 // ─── Core yield & income formulas ──────────────────────────────────────────────
 //  Yield (kg)   = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
 //  Income range = Yield × (250 | 425 | 600)
+//  Profit (est) = incomeAvg − (Yield × costPerKg); costPerKg is a user-set
+//  placeholder from growth_indicators, so profit/cost are always estimates.
 //  wqScore is carried through only for the separate Efficiency Score display
 //  (analyticsRecommendations.js / analytics.js) — it no longer affects yield.
+const DEFAULT_COST_PER_KG = 250;
+
 function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock)      || 0;
     const survivalRate = Number(growthData.survivalRate)      || 0;
     const avgWeightG   = Number(growthData.avgWeightPerPiece) || 0;
+    const costPerKg     = Number(growthData.costPerKg) > 0 ? Number(growthData.costPerKg) : DEFAULT_COST_PER_KG;
 
     const baseYield     = initialStock * (survivalRate / 100) * (avgWeightG / 1000);
     const adjustedYield = baseYield;
+
+    const incomeAvg      = adjustedYield * 425;
+    const estimatedCost  = adjustedYield * costPerKg;
+    const netProfit       = incomeAvg - estimatedCost;
 
     return {
         initialStock,
@@ -31,9 +40,12 @@ function calcYield(growthData, wqScore) {
         baseYield,
         wqScore,
         adjustedYield,
+        costPerKg,
         incomeMin: adjustedYield * 250,
-        incomeAvg: adjustedYield * 425,
-        incomeMax: adjustedYield * 600
+        incomeAvg,
+        incomeMax: adjustedYield * 600,
+        estimatedCost,
+        netProfit
     };
 }
 
@@ -89,6 +101,11 @@ function updateUI(result, cycleData, sensorData) {
     setEl("yp-income-min", fmtPeso(result.incomeMin));
     setEl("yp-income-avg", fmtPeso(result.incomeAvg));
     setEl("yp-income-max", fmtPeso(result.incomeMax));
+
+    // Profit estimate (cost per kg is a user-set placeholder — always labeled "estimated")
+    setEl("yp-estimated-cost", fmtPeso(result.estimatedCost));
+    setEl("yp-net-profit", fmtPeso(result.netProfit));
+    setEl("yp-cost-per-kg-rate", "at ₱" + fmt(result.costPerKg, 0) + " / kg (estimated)");
 
     // Per-sensor score chips
     if (sensorData) {

@@ -147,6 +147,109 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ── Sample/placeholder charts — static hardcoded data, never randomized ──
+
+    var avgWeightCtx = document.getElementById('avgWeightChart');
+    if (avgWeightCtx) {
+        new Chart(avgWeightCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+                datasets: [{
+                    label: 'Avg Weight (g)',
+                    data: [2, 3.5, 5, 7, 9, 12, 15, 18],
+                    borderColor: '#0d9488',
+                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#0d9488',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Avg Weight (g)' },
+                        grid: { color: '#f3f4f6' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    var wqsTrendCtx = document.getElementById('wqsTrendChart');
+    if (wqsTrendCtx) {
+        new Chart(wqsTrendCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+                datasets: [{
+                    label: 'Water Quality Score (%)',
+                    data: [78, 85, 82, 90, 76, 88, 84, 91],
+                    borderColor: '#1d4ed8',
+                    backgroundColor: 'rgba(29, 78, 216, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#1d4ed8',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: { stepSize: 20 },
+                        title: { display: true, text: 'WQS (%)' },
+                        grid: { color: '#f3f4f6' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    var mortalityRateCtx = document.getElementById('mortalityRateChart');
+    if (mortalityRateCtx) {
+        new Chart(mortalityRateCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+                datasets: [{
+                    label: 'Deaths',
+                    data: [3, 2, 2, 1, 1, 0, 1, 0],
+                    backgroundColor: '#dc2626',
+                    borderRadius: 4,
+                    maxBarThickness: 28
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                        title: { display: true, text: 'Deaths' },
+                        grid: { color: '#f3f4f6' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
 });
 
 // ── Efficiency circle: driven by yield-prediction-updated event ───────────

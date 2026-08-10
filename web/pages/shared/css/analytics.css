@@ -1020,6 +1020,19 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .yp-income-avg .yp-income-tier i { color: #2563eb; }
 .yp-income-max .yp-income-tier i { color: #059669; }
 
+.yp-income-cost {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.yp-income-profit {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+.yp-income-cost .yp-income-tier { color: #b91c1c; }
+.yp-income-profit .yp-income-tier { color: #065f46; }
+.yp-income-cost .yp-income-tier i { color: #dc2626; }
+.yp-income-profit .yp-income-tier i { color: #059669; }
+
 .yp-income-amount {
     font-size: 18px;
     font-weight: 800;

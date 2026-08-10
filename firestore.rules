@@ -66,8 +66,19 @@ service cloud.firestore {
     // growth_indicators
     // -------------------------------------------------------------------------
     match /growth_indicators/{docId} {
-      allow read:  if isAuthenticated();
-      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+
+      allow create, delete: if isAdmin();
+
+      // Admins can update any field via the web Settings page. Non-admin
+      // authenticated users (the Flutter farmer app's growth-indicator
+      // recompute in logs.dart) may only touch the three derived fields
+      // it recalculates. initialStock, cycleStart, and every other field
+      // remain admin-only.
+      allow update: if isAdmin() ||
+                       (isAuthenticated() &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['survivalRate', 'avgWeightPerPiece', 'expectedYield']));
     }
 
     // -------------------------------------------------------------------------

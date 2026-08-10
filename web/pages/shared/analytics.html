@@ -111,7 +111,40 @@
                             <canvas id="survivalChart"></canvas>
                         </div>
                     </div>
+
+                    <!-- Sample/Placeholder Charts -->
+                    <div class="analytics-card">
+                        <div class="card-title">
+                            Average Weight ng Ulang (Sample)
+                            <span class="yp-badge" style="margin-left:8px;">Sample — Phase 2</span>
+                        </div>
+                        <div class="card-subtitle">Illustrative growth curve — not live data</div>
+                        <div class="chart-wrap">
+                            <canvas id="avgWeightChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="card-title">
+                            Water Quality Score Trend (Sample)
+                            <span class="yp-badge" style="margin-left:8px;">Sample — Phase 2</span>
+                        </div>
+                        <div class="card-subtitle">Illustrative WQS fluctuation — not live data</div>
+                        <div class="chart-wrap">
+                            <canvas id="wqsTrendChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="card-title">
+                            Mortality Rate (Sample)
+                            <span class="yp-badge" style="margin-left:8px;">Sample — Phase 2</span>
+                        </div>
+                        <div class="card-subtitle">Illustrative weekly deaths — not live data</div>
+                        <div class="chart-wrap">
+                            <canvas id="mortalityRateChart"></canvas>
+                        </div>
+                    </div>
                 </div>
+
                 <!-- Analytics Metrics Row -->
                 <div class="metrics-row">
                     <div class="metric-card">
@@ -172,7 +205,7 @@
                                 <div class="yp-calc-row yp-calc-result">
                                     <div class="yp-calc-left">
                                         <span class="yp-calc-label">Predicted Yield</span>
-                                        <span class="yp-calc-note">stock × survival × weight</span>
+                                        <span class="yp-calc-note"></span>
                                     </div>
                                     <span class="yp-calc-value" id="yp-base-yield">--</span>
                                 </div>
@@ -212,6 +245,26 @@
                                     </div>
                                     <div class="yp-income-amount" id="yp-income-max">₱--</div>
                                     <div class="yp-income-rate">at ₱600 / kg</div>
+                                </div>
+                            </div>
+
+                            <div class="yp-income-header" style="margin-top: 16px;">
+                                <i class="fa-solid fa-sack-dollar"></i> Profit Estimate <span style="text-transform:none; font-weight:500; opacity:0.7;">(based on ₱425/kg avg price)</span>
+                            </div>
+                            <div class="yp-income-grid" style="grid-template-columns: repeat(2, 1fr);">
+                                <div class="yp-income-card yp-income-cost">
+                                    <div class="yp-income-tier">
+                                        <i class="fa-solid fa-minus"></i> Estimated Cost
+                                    </div>
+                                    <div class="yp-income-amount" id="yp-estimated-cost">₱--</div>
+                                    <div class="yp-income-rate" id="yp-cost-per-kg-rate">at ₱250 / kg (estimated)</div>
+                                </div>
+                                <div class="yp-income-card yp-income-profit">
+                                    <div class="yp-income-tier">
+                                        <i class="fa-solid fa-sack-dollar"></i> Net Profit
+                                    </div>
+                                    <div class="yp-income-amount" id="yp-net-profit">₱--</div>
+                                    <div class="yp-income-rate">Revenue − estimated cost</div>
                                 </div>
                             </div>
                         </div>
