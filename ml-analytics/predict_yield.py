@@ -53,26 +53,9 @@ def connect_firestore():
 # ============================================================
 def fetch_water_averages(db):
     """
-    Kunin ang readings mula HistoryLogs/Ulang/Readings (nakaraang 7 araw),
-    i-average ang bawat parameter mula sa statistics.*.average
+    Kunin ang readings gamit ang collection group query, BATCHED
+    (para hindi mag-timeout sa 20k records).
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=AGGREGATION_DAYS)
-    readings_ref = db.collection("HistoryLogs").document("Ulang").collection("Readings")
-    docs = list(readings_ref.stream())
-
-    print(f"[INFO] Nahanap: {len(docs)} readings sa Readings collection")
-
-    if not docs:
-        print("[WARN] Walang readings — gagamit ng assumed optimal (test-mode fallback)")
-        return None, 0
-
-    # Kolektahin ang bawat parameter's average mula sa lahat ng docs
-    collected = {
-        "avgWaterTemp": [], "avgPh": [], "avgDissolvedOxygen": [],
-        "avgTds": [], "avgTurbidity": [],
-    }
-
-    # Mapping: RF feature -> Firestore statistics path
     stat_map = {
         "avgWaterTemp": "waterTemperatureC",
         "avgPh": "phValue",
@@ -80,28 +63,58 @@ def fetch_water_averages(db):
         "avgTds": "tdsPpm",
         "avgTurbidity": "turbidityNTU",
     }
+    collected = {k: [] for k in stat_map}
+
+    BATCH = 500          # kunin 500 kada batch (iwas timeout)
+    MAX_READINGS = 5000  # limitahan sa 5000 para mabilis (sapat na sa average)
+
+    readings_query = db.collection_group("readings").limit(BATCH)
 
     used = 0
-    for doc in docs:
-        data = doc.to_dict()
-        # Optional: i-filter by measuredAt sa loob ng 7 araw
-        measured = data.get("measuredAt")
-        if measured is not None:
-            try:
-                if measured < cutoff:
-                    continue
-            except TypeError:
-                pass  # kung naiibang timestamp type, isama na lang
+    skipped = 0
+    last_doc = None
+    total_fetched = 0
 
-        stats = data.get("statistics", {})
-        for feat, stat_key in stat_map.items():
-            param = stats.get(stat_key, {})
-            avg = param.get("average")
-            if avg is not None:
-                collected[feat].append(float(avg))
-        used += 1
+    while total_fetched < MAX_READINGS:
+        q = readings_query
+        if last_doc is not None:
+            q = db.collection_group("readings").limit(BATCH).start_after(last_doc)
 
-    # I-average ang lahat ng nakolekta
+        batch_docs = list(q.stream())
+        if not batch_docs:
+            break  # wala nang natitira
+
+        for doc in batch_docs:
+            data = doc.to_dict()
+            stats = data.get("statistics", {})
+            if not stats:
+                skipped += 1
+                continue
+            got = False
+            for feat, stat_key in stat_map.items():
+                param = stats.get(stat_key, {})
+                avg = param.get("average")
+                if avg is not None:
+                    collected[feat].append(float(avg))
+                    got = True
+            if got:
+                used += 1
+            else:
+                skipped += 1
+
+        last_doc = batch_docs[-1]
+        total_fetched += len(batch_docs)
+        print(f"[INFO] Nakuha: {total_fetched} readings...")
+
+        if len(batch_docs) < BATCH:
+            break  # huling batch na
+
+    print(f"[INFO] Kabuuan: {total_fetched} readings scanned")
+
+    if used == 0:
+        print("[WARN] Walang usable readings — test-mode fallback")
+        return None, 0
+
     water = {}
     for feat, vals in collected.items():
         if vals:
@@ -110,7 +123,7 @@ def fetch_water_averages(db):
             print(f"[WARN] Walang data para sa {feat}")
             water[feat] = None
 
-    print(f"[OK] Na-aggregate: {used} readings sa loob ng {AGGREGATION_DAYS} araw")
+    print(f"[OK] Na-aggregate: {used} readings (skipped: {skipped})")
     return water, used
 
 # ============================================================

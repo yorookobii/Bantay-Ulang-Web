@@ -968,6 +968,51 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     opacity: 0.75;
 }
 
+/* RF prediction meta (mode badge + note + readings + last-updated) */
+.yp-rf-meta {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+.yp-rf-mode-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 11px;
+    border-radius: 20px;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+.yp-rf-mode-badge.is-rf {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.35);
+}
+.yp-rf-mode-badge.is-rf.is-real { background: rgba(16, 185, 129, 0.3); border-color: rgba(16, 185, 129, 0.6); }
+.yp-rf-mode-badge.is-rf.is-hybrid { background: rgba(255,255,255,0.18); }
+.yp-rf-mode-badge.is-rf.is-test { background: rgba(217, 119, 6, 0.35); border-color: rgba(217, 119, 6, 0.6); }
+.yp-rf-mode-badge.is-fallback {
+    background: rgba(0,0,0,0.15);
+    color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.25);
+}
+.yp-rf-note,
+.yp-rf-readings,
+.yp-rf-updated {
+    font-size: 12px;
+    opacity: 0.8;
+}
+.yp-rf-note:empty,
+.yp-rf-readings:empty,
+.yp-rf-updated:empty {
+    display: none;
+}
+
 /* Income section */
 .yp-income-header {
     font-size: 13px;

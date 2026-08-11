@@ -27,7 +27,15 @@ function calcYield(growthData, wqScore) {
     const costPerKg     = Number(growthData.costPerKg) > 0 ? Number(growthData.costPerKg) : DEFAULT_COST_PER_KG;
 
     const baseYield     = initialStock * (survivalRate / 100) * (avgWeightG / 1000);
-    const adjustedYield = baseYield;
+
+    // RF batch-inference fields (written together by ml-analytics/predict_yield.py).
+    // rfProjectedYield presence is the single availability gate — if the RF script
+    // hasn't run yet, this is NaN and everything below falls back to the formula.
+    const rfProjectedYield = Number(growthData.rfProjectedYield);
+    const rfAvailable      = Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;
+
+    const adjustedYield = rfAvailable ? rfProjectedYield : baseYield;
+    const finalWeight   = rfAvailable ? Number(growthData.rfProjectedWeight) : avgWeightG;
 
     const incomeAvg      = adjustedYield * 425;
     const estimatedCost  = adjustedYield * costPerKg;
@@ -40,14 +48,27 @@ function calcYield(growthData, wqScore) {
         baseYield,
         wqScore,
         adjustedYield,
+        finalWeight,
         costPerKg,
         incomeMin: adjustedYield * 250,
         incomeAvg,
         incomeMax: adjustedYield * 600,
         estimatedCost,
-        netProfit
+        netProfit,
+        rfAvailable,
+        rfMode: rfAvailable ? (growthData.rfMode ?? null) : null,
+        rfNote: rfAvailable ? (growthData.rfNote ?? "") : "",
+        rfReadingsUsed: rfAvailable && Number.isFinite(Number(growthData.rfReadingsUsed))
+            ? Number(growthData.rfReadingsUsed) : null,
+        rfUpdatedAt: rfAvailable ? (growthData.rfUpdatedAt ?? null) : null
     };
 }
+
+const RF_MODE_LABELS = {
+    hybrid: "RF Prediction — Hybrid",
+    real:   "RF Prediction — Real",
+    test:   "RF Prediction — Test"
+};
 
 // ─── Formatting ────────────────────────────────────────────────────────────────
 function fmt(n, d = 1) {
@@ -94,8 +115,31 @@ function updateUI(result, cycleData, sensorData) {
     // Calculation steps
     setEl("yp-base-yield", fmt(result.baseYield, 2) + " kg");
 
-    // Big yield banner
+    // Big yield banner (RF-based when available, formula fallback otherwise)
     setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
+    setEl("yp-yield-sub", result.rfAvailable
+        ? "Random Forest projection from live sensor data"
+        : "Based on stock, survival rate & weight per piece (formula estimate)");
+
+    // RF mode badge + metadata
+    const modeBadge = document.getElementById("yp-rf-mode-badge");
+    if (modeBadge) {
+        if (result.rfAvailable) {
+            modeBadge.textContent = RF_MODE_LABELS[result.rfMode] || "RF Prediction";
+            modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (result.rfMode || "unknown");
+        } else {
+            modeBadge.textContent = "Formula Estimate";
+            modeBadge.className   = "yp-rf-mode-badge is-fallback";
+        }
+    }
+    setEl("yp-rf-note", result.rfAvailable ? result.rfNote : "");
+    setEl("yp-rf-readings", result.rfAvailable && result.rfReadingsUsed != null
+        ? "Based on " + result.rfReadingsUsed.toLocaleString("en-PH") + " sensor readings"
+        : "");
+    const rfUpdatedDate = result.rfAvailable ? toDateValue(result.rfUpdatedAt) : null;
+    setEl("yp-rf-updated", rfUpdatedDate
+        ? "Last updated: " + rfUpdatedDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
+        : "");
 
     // Income cards
     setEl("yp-income-min", fmtPeso(result.incomeMin));
@@ -131,7 +175,9 @@ function updateUI(result, cycleData, sensorData) {
     const yieldEl = document.getElementById("predictedYieldValue");
     const confEl  = document.getElementById("predictedYieldConfidence");
     if (yieldEl) yieldEl.textContent = fmt(result.adjustedYield, 1) + " kg";
-    if (confEl)  confEl.textContent  = "Based on current cycle data";
+    if (confEl)  confEl.textContent  = result.rfAvailable
+        ? (RF_MODE_LABELS[result.rfMode] || "RF Prediction")
+        : "Formula estimate — current cycle data";
 }
 
 // ─── Public init ───────────────────────────────────────────────────────────────
