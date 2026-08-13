@@ -7,4 +7,4 @@ mobile/
 serviceAccountKey.json
 *serviceAccount*.json
 firebase-adminsdk*.json
-*.joblib
+*.joblibread_counter.json

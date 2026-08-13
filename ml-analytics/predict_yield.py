@@ -1,14 +1,18 @@
 """
 Bantay Ulang — RF Yield Prediction (Batch Inference)
 =====================================================
-Kumukuha ng water parameters mula Firestore (HistoryLogs/Ulang/Readings),
-ini-aggregate sa weekly averages, pinapakain sa trained Random Forest,
-nag-pro-project ng harvest weight, at isinusulat ang yield prediction
-pabalik sa Firestore (growth_indicators).
+Kumukuha ng water parameters mula Firestore (collection group query sa
+"readings" — HistoryLogs/Ulang/years/reading_YYYY/reading_MM/reading_DD/readings),
+ini-average, pinapakain sa trained Random Forest, nag-pro-project ng harvest
+weight, at isinusulat ang yield prediction pabalik sa growth_indicators.
 
 HYBRID MODE:
   - Water parameters: TOTOO mula Firestore (temp, pH, DO, tds, turbidity)
   - currentWeight + feedRate: ASSUMED (walang stock/feed data pa)
+
+READ GUARDRAIL:
+  - Nagta-track ng Firestore reads kada araw (local JSON file)
+  - Nag-wa-warning bago maabot ang free tier limit (50,000 reads/araw)
 
 Palitan ang HYBRID_MODE = False kapag may totoong biomass/feed na.
 """
@@ -18,6 +22,8 @@ from firebase_admin import credentials, firestore
 import pandas as pd
 import numpy as np
 import joblib
+import json
+import os
 from datetime import datetime, timedelta, timezone
 
 # ============================================================
@@ -29,14 +35,85 @@ MODEL_FILE = "rf_growth_model.joblib"
 HYBRID_MODE = True          # True: assumed weight/feed; False: totoong data
 ASSUMED_START_WEIGHT = 2.0  # juvenile start (g) — project buong 18 weeks
 HARVEST_WEEK = 18
-AGGREGATION_DAYS = 7        # nakaraang 7 araw na water data
 
-# RF features (8, dapat tugma sa training — walang salinity, walang waterLevel)
+# Fetch settings
+BATCH = 500                 # readings kada batch (iwas timeout)
+MAX_READINGS = 5000         # limitahan (sapat na sa stable average)
+
+# Read guardrail (Firestore free tier protection)
+DAILY_READ_LIMIT = 50000    # Firestore free tier (Spark plan)
+SAFETY_THRESHOLD = 40000    # mag-warning bago maabot ang limit
+READ_COUNTER_FILE = "read_counter.json"
+
+# RF features (8 — dapat tugma sa training; walang salinity/waterLevel)
 FEATURES = [
     "weekNumber", "currentWeight",
     "avgWaterTemp", "avgPh", "avgDissolvedOxygen",
     "avgTds", "avgTurbidity", "avgFeedRate",
 ]
+
+# ============================================================
+# READ GUARDRAIL
+# ============================================================
+def load_read_counter():
+    """Basahin ang reads ngayong araw. Auto-reset kada bagong araw."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    if os.path.exists(READ_COUNTER_FILE):
+        try:
+            with open(READ_COUNTER_FILE, "r") as f:
+                data = json.load(f)
+            if data.get("date") == today:
+                return data.get("reads", 0)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return 0  # bagong araw o walang file
+
+def save_read_counter(reads):
+    """I-save ang total reads ngayong araw."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        with open(READ_COUNTER_FILE, "w") as f:
+            json.dump({"date": today, "reads": reads}, f)
+    except IOError as e:
+        print(f"[WARN] Hindi na-save ang read counter: {e}")
+
+def check_read_guardrail(planned_reads):
+    """
+    Tignan kung ligtas mag-run bago pa kumuha ng data.
+    Nagbabalik ng True kung tuloy, False kung hinto.
+    """
+    current = load_read_counter()
+    projected = current + planned_reads
+
+    print("\n" + "-" * 55)
+    print("[GUARDRAIL] Firestore read check")
+    print(f"[GUARDRAIL] Reads na ngayong araw : {current:,}")
+    print(f"[GUARDRAIL] Planong reads ngayon  : ~{planned_reads:,}")
+    print(f"[GUARDRAIL] Projected total        : {projected:,} / {DAILY_READ_LIMIT:,}")
+    print("-" * 55)
+
+    if projected > DAILY_READ_LIMIT:
+        print(f"\n[!!!] BABALA: LALAMPAS sa FREE TIER ({DAILY_READ_LIMIT:,} reads/araw)!")
+        print(f"[!!!] Kung tutuloy: {projected:,} reads — MAAARING SININGIL ka.")
+        resp = input("[?] Tuloy pa rin? (i-type 'oo' para tumuloy): ").strip().lower()
+        if resp != "oo":
+            print("[GUARDRAIL] HININTO — para hindi lumampas sa free tier.")
+            return False
+        return True
+
+    if projected > SAFETY_THRESHOLD:
+        remaining = DAILY_READ_LIMIT - projected
+        print(f"\n[!] PAALALA: Malapit na sa limit (>{SAFETY_THRESHOLD:,}).")
+        print(f"[!] Matitira: ~{remaining:,} reads pagkatapos nito.")
+        resp = input("[?] Tuloy? (Enter = tuloy, 'x' = hinto): ").strip().lower()
+        if resp == "x":
+            print("[GUARDRAIL] HININTO ng user.")
+            return False
+        return True
+
+    remaining = DAILY_READ_LIMIT - projected
+    print(f"[GUARDRAIL] LIGTAS — ~{remaining:,} reads matitira pagkatapos nito.\n")
+    return True
 
 # ============================================================
 # 1. CONNECT SA FIRESTORE
@@ -49,12 +126,13 @@ def connect_firestore():
     return db
 
 # ============================================================
-# 2. KUNIN + I-AGGREGATE ANG WATER DATA
+# 2. KUNIN + I-AGGREGATE ANG WATER DATA (collection group, batched)
 # ============================================================
 def fetch_water_averages(db):
     """
-    Kunin ang readings gamit ang collection group query, BATCHED
-    (para hindi mag-timeout sa 20k records).
+    Collection group query sa "readings" (kahit anong petsa naka-nest),
+    batched para hindi mag-timeout. I-average ang statistics.*.average.
+    Nagbabalik: (water_dict, used_count, actual_reads)
     """
     stat_map = {
         "avgWaterTemp": "waterTemperatureC",
@@ -65,24 +143,19 @@ def fetch_water_averages(db):
     }
     collected = {k: [] for k in stat_map}
 
-    BATCH = 500          # kunin 500 kada batch (iwas timeout)
-    MAX_READINGS = 5000  # limitahan sa 5000 para mabilis (sapat na sa average)
-
-    readings_query = db.collection_group("readings").limit(BATCH)
-
     used = 0
     skipped = 0
     last_doc = None
     total_fetched = 0
 
     while total_fetched < MAX_READINGS:
-        q = readings_query
+        q = db.collection_group("readings").limit(BATCH)
         if last_doc is not None:
-            q = db.collection_group("readings").limit(BATCH).start_after(last_doc)
+            q = q.start_after(last_doc)
 
         batch_docs = list(q.stream())
         if not batch_docs:
-            break  # wala nang natitira
+            break
 
         for doc in batch_docs:
             data = doc.to_dict()
@@ -107,13 +180,13 @@ def fetch_water_averages(db):
         print(f"[INFO] Nakuha: {total_fetched} readings...")
 
         if len(batch_docs) < BATCH:
-            break  # huling batch na
+            break
 
     print(f"[INFO] Kabuuan: {total_fetched} readings scanned")
 
     if used == 0:
         print("[WARN] Walang usable readings — test-mode fallback")
-        return None, 0
+        return None, 0, total_fetched
 
     water = {}
     for feat, vals in collected.items():
@@ -124,7 +197,7 @@ def fetch_water_averages(db):
             water[feat] = None
 
     print(f"[OK] Na-aggregate: {used} readings (skipped: {skipped})")
-    return water, used
+    return water, used, total_fetched
 
 # ============================================================
 # 3. ASSUMED VALUES (HYBRID MODE)
@@ -173,8 +246,8 @@ def compute_yield(db, harvest_weight):
     """Yield = stock x survival x harvest_weight / 1000 (mula growth_indicators)."""
     docs = list(db.collection("growth_indicators").limit(1).stream())
     if not docs:
-        print("[WARN] Walang growth_indicators — gagamit ng default (50 stock, 80%)")
-        return None, 50, 80.0
+        print("[WARN] Walang growth_indicators")
+        return None, 50, 80.0, None
 
     doc = docs[0]
     gi = doc.to_dict()
@@ -212,12 +285,24 @@ def main():
     print("BANTAY ULANG — RF YIELD PREDICTION (Batch Inference)")
     print("=" * 55)
 
+    # --- READ GUARDRAIL (bago pa kumonek) ---
+    # Planong reads: MAX_READINGS (water) + ~2 (growth_indicators)
+    planned = MAX_READINGS + 2
+    if not check_read_guardrail(planned):
+        print("[EXIT] Hindi tumuloy — read guardrail.")
+        return
+
     db = connect_firestore()
     model = joblib.load(MODEL_FILE)
     print(f"[OK] Na-load ang model: {MODEL_FILE}")
 
     # Kunin ang water data
-    water, n_readings = fetch_water_averages(db)
+    water, n_readings, actual_reads = fetch_water_averages(db)
+
+    # I-update ang read counter (aktwal na nagamit)
+    current = load_read_counter()
+    save_read_counter(current + actual_reads + 2)  # +2 para sa growth_indicators
+    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + 2:,} reads ngayong araw")
 
     # Determine mode
     if water is None or any(v is None for v in water.values()):
