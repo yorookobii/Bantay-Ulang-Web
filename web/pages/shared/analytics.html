@@ -125,12 +125,14 @@
                     </div>
                     <div class="analytics-card">
                         <div class="card-title">
-                            Mortality Rate (Sample)
-                            <span class="yp-badge" style="margin-left:8px;">Sample — Phase 2</span>
+                            Mortality Rate
                         </div>
-                        <div class="card-subtitle">Illustrative weekly deaths — not live data</div>
+                        <div class="card-subtitle">Weekly deaths logged this cycle</div>
                         <div class="chart-wrap">
                             <canvas id="mortalityRateChart"></canvas>
+                            <div class="chart-empty-state" id="mortalityEmptyState" style="display:none;">
+                                No data available yet — this chart will populate once mortality is logged.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -346,6 +348,10 @@
         <script type="module">
             import { initAnalyticsRecommendations } from "./js/analyticsRecommendations.js";
             initAnalyticsRecommendations();
+        </script>
+        <script type="module">
+            import { initMortalityChart } from "./js/mortalityChart.js";
+            initMortalityChart();
         </script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';

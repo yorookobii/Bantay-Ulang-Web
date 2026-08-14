@@ -214,37 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    var mortalityRateCtx = document.getElementById('mortalityRateChart');
-    if (mortalityRateCtx) {
-        new Chart(mortalityRateCtx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
-                datasets: [{
-                    label: 'Deaths',
-                    data: [3, 2, 2, 1, 1, 0, 1, 0],
-                    backgroundColor: '#dc2626',
-                    borderRadius: 4,
-                    maxBarThickness: 28
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 },
-                        title: { display: true, text: 'Deaths' },
-                        grid: { color: '#f3f4f6' }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
 });
 
 // ── Efficiency circle: driven by yield-prediction-updated event ───────────

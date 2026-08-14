@@ -157,6 +157,18 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     height: 280px;
 }
 
+.chart-empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 24px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
 .param-row {
     margin-bottom: 14px;
 }
