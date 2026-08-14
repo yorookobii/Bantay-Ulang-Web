@@ -93,55 +93,6 @@
     }
 })();
 document.addEventListener('DOMContentLoaded', function() {
-    var survivalChartInstance = null;
-    var ctx = document.getElementById('survivalChart');
-    if (ctx) {
-        // Sample survival curve based on M. rosenbergii literature (70-90% typical
-        // final survival, high early juvenile mortality; New 2002, FAO). Illustrative —
-        // replace with real mortality-trend extrapolation when data is available.
-        survivalChartInstance = new Chart(ctx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [
-                    'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6',
-                    'Week 7', 'Week 8', 'Week 9', 'Week 10', 'Week 11', 'Week 12',
-                    'Week 13', 'Week 14', 'Week 15', 'Week 16', 'Week 17', 'Week 18'
-                ],
-                datasets: [
-                    {
-                        label: 'Survival Projection (Sample)',
-                        data: [100, 96, 93, 91, 89, 88, 87, 86, 85, 84, 83.5, 83, 82.5, 82, 81.5, 81, 80.5, 80],
-                        borderColor: '#059669',
-                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3,
-                        pointBackgroundColor: '#059669',
-                        pointRadius: 3
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        min: 70,
-                        max: 100,
-                        ticks: { stepSize: 10 },
-                        grid: { color: '#f3f4f6' }
-                    },
-                    x: {
-                        grid: { display: false }
-                    }
-                }
-            }
-        });
-    }
-
     // ── Sample/placeholder charts — static hardcoded data, never randomized ──
 
     var avgWeightCtx = document.getElementById('avgWeightChart');
