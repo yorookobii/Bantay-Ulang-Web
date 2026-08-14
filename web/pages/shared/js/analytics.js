@@ -95,40 +95,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // ── Sample/placeholder charts — static hardcoded data, never randomized ──
 
-    var avgWeightCtx = document.getElementById('avgWeightChart');
-    if (avgWeightCtx) {
-        new Chart(avgWeightCtx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
-                datasets: [{
-                    label: 'Avg Weight (g)',
-                    data: [2, 3.5, 5, 7, 9, 12, 15, 18],
-                    borderColor: '#0d9488',
-                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointBackgroundColor: '#0d9488',
-                    pointRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'Avg Weight (g)' },
-                        grid: { color: '#f3f4f6' }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
     var wqsTrendCtx = document.getElementById('wqsTrendChart');
     if (wqsTrendCtx) {
         new Chart(wqsTrendCtx.getContext('2d'), {
