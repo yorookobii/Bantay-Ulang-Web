@@ -219,7 +219,7 @@ async function autoCreateTask(param, severity, isHigh) {
             parameterTriggered: param,
             severityTriggered:  severity,
             assignedTo,
-            assignedRole:       playbook.assignTo
+            assignedToRole:     playbook.assignTo
         });
         console.log(`[alertsEngine] Auto-task created for ${param} (${direction}, ${severity}).`);
     } catch (err) {
