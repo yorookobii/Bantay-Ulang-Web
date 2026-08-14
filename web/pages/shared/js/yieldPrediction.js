@@ -13,12 +13,17 @@ import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualitySc
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
 //  Yield (kg)   = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
-//  Income range = Yield × (250 | 425 | 600)
+//  Income range = Yield × (150 | 300 | 450)
+//  Revenue prices based on BFAR National Consolidated Price Monitoring Report 2025;
+//  provincial-adjusted for Hagonoy, Bulacan (non-NCR).
 //  Profit (est) = incomeAvg − (Yield × costPerKg); costPerKg is a user-set
 //  placeholder from growth_indicators, so profit/cost are always estimates.
 //  wqScore is carried through only for the separate Efficiency Score display
 //  (analyticsRecommendations.js / analytics.js) — it no longer affects yield.
 const DEFAULT_COST_PER_KG = 250;
+const INCOME_MIN_RATE = 150;
+const INCOME_AVG_RATE = 300;
+const INCOME_MAX_RATE = 450;
 
 function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock)      || 0;
@@ -37,7 +42,7 @@ function calcYield(growthData, wqScore) {
     const adjustedYield = rfAvailable ? rfProjectedYield : baseYield;
     const finalWeight   = rfAvailable ? Number(growthData.rfProjectedWeight) : avgWeightG;
 
-    const incomeAvg      = adjustedYield * 425;
+    const incomeAvg      = adjustedYield * INCOME_AVG_RATE;
     const estimatedCost  = adjustedYield * costPerKg;
     const netProfit       = incomeAvg - estimatedCost;
 
@@ -50,9 +55,9 @@ function calcYield(growthData, wqScore) {
         adjustedYield,
         finalWeight,
         costPerKg,
-        incomeMin: adjustedYield * 250,
+        incomeMin: adjustedYield * INCOME_MIN_RATE,
         incomeAvg,
-        incomeMax: adjustedYield * 600,
+        incomeMax: adjustedYield * INCOME_MAX_RATE,
         estimatedCost,
         netProfit,
         rfAvailable,
