@@ -96,33 +96,28 @@ document.addEventListener('DOMContentLoaded', function() {
     var survivalChartInstance = null;
     var ctx = document.getElementById('survivalChart');
     if (ctx) {
+        // Sample survival curve based on M. rosenbergii literature (70-90% typical
+        // final survival, high early juvenile mortality; New 2002, FAO). Illustrative —
+        // replace with real mortality-trend extrapolation when data is available.
         survivalChartInstance = new Chart(ctx.getContext('2d'), {
             type: 'line',
             data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+                labels: [
+                    'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6',
+                    'Week 7', 'Week 8', 'Week 9', 'Week 10', 'Week 11', 'Week 12',
+                    'Week 13', 'Week 14', 'Week 15', 'Week 16', 'Week 17', 'Week 18'
+                ],
                 datasets: [
                     {
-                        label: 'Actual Survival %',
-                        data: [78, 82, 86, 90, null, null, null, null],
+                        label: 'Survival Projection (Sample)',
+                        data: [100, 96, 93, 91, 89, 88, 87, 86, 85, 84, 83.5, 83, 82.5, 82, 81.5, 81, 80.5, 80],
                         borderColor: '#059669',
                         backgroundColor: 'rgba(5, 150, 105, 0.1)',
                         borderWidth: 2,
                         fill: false,
                         tension: 0.3,
                         pointBackgroundColor: '#059669',
-                        pointRadius: 4
-                    },
-                    {
-                        label: 'Predicted Survival %',
-                        data: [null, null, null, 90, 92, 94, 96, 98],
-                        borderColor: '#9ca3af',
-                        borderDash: [6, 4],
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3,
-                        pointBackgroundColor: '#9ca3af',
-                        pointRadius: 4,
-                        pointStyle: 'circle'
+                        pointRadius: 3
                     }
                 ]
             },
@@ -134,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 scales: {
                     y: {
-                        min: 60,
+                        min: 70,
                         max: 100,
                         ticks: { stepSize: 10 },
                         grid: { color: '#f3f4f6' }
