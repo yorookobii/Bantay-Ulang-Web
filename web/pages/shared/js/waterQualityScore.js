@@ -54,6 +54,10 @@ export function scoreParam(key, value) {
             return v <= TURBIDITY_EXCELLENT ? 1.0 : v <= max ? 0.8 : v <= poor ? 0.5 : 0.2;
         }
         case "waterLevel": {
+            // Aquaponics reports water level as a binary safe/unsafe reading
+            // (not a continuous depth), so the score is binary by design —
+            // not an interpolated/tiered estimate like the other params.
+            if (typeof value === "boolean") return value ? 1.0 : 0.0;
             const lo = min - 0.2, hi = max + 0.5;
             return (v >= min && v <= max) ? 1.0 : ((v >= lo && v < min) || (v > max && v <= hi)) ? 0.7 : 0.4;
         }

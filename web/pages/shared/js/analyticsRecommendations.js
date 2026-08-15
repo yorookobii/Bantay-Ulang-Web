@@ -1,9 +1,9 @@
-import { db } from './firebase.js';
 import {
-    collection, query, orderBy, limit, onSnapshot
+    onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { loadThresholds, getRanges } from './thresholds.js';
 import { calcWaterQualityScore } from './waterQualityScore.js';
+import { AQUAPONICS_REF, normalizeAquaponicsReading } from './aquaponicsReading.js';
 
 // One-decimal display formatting for parameters whose bounds are conventionally
 // shown with a decimal place (pH, water level) — matches pre-refactor text exactly
@@ -142,35 +142,18 @@ const RULES = [
         }
     },
     {
+        // Aquaponics reports water level as a binary safe/unsafe reading
+        // (not a continuous depth), so this rule is a boolean check rather
+        // than a min/max band comparison.
         key: 'waterLevel',
         check(v) {
-            const x = parseFloat(v);
-            if (!isFinite(x)) return null;
-            const { min, max } = getRanges().waterLevel;
-            const critLow  = min - 0.2;
-            const critHigh = max + 0.5;
-            const rangeStr = `${fmt1(min)}–${fmt1(max)}`;
-            if (x < critLow) return {
+            if (typeof v !== 'boolean') return null;
+            if (v) return null;
+            return {
                 impact: 'high', category: 'POND MANAGEMENT',
-                title: 'Water Level Critically Low',
-                desc: `Water level at ${x.toFixed(2)} m is critically low (safe: ${rangeStr} m). Add fresh water immediately to prevent heat stress, oxygen depletion from low water volume, and ulang attempting to escape the pond.`
+                title: 'Unsafe Water Level Detected',
+                desc: `The water level sensor is reporting an unsafe state. Check the pump/inlet valve and drainage immediately for blockage, leaks, or overflow that could cause the pond to run low or overflow.`
             };
-            if (x < min) return {
-                impact: 'medium', category: 'POND MANAGEMENT',
-                title: 'Water Level Below Safe Minimum',
-                desc: `Water level at ${x.toFixed(2)} m is below the ${fmt1(min)} m minimum. Gradually add fresh water and inspect the pond for leaks or unusually high evaporation caused by heat and wind exposure.`
-            };
-            if (x > critHigh) return {
-                impact: 'high', category: 'POND MANAGEMENT',
-                title: 'Water Level Dangerously High',
-                desc: `Water level at ${x.toFixed(2)} m exceeds the safe maximum of ${fmt1(max)} m. Open drainage or activate pumping immediately to prevent overflow, which can lead to ulang escapes and reduced oxygen circulation.`
-            };
-            if (x > max) return {
-                impact: 'low', category: 'POND MANAGEMENT',
-                title: 'Water Level Above Recommended Range',
-                desc: `Water level at ${x.toFixed(2)} m slightly exceeds the ${fmt1(max)} m recommended maximum. Gradually drain to the recommended level to ensure adequate oxygen circulation near the pond bottom.`
-            };
-            return null;
         }
     }
 ];
@@ -264,11 +247,9 @@ export async function initAnalyticsRecommendations() {
     // Memoized — safe to call even if another module already triggered it.
     await loadThresholds();
 
-    const q = query(collection(db, 'sensor_readings'), orderBy('timestamp', 'desc'), limit(1));
-
-    onSnapshot(q, (snap) => {
-        if (snap.empty) return;
-        const sensor = snap.docs[0].data();
+    onSnapshot(AQUAPONICS_REF, (snap) => {
+        if (!snap.exists()) return;
+        const sensor = normalizeAquaponicsReading(snap.data());
         renderRecommendations(generateRecommendations(sensor));
         updateEfficiencyCircle(calcWaterQualityScore(sensor));
     }, (err) => {

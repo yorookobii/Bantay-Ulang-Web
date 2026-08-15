@@ -10,6 +10,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadThresholds } from "./thresholds.js";
 import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualityScore.js";
+import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
 //  Yield (kg)   = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
@@ -229,13 +230,13 @@ export async function initYieldPrediction() {
     // Self-contained live sensor listener — works on any page
     try {
         onSnapshot(
-            query(collection(db, "sensor_readings"), orderBy("timestamp", "desc"), limit(1)),
+            AQUAPONICS_REF,
             snap => {
-                if (snap.empty) return;
-                latestSensor = snap.docs[0].data();
+                if (!snap.exists()) return;
+                latestSensor = normalizeAquaponicsReading(snap.data());
                 recalculate();
             },
-            err => console.warn("yieldPrediction: sensor_readings listener:", err)
+            err => console.warn("yieldPrediction: Aquaponics/Ulang listener:", err)
         );
     } catch (err) {
         console.warn("yieldPrediction: could not start sensor listener:", err);
