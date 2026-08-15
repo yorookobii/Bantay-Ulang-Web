@@ -242,6 +242,44 @@ async function findActiveAlert(param, deviceId) {
     return match || null;
 }
 
+// Water level is now reported as a boolean (safe/unsafe), not a numeric depth —
+// see aquaponicsReading.js. No range/severity gradient exists for a boolean, so
+// this bypasses computeSeverity()/buildMessage() and uses a fixed message/severity.
+async function handleWaterLevel(value, deviceId) {
+    const existing = await findActiveAlert("waterLevel", deviceId);
+    const isUnsafe = value === false;
+
+    if (isUnsafe) {
+        const severity = "high";
+        const message  = "Unsafe Water Level Detected.";
+
+        if (existing) {
+            await updateDoc(existing.ref, { currentValue: value, message, severity });
+            await autoCreateTask("waterLevel", severity, false);
+        } else {
+            await addDoc(collection(db, "alerts"), {
+                type:         "out_of_range",
+                parameter:    "waterLevel",
+                currentValue: value,
+                safeRange:    "Safe",
+                message,
+                severity,
+                status:    "active",
+                createdAt: serverTimestamp(),
+                deviceId
+            });
+            await autoCreateTask("waterLevel", severity, false);
+        }
+    } else if (existing) {
+        // Water level returned to safe — resolve the alert.
+        await updateDoc(existing.ref, {
+            status:       "resolved",
+            resolvedAt:   serverTimestamp(),
+            currentValue: value
+        });
+    }
+}
+
 async function handleParameter(param, value, deviceId) {
     const { min, max, safeRangeStr } = getRanges()[param];
     const hasMin = min !== null && min !== undefined;
@@ -297,11 +335,17 @@ async function handleParameter(param, value, deviceId) {
  */
 export async function processSensorReading(data) {
     const deviceId = data.deviceId || "unknown";
-    await Promise.all(
-        Object.keys(getRanges())
-            .filter(param => data[param] != null && Number.isFinite(Number(data[param])))
-            .map(param => handleParameter(param, Number(data[param]), deviceId))
-    );
+    const jobs = [];
+
+    if (data.waterLevel != null) {
+        jobs.push(handleWaterLevel(data.waterLevel, deviceId));
+    }
+
+    Object.keys(getRanges())
+        .filter(param => param !== "waterLevel" && data[param] != null && Number.isFinite(Number(data[param])))
+        .forEach(param => jobs.push(handleParameter(param, Number(data[param]), deviceId)));
+
+    await Promise.all(jobs);
 }
 
 /**
