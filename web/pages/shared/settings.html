@@ -175,6 +175,24 @@
                     </div>
                     <div class="threshold_row">
                         <div class="threshold_param">
+                            <label for="tds_min">TDS (min)</label>
+                            <span class="unit">ppm</span>
+                            <input type="number" id="tds_min" name="tds_min" min="0" step="1" value="">
+                        </div>
+                        <div class="threshold_param">
+                            <label for="tds_max">TDS (max)</label>
+                            <span class="unit">ppm</span>
+                            <input type="number" id="tds_max" name="tds_max" min="0" step="1" value="">
+                        </div>
+                        <div class="threshold_param">
+                            <label>Unit</label>
+                            <span class="unit">—</span>
+                            <span style="padding: 10px 0 0; font-size: 13px; color: #6b7280;">ppm</span>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="threshold_row">
+                        <div class="threshold_param">
                             <label for="waterlevel_min">Water Level (min)</label>
                             <span class="unit">Below = low water alert (m)</span>
                             <input type="number" id="waterlevel_min" name="waterlevel_min" min="0" max="10" step="0.1" value="0.5" required>

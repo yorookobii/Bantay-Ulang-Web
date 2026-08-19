@@ -51,6 +51,10 @@ const SUGGESTIONS = {
     waterLevel: {
         high: "Check inlet valve and overflow drainage immediately.",
         low:  "Inspect for leaks and restore water supply."
+    },
+    tds: {
+        high: "Magsagawa ng bahagyang palit ng tubig (partial water exchange) nang dahan-dahan upang maiwasan ang biglaang pagbabago na nakaka-stress sa ulang. Suriin ang pinagmumulan ng tubig at iwasan ang runoff mula sa fertilizer o pesticide. Regular na subaybayan ang TDS.",
+        low:  "Magsagawa ng bahagyang palit ng tubig (partial water exchange) nang dahan-dahan upang maiwasan ang biglaang pagbabago na nakaka-stress sa ulang. Suriin ang pinagmumulan ng tubig at iwasan ang runoff mula sa fertilizer o pesticide. Regular na subaybayan ang TDS."
     }
 };
 
@@ -143,6 +147,18 @@ const TASK_PLAYBOOK = {
         high: {
             title:    "I-check ang Drainage/Overflow",
             desc:     "Sumosobra ang tubig. I-check ang drainage kung barado o sira.",
+            assignTo: "technician"
+        }
+    },
+    tds: {
+        low: {
+            title:    "Suriin ang TDS at Palitan ang Tubig",
+            desc:     "Suriin ang TDS at magsagawa ng bahagyang palit ng tubig kung kinakailangan. I-check ang water source at filtration.",
+            assignTo: "technician"
+        },
+        high: {
+            title:    "Suriin ang TDS at Palitan ang Tubig",
+            desc:     "Suriin ang TDS at magsagawa ng bahagyang palit ng tubig kung kinakailangan. I-check ang water source at filtration.",
             assignTo: "technician"
         }
     }

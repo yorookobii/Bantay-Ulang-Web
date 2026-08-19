@@ -13,7 +13,8 @@ const FIELDS = [
     'o2_min',
     'salinity_min', 'salinity_max',
     'turbidity_max',
-    'waterlevel_min', 'waterlevel_max'
+    'waterlevel_min', 'waterlevel_max',
+    'tds_min', 'tds_max'
 ];
 
 // ── Load thresholds from Firestore into the form ─────────────────────────────
@@ -38,7 +39,7 @@ async function saveThresholds() {
     const data = {};
     FIELDS.forEach(name => {
         const el = document.getElementById(name);
-        if (el) data[name] = parseFloat(el.value);
+        if (el && el.value !== '') data[name] = parseFloat(el.value);
     });
     await setDoc(THRESHOLDS_DOC, data, { merge: true });
 }

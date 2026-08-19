@@ -37,6 +37,10 @@ const DEFAULT_RANGES = {
     waterLevel: {
         min: 0.5,  max: 2.0,
         unit: "m",    label: "Water Level",       safeRangeStr: "0.5 – 2.0 m"
+    },
+    tds: {
+        min: null, max: null,
+        unit: "ppm",  label: "TDS",               safeRangeStr: ""
     }
 };
 
@@ -60,6 +64,8 @@ function buildRangesFromFirestore(data) {
     if (data.turbidity_max  != null) ranges.turbidity.max       = data.turbidity_max;
     if (data.waterlevel_min != null) ranges.waterLevel.min      = data.waterlevel_min;
     if (data.waterlevel_max != null) ranges.waterLevel.max      = data.waterlevel_max;
+    if (data.tds_min        != null) ranges.tds.min             = data.tds_min;
+    if (data.tds_max        != null) ranges.tds.max             = data.tds_max;
 
     ranges.phLevel.safeRangeStr        = `${fmt(ranges.phLevel.min)} – ${fmt(ranges.phLevel.max)}`;
     ranges.waterTemp.safeRangeStr      = `${fmt(ranges.waterTemp.min)} – ${fmt(ranges.waterTemp.max)}°C`;
@@ -67,6 +73,7 @@ function buildRangesFromFirestore(data) {
     ranges.salinity.safeRangeStr       = `${fmt(ranges.salinity.min)} – ${fmt(ranges.salinity.max)} ppt`;
     ranges.turbidity.safeRangeStr      = `< ${fmt(ranges.turbidity.max)} NTU`;
     ranges.waterLevel.safeRangeStr     = `${fmt(ranges.waterLevel.min)} – ${fmt(ranges.waterLevel.max)} m`;
+    ranges.tds.safeRangeStr            = `${fmt(ranges.tds.min)} – ${fmt(ranges.tds.max)} ppm`;
 
     return ranges;
 }
