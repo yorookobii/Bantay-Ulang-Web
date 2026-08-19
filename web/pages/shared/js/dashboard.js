@@ -1,6 +1,8 @@
 import { auth, db } from "./firebase.js";
-import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDocs, getDoc, limit, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getReadingsInRange } from "./readingsService.js";
+import { loadThresholds, getRanges } from "./thresholds.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -213,15 +215,15 @@ async function loadData() {
     }
 }
 
-// ── Environmental Trends (sensor_readings) ─────────────────────────────────
+// ── Environmental Trends (readingsService) ──────────────────────────────────
 
 const ENV_PARAM_CONFIG = {
-    phLevel:         { label: "pH",                       yMin: 6.5, yMax: 8.5, color: "#2563eb" },
+    ph:              { label: "pH",                       yMin: 6.5, yMax: 8.5, color: "#2563eb" },
     dissolvedOxygen: { label: "Dissolved Oxygen (mg/L)",   yMin: 5,   yMax: 9,   color: "#0891b2" },
     waterTemp:       { label: "Temperature (°C)",          yMin: 20,  yMax: 32,  color: "#dc2626" },
     salinity:        { label: "Salinity (ppt)",            yMin: 0,   yMax: 18,  color: "#7c3aed" },
     turbidity:       { label: "Turbidity (NTU)",           yMin: 0,   yMax: 25,  color: "#b45309" },
-    waterLevel:      { label: "Water Level (m)",           yMin: 0.5, yMax: 2.0, color: "#0d9488" }
+    tds:             { label: "TDS (ppm)",                 color: "#0d9488" }
 };
 
 const ENV_RANGE_CONFIG = {
@@ -253,38 +255,41 @@ function formatEnvLabel(date, rangeKey) {
     return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-async function fetchEnvTrends(paramKey, rangeKey) {
-    const cutoff = new Date(Date.now() - ENV_RANGE_CONFIG[rangeKey].ms);
-    const snap = await getDocs(query(
-        collection(db, "sensor_readings"),
-        where("timestamp", ">=", Timestamp.fromDate(cutoff)),
-        orderBy("timestamp", "asc"),
-        limit(500)
-    ));
+async function fetchEnvTrends(paramKey, rangeKey, cycleStartMs) {
+    const now = Date.now();
+    const cutoff = now - ENV_RANGE_CONFIG[rangeKey].ms;
+    const readings = await getReadingsInRange(cycleStartMs, cutoff, now);
 
-    return snap.docs
-        .map((docSnap) => {
-            const data = docSnap.data();
-            const date = toDateValue(data.timestamp);
-            const value = data[paramKey];
-            if (!date || typeof value !== "number" || !Number.isFinite(value)) return null;
-            return { label: formatEnvLabel(date, rangeKey), value };
+    return readings
+        .map((reading) => {
+            const value = reading[paramKey];
+            if (typeof value !== "number" || !Number.isFinite(value)) return null;
+            return { label: formatEnvLabel(new Date(reading.measuredAtMs), rangeKey), value };
         })
         .filter(Boolean);
 }
 
-async function updateEnvTrendsChart(chart, paramDropdown, rangeDropdown) {
+function envFallbackRange(paramKey, config) {
+    if (paramKey !== "tds") return { min: config.yMin, max: config.yMax };
+
+    const tdsRange = getRanges().tds;
+    const hasBoth = tdsRange && tdsRange.min != null && tdsRange.max != null;
+    return hasBoth ? { min: tdsRange.min, max: tdsRange.max } : { min: undefined, max: undefined };
+}
+
+async function updateEnvTrendsChart(chart, paramDropdown, rangeDropdown, cycleStartMs) {
     if (!chart) return;
 
-    const paramKey = paramDropdown ? paramDropdown.value : "phLevel";
+    const paramKey = paramDropdown ? paramDropdown.value : "ph";
     const rangeKey = rangeDropdown ? rangeDropdown.value : "24h";
-    const config = ENV_PARAM_CONFIG[paramKey] || ENV_PARAM_CONFIG.phLevel;
+    const config = ENV_PARAM_CONFIG[paramKey] || ENV_PARAM_CONFIG.ph;
 
     try {
-        const points = await fetchEnvTrends(paramKey, rangeKey);
+        const points = await fetchEnvTrends(paramKey, rangeKey, cycleStartMs);
         const labels = points.map((point) => point.label);
         const values = points.map((point) => point.value);
-        const range = computeRange(values, config.yMin, config.yMax);
+        const fallback = envFallbackRange(paramKey, config);
+        const range = computeRange(values, fallback.min, fallback.max);
 
         chart.data.labels = labels;
         chart.data.datasets[0].label = config.label;
@@ -295,7 +300,22 @@ async function updateEnvTrendsChart(chart, paramDropdown, rangeDropdown) {
         chart.options.scales.y.max = range.max;
         chart.update();
     } catch (err) {
-        console.warn("dashboard: unable to load sensor_readings for environmental trends:", err);
+        console.warn("dashboard: unable to load environmental trends:", err);
+    }
+}
+
+// ── growth_indicators cycleStart (one-shot, mirrors yieldPrediction.js) ────
+
+async function loadCycleStartMs() {
+    try {
+        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
+        if (snap.empty) return null;
+
+        const cycleStart = toDateValue(snap.docs[0].data().cycleStart);
+        return cycleStart ? cycleStart.getTime() : null;
+    } catch (err) {
+        console.warn("dashboard: unable to load growth_indicators for cycleStart:", err);
+        return null;
     }
 }
 
@@ -661,8 +681,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
 
+        var cycleStartMs = null;
+        try {
+            var loaded = await Promise.all([loadCycleStartMs(), loadThresholds()]);
+            cycleStartMs = loaded[0];
+        } catch (err) {
+            console.warn('dashboard: env trends init (cycleStart/thresholds) failed:', err);
+        }
+
         var refreshEnvTrends = function() {
-            updateEnvTrendsChart(envTrendsChart, paramDropdown, rangeDropdown);
+            updateEnvTrendsChart(envTrendsChart, paramDropdown, rangeDropdown, cycleStartMs);
         };
 
         if (paramDropdown) paramDropdown.addEventListener('change', refreshEnvTrends);
