@@ -2,20 +2,19 @@ import { db } from "./firebase.js";
 import {
     collection,
     query,
-    where,
     orderBy,
     limit,
-    getDocs,
-    Timestamp
+    getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
+import { getReadingsInRange } from "./readingsService.js";
 
 // Presentation-only config (chart color, display label/unit). Safe-range
 // bounds and display text are derived live from the shared thresholds
 // module — see buildSafeText() / getRanges() — not stored here.
 const SENSOR_CONFIG = {
     "ph": {
-        key: "phLevel",
+        key: "ph",
         label: "pH Level",
         unit: "",
         color: "#2563eb"
@@ -44,10 +43,10 @@ const SENSOR_CONFIG = {
         unit: " NTU",
         color: "#b45309"
     },
-    "water-level": {
-        key: "waterLevel",
-        label: "Water Level",
-        unit: " m",
+    "tds": {
+        key: "tds",
+        label: "TDS",
+        unit: " ppm",
         color: "#0d9488"
     }
 };
@@ -70,6 +69,36 @@ const RANGES = {
     "30d": { ms: 30 * 24 * 60 * 60 * 1000,  label: "Last 30 Days"  }
 };
 
+// ── growth_indicators cycleStart (one-shot, mirrors dashboard.js) ──────────
+
+function toDateValue(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value.toDate === "function") return value.toDate();
+    if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+async function loadCycleStartMs() {
+    try {
+        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
+        if (snap.empty) return null;
+
+        const cycleStart = toDateValue(snap.docs[0].data().cycleStart);
+        return cycleStart ? cycleStart.getTime() : null;
+    } catch (err) {
+        console.warn("sensorHistoryModal: unable to load growth_indicators for cycleStart:", err);
+        return null;
+    }
+}
+
+let cycleStartMsPromise = null;
+function getCycleStartMs() {
+    if (!cycleStartMsPromise) cycleStartMsPromise = loadCycleStartMs();
+    return cycleStartMsPromise;
+}
+
 let chartInstance     = null;
 let currentSensorAttr = null;
 let currentRange      = "24h";
@@ -84,22 +113,16 @@ function formatLabel(date, rangeKey) {
     });
 }
 
-async function fetchHistory(sensorKey, rangeKey) {
-    const cutoff = new Date(Date.now() - RANGES[rangeKey].ms);
-    const q = query(
-        collection(db, "sensor_readings"),
-        where("timestamp", ">=", Timestamp.fromDate(cutoff)),
-        orderBy("timestamp", "desc"),
-        limit(500)
-    );
-    const snap = await getDocs(q);
-    return snap.docs
-        .reverse()
-        .map(doc => {
-            const d   = doc.data();
-            const val = d[sensorKey];
-            if (val == null || !Number.isFinite(Number(val))) return null;
-            return { time: d.timestamp.toDate(), value: Number(val) };
+async function fetchHistory(sensorKey, rangeKey, cycleStartMs) {
+    const now = Date.now();
+    const cutoff = now - RANGES[rangeKey].ms;
+    const readings = await getReadingsInRange(cycleStartMs, cutoff, now);
+
+    return readings
+        .map(reading => {
+            const val = reading[sensorKey];
+            if (typeof val !== "number" || !Number.isFinite(val)) return null;
+            return { time: new Date(reading.measuredAtMs), value: val };
         })
         .filter(Boolean);
 }
@@ -110,53 +133,58 @@ function buildChart(canvas, config, points, rangeKey, range, safeText) {
     const labels = points.map(p => formatLabel(p.time, rangeKey));
     const values = points.map(p => p.value);
 
-    const dataMin = Math.min(...values);
-    const dataMax = Math.max(...values);
-    const pad     = Math.max((dataMax - dataMin) * 0.3, 0.5);
+    const hasSafeRange = range.min != null || range.max != null;
+    const datasets = [];
 
-    const safeMinFill = range.min != null ? range.min : Math.max(0, dataMin - pad);
-    const safeMaxFill = range.max != null ? range.max : dataMax + pad;
+    if (hasSafeRange) {
+        const dataMin = Math.min(...values);
+        const dataMax = Math.max(...values);
+        const pad     = Math.max((dataMax - dataMin) * 0.3, 0.5);
+
+        const safeMinFill = range.min != null ? range.min : Math.max(0, dataMin - pad);
+        const safeMaxFill = range.max != null ? range.max : dataMax + pad;
+
+        datasets.push(
+            {
+                label: "__safeMin",
+                data: labels.map(() => safeMinFill),
+                borderColor: "transparent",
+                backgroundColor: "transparent",
+                pointRadius: 0,
+                fill: false,
+                tension: 0,
+                order: 10
+            },
+            {
+                label: "Safe Zone",
+                data: labels.map(() => safeMaxFill),
+                borderColor: "transparent",
+                backgroundColor: "rgba(16, 185, 129, 0.18)",
+                pointRadius: 0,
+                fill: "-1",
+                tension: 0,
+                order: 9
+            }
+        );
+    }
+
+    datasets.push({
+        label: config.label,
+        data: values,
+        borderColor: config.color,
+        backgroundColor: config.color + "20",
+        borderWidth: 2.5,
+        pointRadius: points.length > 80 ? 0 : 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: config.color,
+        tension: 0.35,
+        fill: false,
+        order: 1
+    });
 
     chartInstance = new Chart(canvas, {
         type: "line",
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: "__safeMin",
-                    data: labels.map(() => safeMinFill),
-                    borderColor: "transparent",
-                    backgroundColor: "transparent",
-                    pointRadius: 0,
-                    fill: false,
-                    tension: 0,
-                    order: 10
-                },
-                {
-                    label: "Safe Zone",
-                    data: labels.map(() => safeMaxFill),
-                    borderColor: "transparent",
-                    backgroundColor: "rgba(16, 185, 129, 0.18)",
-                    pointRadius: 0,
-                    fill: "-1",
-                    tension: 0,
-                    order: 9
-                },
-                {
-                    label: config.label,
-                    data: values,
-                    borderColor: config.color,
-                    backgroundColor: config.color + "20",
-                    borderWidth: 2.5,
-                    pointRadius: points.length > 80 ? 0 : 3,
-                    pointHoverRadius: 5,
-                    pointBackgroundColor: config.color,
-                    tension: 0.35,
-                    fill: false,
-                    order: 1
-                }
-            ]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -229,7 +257,8 @@ async function loadAndRender(sensorAttr, rangeKey) {
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
     try {
-        const points = await fetchHistory(config.key, rangeKey);
+        const cycleStartMs = await getCycleStartMs();
+        const points = await fetchHistory(config.key, rangeKey, cycleStartMs);
         if (loading) loading.classList.add("sh-hidden");
 
         if (!points.length) {
@@ -283,6 +312,8 @@ function closeModal() {
 
 export function initSensorHistoryModal() {
     document.querySelectorAll(".sensor-card[data-sensor]").forEach(card => {
+        if (!SENSOR_CONFIG[card.dataset.sensor]) return;
+
         const hint = document.createElement("div");
         hint.className = "sh-card-hint";
         hint.innerHTML = '<i class="fa-solid fa-chart-line"></i>';
