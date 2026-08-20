@@ -15,36 +15,42 @@ import { getReadingsInRange } from "./readingsService.js";
 const SENSOR_CONFIG = {
     "ph": {
         key: "ph",
+        rangeKey: "phLevel",
         label: "pH Level",
         unit: "",
         color: "#2563eb"
     },
     "do": {
         key: "dissolvedOxygen",
+        rangeKey: "dissolvedOxygen",
         label: "Dissolved Oxygen",
         unit: " mg/L",
         color: "#0891b2"
     },
     "temp": {
         key: "waterTemp",
+        rangeKey: "waterTemp",
         label: "Water Temperature",
         unit: "°C",
         color: "#dc2626"
     },
     "salinity": {
         key: "salinity",
+        rangeKey: "salinity",
         label: "Salinity",
         unit: " ppt",
         color: "#7c3aed"
     },
     "turbidity": {
         key: "turbidity",
+        rangeKey: "turbidity",
         label: "Turbidity",
         unit: " NTU",
         color: "#b45309"
     },
     "tds": {
         key: "tds",
+        rangeKey: "tds",
         label: "TDS",
         unit: " ppm",
         color: "#0d9488"
@@ -241,7 +247,7 @@ async function loadAndRender(sensorAttr, rangeKey) {
     if (!config) return;
 
     await loadThresholds();
-    const range    = getRanges()[config.key];
+    const range    = getRanges()[config.rangeKey];
     const safeText = buildSafeText(range, config.unit);
 
     const canvas  = document.getElementById("shChart");
