@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { collection, doc, getDocs, getDoc, limit, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getReadingsInRange } from "./readingsService.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
@@ -328,7 +328,7 @@ async function loadCycleStartMs() {
     }
 }
 
-// ── Mortality Rate (growth_indicators) ──────────────────────────────────────
+// ── Current Mortality (mortality_records, actual logged deaths) ────────────
 
 async function loadMortalityStat() {
     const rateEl = document.getElementById("mortalityRateValue");
@@ -341,17 +341,30 @@ async function loadMortalityStat() {
 
         const data = snap.docs[0].data();
         const initialStock = Number(data.initialStock);
-        const survivalRate = Number(data.survivalRate);
+        const cycleStart   = toDateValue(data.cycleStart);
 
-        if (!Number.isFinite(initialStock) || !Number.isFinite(survivalRate)) return;
+        if (!Number.isFinite(initialStock) || initialStock <= 0 || !cycleStart) return;
 
-        const mortalityRate = 100 - survivalRate;
-        const surviving = Math.round(initialStock * (survivalRate / 100));
+        const deathsSnap = await getDocs(
+            query(collection(db, "mortality_records"), where("createdAt", ">=", Timestamp.fromDate(cycleStart)))
+        );
+
+        let totalDeaths = 0;
+        deathsSnap.forEach(docSnap => {
+            totalDeaths += Number(docSnap.data().deathCount) || 0;
+        });
+
+        // Mirrors survivalChart.js's own clamp (Math.max(0, ...)) so mortality
+        // can't exceed 100% if logged deaths somehow outnumber initialStock —
+        // same edge case, same fix, applied from the mortality side.
+        const survivalPct    = Math.max(0, ((initialStock - totalDeaths) / initialStock) * 100);
+        const mortalityRate  = 100 - survivalPct;
+        const confirmedAlive = Math.max(0, Math.round(initialStock - totalDeaths));
 
         if (rateEl) rateEl.textContent = mortalityRate.toFixed(1) + "%";
-        if (countEl) countEl.textContent = `${surviving} of ${initialStock} surviving`;
+        if (countEl) countEl.textContent = `${confirmedAlive} confirmed alive of ${initialStock} stocked`;
     } catch (err) {
-        console.warn("dashboard: unable to load growth_indicators for mortality rate:", err);
+        console.warn("dashboard: unable to compute mortality rate from mortality_records:", err);
     }
 }
 
