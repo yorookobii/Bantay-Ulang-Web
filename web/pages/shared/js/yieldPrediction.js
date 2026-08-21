@@ -100,11 +100,6 @@ function toDateValue(v) {
 
 // ─── DOM render ────────────────────────────────────────────────────────────────
 function updateUI(result, cycleData, sensorData) {
-    // Cycle inputs
-    setEl("yp-initial-stock", result.initialStock.toLocaleString("en-PH") + " pcs");
-    setEl("yp-survival-rate", fmt(result.survivalRate, 1) + "%");
-    setEl("yp-avg-weight",    fmt(result.avgWeightG, 0) + " g / pc");
-
     // Estimated Harvest Date: cycleStart + 150 days (5-month cycle) — single
     // source shared by both the Yield Prediction card and the Growth/Survival
     // metric card so they can never disagree.
@@ -115,11 +110,7 @@ function updateUI(result, cycleData, sensorData) {
     const estHarvestDateStr = estHarvestDate
         ? estHarvestDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
         : "--";
-    setEl("yp-harvest-date", estHarvestDateStr);
     setEl("harvest-date-value", estHarvestDateStr);
-
-    // Calculation steps
-    setEl("yp-base-yield", fmt(result.baseYield, 2) + " kg");
 
     // Big yield banner (RF-based when available, formula fallback otherwise)
     setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
