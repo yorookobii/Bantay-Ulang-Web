@@ -345,8 +345,10 @@ async function handleParameter(param, value, deviceId) {
 /**
  * processSensorReading(data)
  *
- * Accepts a sensor_readings document payload and evaluates every monitored
- * parameter against its safe range, creating or resolving alerts in Firestore.
+ * Accepts a normalized reading payload (see aquaponicsReading.js's
+ * normalizeAquaponicsReading(), sourced from the Aquaponics live doc) and
+ * evaluates every monitored parameter against its safe range, creating or
+ * resolving alerts in Firestore.
  * Can be called directly (e.g. from tests or one-off checks).
  */
 export async function processSensorReading(data) {
