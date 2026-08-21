@@ -154,9 +154,19 @@ function updateUI(result, cycleData, sensorData) {
             const score = scoreParam(key, sensorData[key]);
             const el    = document.getElementById("yp-sensor-" + key);
             if (!el) return;
-            el.textContent = fmt(score, 2);
-            el.className   = "yp-sb-score "
-                + (score >= 0.85 ? "yp-good" : score >= 0.60 ? "yp-warn" : "yp-bad");
+
+            // scoreParam() is binary now: 1 (in range), 0 (out of range), or
+            // null (missing/unjudgeable) — show the fact directly instead of
+            // a decimal, and use the base .yp-sb-score neutral color for null
+            // so a missing reading doesn't look like an out-of-range failure.
+            if (score == null) {
+                el.textContent = "--";
+                el.className   = "yp-sb-score";
+            } else {
+                const inRange = score === 1;
+                el.textContent = inRange ? "In Range" : "Out of Range";
+                el.className   = "yp-sb-score " + (inRange ? "yp-good" : "yp-bad");
+            }
         });
     }
 
