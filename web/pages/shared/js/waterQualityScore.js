@@ -5,6 +5,11 @@ import { getRanges } from "./thresholds.js";
  * used on analytics.html (recommendation cards' efficiency donut, and the
  * yield/income projections). Previously duplicated, with drift, across
  * analyticsRecommendations.js and yieldPrediction.js.
+ *
+ * Binary threshold score: a param is 1.0 if its current value falls within
+ * getRanges()[key]'s [min, max] (one-sided/unbounded sides respected), else
+ * 0.0. No partial credit, no invented "excellent"/"poor" tiers, no floor —
+ * the final score is the plain fraction of measured params in range.
  */
 
 export const SENSOR_KEYS = [
@@ -12,68 +17,49 @@ export const SENSOR_KEYS = [
     "salinity", "turbidity", "waterLevel"
 ];
 
-// Fixed literature constants — NOT derived from getRanges(). These mark
-// "excellent" targets that are independent of the configured safety
-// min/max (e.g. 10 NTU is an excellent-clarity target regardless of what
-// the turbidity max alert threshold is set to).
-const DO_EXCELLENT        = 7;   // mg/L
-const TURBIDITY_EXCELLENT = 10;  // NTU
-
 /**
  * scoreParam(key, value)
  *
- * Per-parameter quality score in [0.0, 1.0]. Bounds are read live from the
- * shared thresholds module (getRanges()) so this stays in sync with
- * whatever an admin configures in Settings.
+ * Per-parameter score: 1.0 if value is within getRanges()[key]'s [min, max]
+ * (a null bound is treated as unbounded on that side), 0.0 if out of range.
+ * Returns null when the param can't be judged — value missing/non-numeric,
+ * or no threshold configured for key — so callers can exclude it from an
+ * average instead of it silently counting as a pass or fail. waterLevel is
+ * boolean (safe/unsafe), not a min/max band — see aquaponicsReading.js.
+ * Bounds are read live from getRanges() so this stays in sync with whatever
+ * an admin configures in Settings.
  */
 export function scoreParam(key, value) {
-    if (value == null || !Number.isFinite(Number(value))) return 0.5;
+    if (key === "waterLevel" && typeof value === "boolean") {
+        return value ? 1.0 : 0.0;
+    }
+    if (value == null || !Number.isFinite(Number(value))) return null;
+
     const v = Number(value);
     const range = getRanges()[key];
-    if (!range) return 0.5;
+    if (!range) return null;
+
     const { min, max } = range;
-    switch (key) {
-        case "phLevel": {
-            const lo = min - 0.5, hi = max + 0.5;
-            return (v >= min && v <= max) ? 1.0 : ((v >= lo && v < min) || (v > max && v <= hi)) ? 0.6 : 0.3;
-        }
-        case "waterTemp": {
-            const lo = min - 4, hi = max + 4; // this band's own +4 edge — distinct from the alert engine's +3 critical cutoff
-            return (v >= min && v <= max) ? 1.0 : ((v >= lo && v < min) || (v > max && v <= hi)) ? 0.6 : 0.3;
-        }
-        case "dissolvedOxygen": {
-            const poor = min - 2;
-            return v >= DO_EXCELLENT ? 1.0 : v >= min ? 0.8 : v >= poor ? 0.5 : 0.2;
-        }
-        case "salinity": {
-            const tier2 = max + 5, tier3 = max + 10;
-            return (v <= max) ? 1.0 : (v <= tier2) ? 0.7 : (v <= tier3) ? 0.5 : 0.3;
-        }
-        case "turbidity": {
-            const poor = max + 25;
-            return v <= TURBIDITY_EXCELLENT ? 1.0 : v <= max ? 0.8 : v <= poor ? 0.5 : 0.2;
-        }
-        case "waterLevel": {
-            // Aquaponics reports water level as a binary safe/unsafe reading
-            // (not a continuous depth), so the score is binary by design —
-            // not an interpolated/tiered estimate like the other params.
-            if (typeof value === "boolean") return value ? 1.0 : 0.0;
-            const lo = min - 0.2, hi = max + 0.5;
-            return (v >= min && v <= max) ? 1.0 : ((v >= lo && v < min) || (v > max && v <= hi)) ? 0.7 : 0.4;
-        }
-        default:
-            return 0.5;
-    }
+    const hasMin = min != null;
+    const hasMax = max != null;
+    const inRange = (!hasMin || v >= min) && (!hasMax || v <= max);
+    return inRange ? 1.0 : 0.0;
 }
 
 /**
  * calcWaterQualityScore(sensorData)
  *
- * Averages every SENSOR_KEYS score and maps [0, 1] → [0.5, 1.0]. Returns
- * 0.75 (the midpoint of that mapped range) when sensorData is missing.
+ * Plain fraction of SENSOR_KEYS params currently within their safe range —
+ * no compression, no floor. 6/6 in range = 1.0 (100%), 0/6 = 0.0 (0%).
+ * Params scoreParam() can't judge (missing/non-numeric, no threshold) are
+ * excluded from the average rather than counted as a pass or fail. Returns
+ * null if sensorData itself is missing, or every param is unjudgeable.
  */
 export function calcWaterQualityScore(sensorData) {
-    if (!sensorData) return 0.75;
-    const avg = SENSOR_KEYS.reduce((sum, k) => sum + scoreParam(k, sensorData[k]), 0) / SENSOR_KEYS.length;
-    return 0.5 + avg * 0.5;
+    if (!sensorData) return null;
+    const scores = SENSOR_KEYS
+        .map((k) => scoreParam(k, sensorData[k]))
+        .filter((s) => s != null);
+    if (!scores.length) return null;
+    return scores.reduce((sum, s) => sum + s, 0) / scores.length;
 }

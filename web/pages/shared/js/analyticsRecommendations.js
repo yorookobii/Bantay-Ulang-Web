@@ -216,6 +216,8 @@ function renderRecommendations(recs) {
 
 // ── Update the efficiency donut circle ────────────────────────────────────
 function updateEfficiencyCircle(wqScore) {
+    if (wqScore == null) return;
+
     const pct    = Math.round(wqScore * 100);
     const deg    = ((pct / 100) * 360).toFixed(1);
     const color  = pct >= 85 ? '#10b981' : pct >= 70 ? '#d97706' : '#ef4444';

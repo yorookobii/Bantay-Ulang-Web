@@ -97,7 +97,7 @@
 // the latest sensor reading, so we reuse its result without a second fetch.
 document.addEventListener('yield-prediction-updated', function (e) {
     var wqScore = e.detail && e.detail.wqScore;
-    if (!wqScore) return;
+    if (wqScore == null) return;
 
     var pct    = Math.round(wqScore * 100);
     var deg    = ((pct / 100) * 360).toFixed(1);
