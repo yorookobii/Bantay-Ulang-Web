@@ -85,10 +85,19 @@ async function loadTotalYieldExpected() {
         const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
         if (snap.empty) return;
 
-        const expectedYield = Number(snap.docs[0].data().expectedYield);
-        if (!Number.isFinite(expectedYield)) return;
+        const data = snap.docs[0].data();
+        const expectedYield    = Number(data.expectedYield);
+        const rfProjectedYield = Number(data.rfProjectedYield);
+        const rfAvailable      = Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;
 
-        setTotalYieldValue(expectedYield.toFixed(1) + " kg");
+        // Mirrors analytics.js/yieldPrediction.js's rfAvailable ? rfProjectedYield : baseYield —
+        // expectedYield is the formula-consistent fallback here (kept in sync by
+        // settings.js / yieldPrediction.js), since dashboard.js has no local
+        // stock/survival/weight inputs to recompute baseYield itself.
+        const yieldToShow = rfAvailable ? rfProjectedYield : expectedYield;
+        if (!Number.isFinite(yieldToShow)) return;
+
+        setTotalYieldValue(yieldToShow.toFixed(1) + " kg");
     } catch (err) {
         console.warn("dashboard: unable to load growth_indicators for total yield expected:", err);
     }
