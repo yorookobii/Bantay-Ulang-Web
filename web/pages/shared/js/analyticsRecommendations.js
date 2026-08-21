@@ -238,7 +238,7 @@ function updateEfficiencyCircle(wqScore) {
             : pct >= 70
             ? `System is performing <strong>adequately</strong> — address alerts to reach optimal.`
             : `System needs <strong>immediate attention</strong> — multiple parameters out of range.`;
-        descEl.innerHTML = `Water Quality Score: ${wqScore.toFixed(2)} (${pct}%). ${note}`;
+        descEl.innerHTML = `Water Condition Indicator: ${wqScore.toFixed(2)} (${pct}%). ${note}`;
     }
 }
 

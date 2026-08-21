@@ -92,47 +92,6 @@
         init();
     }
 })();
-document.addEventListener('DOMContentLoaded', function() {
-    // ── Sample/placeholder charts — static hardcoded data, never randomized ──
-
-    var wqsTrendCtx = document.getElementById('wqsTrendChart');
-    if (wqsTrendCtx) {
-        new Chart(wqsTrendCtx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
-                datasets: [{
-                    label: 'Water Quality Score (%)',
-                    data: [78, 85, 82, 90, 76, 88, 84, 91],
-                    borderColor: '#1d4ed8',
-                    backgroundColor: 'rgba(29, 78, 216, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointBackgroundColor: '#1d4ed8',
-                    pointRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        min: 0,
-                        max: 100,
-                        ticks: { stepSize: 20 },
-                        title: { display: true, text: 'WQS (%)' },
-                        grid: { color: '#f3f4f6' }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
-});
-
 // ── Efficiency circle: driven by yield-prediction-updated event ───────────
 // yieldPrediction.js dispatches this after it computes the WQ score from
 // the latest sensor reading, so we reuse its result without a second fetch.
@@ -164,6 +123,6 @@ document.addEventListener('yield-prediction-updated', function (e) {
             : pct >= 70
             ? 'System is performing <strong>adequately</strong> — address sensor alerts to improve.'
             : 'System needs <strong>immediate attention</strong> — multiple parameters out of range.';
-        effDesc.innerHTML = 'Water Quality Score: ' + wqScore.toFixed(2) + ' (' + pct + '%). ' + note;
+        effDesc.innerHTML = 'Water Condition Indicator: ' + wqScore.toFixed(2) + ' (' + pct + '%). ' + note;
     }
 });
