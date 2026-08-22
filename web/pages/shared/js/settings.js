@@ -79,30 +79,13 @@ if (form) {
 
 const DEFAULT_COST_PER_KG = 250;
 
-const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_survivalRate', 'gi_avgWeightPerPiece', 'gi_costPerKg'];
+const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_survivalRate', 'gi_costPerKg'];
 const GROWTH_FIELD_MAP = {
-    gi_initialStock:      'initialStock',
-    gi_survivalRate:      'survivalRate',
-    gi_avgWeightPerPiece: 'avgWeightPerPiece',
-    gi_costPerKg:         'costPerKg',
+    gi_initialStock: 'initialStock',
+    gi_survivalRate: 'survivalRate',
+    gi_costPerKg:    'costPerKg',
 };
 let growthDocRef = null;
-
-function calcExpectedYield(initialStock, survivalRate, avgWeightPerPiece) {
-    const s = Number(initialStock)      || 0;
-    const r = Number(survivalRate)      || 0;
-    const w = Number(avgWeightPerPiece) || 0;
-    return s * (r / 100) * (w / 1000);
-}
-
-function updateYieldPreview() {
-    const s = document.getElementById('gi_initialStock')?.value;
-    const r = document.getElementById('gi_survivalRate')?.value;
-    const w = document.getElementById('gi_avgWeightPerPiece')?.value;
-    const y = calcExpectedYield(s, r, w);
-    const el = document.getElementById('gi_expectedYield_preview');
-    if (el) el.textContent = (s || r || w) ? y.toFixed(3) + ' kg' : '-- kg';
-}
 
 async function loadGrowthParams() {
     try {
@@ -125,8 +108,6 @@ async function loadGrowthParams() {
             // One-time check: confirm the latest-by-timestamp doc actually carries
             // cycleStart (a manually-added field on an older doc would never surface here).
             console.log('[settings] latest growth_indicators doc has cycleStart:', data.cycleStart != null, data.cycleStart?.toDate?.());
-
-            updateYieldPreview();
         }
     } catch (err) {
         console.warn('[settings] Could not load growth_indicators:', err);
@@ -134,17 +115,15 @@ async function loadGrowthParams() {
 }
 
 async function saveGrowthParams() {
-    const initialStock      = parseFloat(document.getElementById('gi_initialStock')?.value)      || 0;
-    const survivalRate      = parseFloat(document.getElementById('gi_survivalRate')?.value)      || 0;
-    const avgWeightPerPiece = parseFloat(document.getElementById('gi_avgWeightPerPiece')?.value) || 0;
-    const costPerKgRaw      = document.getElementById('gi_costPerKg')?.value;
-    const costPerKg         = costPerKgRaw !== '' && costPerKgRaw != null ? parseFloat(costPerKgRaw) : DEFAULT_COST_PER_KG;
-    const expectedYield     = calcExpectedYield(initialStock, survivalRate, avgWeightPerPiece);
+    const initialStock = parseFloat(document.getElementById('gi_initialStock')?.value) || 0;
+    const survivalRate = parseFloat(document.getElementById('gi_survivalRate')?.value) || 0;
+    const costPerKgRaw = document.getElementById('gi_costPerKg')?.value;
+    const costPerKg    = costPerKgRaw !== '' && costPerKgRaw != null ? parseFloat(costPerKgRaw) : DEFAULT_COST_PER_KG;
 
     const cycleStartVal = document.getElementById('gi_cycleStart')?.value;
     const cycleStart     = cycleStartVal ? new Date(cycleStartVal + 'T00:00:00') : null;
 
-    const payload = { initialStock, survivalRate, avgWeightPerPiece, costPerKg, expectedYield, cycleStart, timestamp: serverTimestamp() };
+    const payload = { initialStock, survivalRate, costPerKg, cycleStart, timestamp: serverTimestamp() };
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });
@@ -153,12 +132,6 @@ async function saveGrowthParams() {
         growthDocRef = ref;
     }
 }
-
-// Live preview — update whenever any growth input changes
-GROWTH_PARAM_IDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateYieldPreview);
-});
 
 // Growth form submit
 const growthForm  = document.getElementById('growth-form');

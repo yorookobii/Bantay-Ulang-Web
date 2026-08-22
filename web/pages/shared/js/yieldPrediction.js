@@ -5,15 +5,17 @@ import {
     orderBy,
     limit,
     getDocs,
-    onSnapshot,
-    updateDoc
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadThresholds } from "./thresholds.js";
 import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualityScore.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
-//  Yield (kg)   = initialStock × (survivalRate/100) × avgWeightPerPiece(g) / 1000
+//  Yield (kg)   = RF-projected harvest weight × survivalRate × initialStock
+//  (see ml-analytics/predict_yield.py). No formula fallback — if RF hasn't
+//  produced a prediction for this cycle yet, adjustedYield is null and the
+//  UI shows a "being processed" state instead of a number.
 //  Income range = Yield × (150 | 300 | 450)
 //  Revenue prices based on BFAR National Consolidated Price Monitoring Report 2025;
 //  provincial-adjusted for Hagonoy, Bulacan (non-NCR).
@@ -29,17 +31,14 @@ const INCOME_MAX_RATE = 450;
 const RF_GATE_DAYS = 90;
 
 function calcYield(growthData, wqScore) {
-    const initialStock = Number(growthData.initialStock)      || 0;
-    const survivalRate = Number(growthData.survivalRate)      || 0;
-    const avgWeightG   = Number(growthData.avgWeightPerPiece) || 0;
+    const initialStock = Number(growthData.initialStock) || 0;
+    const survivalRate = Number(growthData.survivalRate) || 0;
     const costPerKg     = Number(growthData.costPerKg) > 0 ? Number(growthData.costPerKg) : DEFAULT_COST_PER_KG;
 
-    const baseYield     = initialStock * (survivalRate / 100) * (avgWeightG / 1000);
-
-    // Panelist requirement: no yield prediction — RF OR formula — until the
-    // cycle has run for RF_GATE_DAYS. Folded directly into eligibility so a
-    // stale rfProjectedYield already sitting in Firestore from before this
-    // gate existed can't slip through. Missing cycleStart fails closed.
+    // Panelist requirement: no yield prediction until the cycle has run for
+    // RF_GATE_DAYS. Folded directly into eligibility so a stale
+    // rfProjectedYield already sitting in Firestore from before this gate
+    // existed can't slip through. Missing cycleStart fails closed.
     const cycleStartDate = toDateValue(growthData.cycleStart);
     const daysSinceCycleStart = cycleStartDate
         ? (Date.now() - cycleStartDate.getTime()) / (24 * 60 * 60 * 1000)
@@ -50,32 +49,32 @@ function calcYield(growthData, wqScore) {
         : null;
 
     // RF batch-inference fields (written together by ml-analytics/predict_yield.py).
-    // rfProjectedYield presence is the single availability gate — if the RF script
-    // hasn't run yet, this is NaN and everything below falls back to the formula.
+    // rfProjectedYield is the ONLY yield source now — no formula fallback. If
+    // the RF script hasn't run yet (or the cycle isn't eligible), adjustedYield
+    // is null and updateUI() shows a "being processed" state instead.
     const rfProjectedYield = Number(growthData.rfProjectedYield);
     const rfAvailable      = eligible && Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;
+    const adjustedYield    = rfAvailable ? rfProjectedYield : null;
 
-    const adjustedYield = rfAvailable ? rfProjectedYield : baseYield;
-    const finalWeight   = rfAvailable ? Number(growthData.rfProjectedWeight) : avgWeightG;
-
-    const incomeAvg      = adjustedYield * INCOME_AVG_RATE;
-    const estimatedCost  = adjustedYield * costPerKg;
-    const netProfit       = incomeAvg - estimatedCost;
+    // Null, not 0 — adjustedYield * RATE would otherwise coerce to a
+    // misleading 0 (JS treats null as 0 in arithmetic), not "no data."
+    const incomeMin     = adjustedYield != null ? adjustedYield * INCOME_MIN_RATE : null;
+    const incomeAvg     = adjustedYield != null ? adjustedYield * INCOME_AVG_RATE : null;
+    const incomeMax     = adjustedYield != null ? adjustedYield * INCOME_MAX_RATE : null;
+    const estimatedCost = adjustedYield != null ? adjustedYield * costPerKg : null;
+    const netProfit      = (incomeAvg != null && estimatedCost != null) ? incomeAvg - estimatedCost : null;
 
     return {
         initialStock,
         survivalRate,
-        avgWeightG,
-        baseYield,
         wqScore,
         eligible,
         weeksRemaining,
         adjustedYield,
-        finalWeight,
         costPerKg,
-        incomeMin: adjustedYield * INCOME_MIN_RATE,
+        incomeMin,
         incomeAvg,
-        incomeMax: adjustedYield * INCOME_MAX_RATE,
+        incomeMax,
         estimatedCost,
         netProfit,
         rfAvailable,
@@ -130,9 +129,8 @@ function updateUI(result, cycleData, sensorData) {
     setEl("harvest-date-value", estHarvestDateStr);
 
     if (!result.eligible) {
-        // Panelist gate: suppress the ENTIRE yield display — RF and formula
-        // fallback alike — until RF_GATE_DAYS have passed. Neither number is
-        // backed by real cultivation data yet.
+        // State (a): not enough cultivation time has elapsed to trust any
+        // prediction yet.
         const pendingMsg = result.weeksRemaining != null
             ? `Prediction available in ${result.weeksRemaining} week${result.weeksRemaining === 1 ? "" : "s"}`
             : "Prediction pending — cycle start date not set";
@@ -158,48 +156,60 @@ function updateUI(result, cycleData, sensorData) {
 
         setEl("predictedYieldValue", "Pending");
         setEl("predictedYieldConfidence", pendingMsg);
-    } else {
-        // Big yield banner (RF-based when available, formula fallback otherwise)
+    } else if (result.rfAvailable) {
+        // State (b): eligible AND RF has produced a usable prediction.
         setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
-        setEl("yp-yield-sub", result.rfAvailable
-            ? "Random Forest projection from live sensor data"
-            : "Based on stock, survival rate & weight per piece (formula estimate)");
+        setEl("yp-yield-sub", "Random Forest projection from live sensor data");
 
-        // RF mode badge + metadata
         const modeBadge = document.getElementById("yp-rf-mode-badge");
         if (modeBadge) {
-            if (result.rfAvailable) {
-                modeBadge.textContent = RF_MODE_LABELS[result.rfMode] || "RF Prediction";
-                modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (result.rfMode || "unknown");
-            } else {
-                modeBadge.textContent = "Formula Estimate";
-                modeBadge.className   = "yp-rf-mode-badge is-fallback";
-            }
+            modeBadge.textContent = RF_MODE_LABELS[result.rfMode] || "RF Prediction";
+            modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (result.rfMode || "unknown");
         }
-        setEl("yp-rf-note", result.rfAvailable ? result.rfNote : "");
-        setEl("yp-rf-readings", result.rfAvailable && result.rfReadingsUsed != null
+        setEl("yp-rf-note", result.rfNote);
+        setEl("yp-rf-readings", result.rfReadingsUsed != null
             ? "Based on " + result.rfReadingsUsed.toLocaleString("en-PH") + " sensor readings"
             : "");
-        const rfUpdatedDate = result.rfAvailable ? toDateValue(result.rfUpdatedAt) : null;
+        const rfUpdatedDate = toDateValue(result.rfUpdatedAt);
         setEl("yp-rf-updated", rfUpdatedDate
             ? "Last updated: " + rfUpdatedDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
             : "");
 
-        // Income cards
         setEl("yp-income-min", fmtPeso(result.incomeMin));
         setEl("yp-income-avg", fmtPeso(result.incomeAvg));
         setEl("yp-income-max", fmtPeso(result.incomeMax));
-
-        // Profit estimate (cost per kg is a user-set placeholder — always labeled "estimated")
         setEl("yp-estimated-cost", fmtPeso(result.estimatedCost));
         setEl("yp-net-profit", fmtPeso(result.netProfit));
         setEl("yp-cost-per-kg-rate", "at ₱" + fmt(result.costPerKg, 0) + " / kg (estimated)");
 
-        // Keep the existing metric card in sync
         setEl("predictedYieldValue", fmt(result.adjustedYield, 1) + " kg");
-        setEl("predictedYieldConfidence", result.rfAvailable
-            ? (RF_MODE_LABELS[result.rfMode] || "RF Prediction")
-            : "Formula estimate — current cycle data");
+        setEl("predictedYieldConfidence", RF_MODE_LABELS[result.rfMode] || "RF Prediction");
+    } else {
+        // State (c): eligible, but RF hasn't produced a usable prediction for
+        // this cycle yet. Distinct from (a) — this is an operational wait
+        // (predict_yield.py needs to run), not a data-age countdown, so no
+        // "weeks remaining" applies here.
+        setEl("yp-yield-big", "Prediction being processed");
+        setEl("yp-yield-sub", "The RF model hasn't produced a prediction for this cycle yet");
+
+        const modeBadge = document.getElementById("yp-rf-mode-badge");
+        if (modeBadge) {
+            modeBadge.textContent = "Processing";
+            modeBadge.className   = "yp-rf-mode-badge is-fallback";
+        }
+        setEl("yp-rf-note", "");
+        setEl("yp-rf-readings", "");
+        setEl("yp-rf-updated", "");
+
+        setEl("yp-income-min", "₱--");
+        setEl("yp-income-avg", "₱--");
+        setEl("yp-income-max", "₱--");
+        setEl("yp-estimated-cost", "₱--");
+        setEl("yp-net-profit", "₱--");
+        setEl("yp-cost-per-kg-rate", "--");
+
+        setEl("predictedYieldValue", "--");
+        setEl("predictedYieldConfidence", "--");
     }
 
     // Per-sensor score chips
@@ -241,25 +251,13 @@ export async function initYieldPrediction() {
     let growthData   = null;
     let latestSensor = window.latestSensorReading ?? null;
 
-    // Fetch the most recent growth cycle once; sync expectedYield if stale/missing
+    // Fetch the most recent growth cycle once.
     try {
         const snap = await getDocs(
             query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1))
         );
         if (!snap.empty) {
-            const docSnap = snap.docs[0];
-            growthData = docSnap.data();
-
-            const computed = (Number(growthData.initialStock)      || 0)
-                           * ((Number(growthData.survivalRate)     || 0) / 100)
-                           * ((Number(growthData.avgWeightPerPiece) || 0) / 1000);
-            const stored   = Number(growthData.expectedYield);
-
-            if (!Number.isFinite(stored) || Math.abs(stored - computed) > 0.001) {
-                updateDoc(docSnap.ref, { expectedYield: computed }).catch(err =>
-                    console.warn("yieldPrediction: could not sync expectedYield:", err)
-                );
-            }
+            growthData = snap.docs[0].data();
         }
     } catch (err) {
         console.warn("yieldPrediction: could not load growth_indicators:", err);

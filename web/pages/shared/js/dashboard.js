@@ -90,10 +90,10 @@ async function loadTotalYieldExpected() {
 
         const data = snap.docs[0].data();
 
-        // Same panelist gate as yieldPrediction.js: no yield number — RF or
-        // formula — until the cycle is RF_GATE_DAYS old. Checked before the
-        // rfProjectedYield/expectedYield lookup so a stale value can't slip
-        // through. Missing cycleStart fails closed (shown as "--").
+        // Same panelist gate as yieldPrediction.js: no yield number until the
+        // cycle is RF_GATE_DAYS old. Checked before the rfProjectedYield
+        // lookup so a stale value can't slip through. Missing cycleStart
+        // fails closed (shown as "--").
         const cycleStart = toDateValue(data.cycleStart);
         const daysSinceCycleStart = cycleStart
             ? (Date.now() - cycleStart.getTime()) / (24 * 60 * 60 * 1000)
@@ -110,18 +110,18 @@ async function loadTotalYieldExpected() {
             return;
         }
 
-        const expectedYield    = Number(data.expectedYield);
         const rfProjectedYield = Number(data.rfProjectedYield);
         const rfAvailable      = Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;
 
-        // Mirrors analytics.js/yieldPrediction.js's rfAvailable ? rfProjectedYield : baseYield —
-        // expectedYield is the formula-consistent fallback here (kept in sync by
-        // settings.js / yieldPrediction.js), since dashboard.js has no local
-        // stock/survival/weight inputs to recompute baseYield itself.
-        const yieldToShow = rfAvailable ? rfProjectedYield : expectedYield;
-        if (!Number.isFinite(yieldToShow)) return;
+        // No formula fallback anymore — RF is the only yield source. If it
+        // hasn't produced a usable prediction for this (eligible) cycle yet,
+        // show a processing state rather than a number.
+        if (!rfAvailable) {
+            setTotalYieldValue("Processing");
+            return;
+        }
 
-        setTotalYieldValue(yieldToShow.toFixed(1) + " kg");
+        setTotalYieldValue(rfProjectedYield.toFixed(1) + " kg");
     } catch (err) {
         console.warn("dashboard: unable to load growth_indicators for total yield expected:", err);
     }
