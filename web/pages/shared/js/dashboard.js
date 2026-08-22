@@ -73,6 +73,9 @@ function formatLogTime(value, fallback = "Just now") {
     });
 }
 
+// Panelist requirement: yield prediction only after 3 months of real cultivation data
+const RF_GATE_DAYS = 90;
+
 function setTotalYieldValue(value) {
     const totalYieldValue = document.getElementById("total-yield-value");
     if (totalYieldValue && value) {
@@ -86,6 +89,27 @@ async function loadTotalYieldExpected() {
         if (snap.empty) return;
 
         const data = snap.docs[0].data();
+
+        // Same panelist gate as yieldPrediction.js: no yield number — RF or
+        // formula — until the cycle is RF_GATE_DAYS old. Checked before the
+        // rfProjectedYield/expectedYield lookup so a stale value can't slip
+        // through. Missing cycleStart fails closed (shown as "--").
+        const cycleStart = toDateValue(data.cycleStart);
+        const daysSinceCycleStart = cycleStart
+            ? (Date.now() - cycleStart.getTime()) / (24 * 60 * 60 * 1000)
+            : null;
+        const eligible = daysSinceCycleStart != null && daysSinceCycleStart >= RF_GATE_DAYS;
+
+        if (!eligible) {
+            if (daysSinceCycleStart == null) {
+                setTotalYieldValue("--");
+            } else {
+                const weeksRemaining = Math.ceil((RF_GATE_DAYS - daysSinceCycleStart) / 7);
+                setTotalYieldValue(`Available in ${weeksRemaining} week${weeksRemaining === 1 ? "" : "s"}`);
+            }
+            return;
+        }
+
         const expectedYield    = Number(data.expectedYield);
         const rfProjectedYield = Number(data.rfProjectedYield);
         const rfAvailable      = Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;

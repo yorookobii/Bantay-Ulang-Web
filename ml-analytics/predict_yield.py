@@ -23,6 +23,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
+import math
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -35,6 +36,7 @@ MODEL_FILE = "rf_growth_model.joblib"
 HYBRID_MODE = True          # True: assumed weight/feed; False: totoong data
 ASSUMED_START_WEIGHT = 2.0  # juvenile start (g) — project buong 18 weeks
 HARVEST_WEEK = 18
+GATE_DAYS = 90  # panelist requirement: yield prediction only after 3 months of real cultivation data
 
 # Fetch settings
 BATCH = 500                 # readings kada batch (iwas timeout)
@@ -240,22 +242,24 @@ def project_harvest_weight(model, water, start_weight):
     return weight
 
 # ============================================================
-# 5. COMPUTE YIELD
+# 0. GROWTH_INDICATORS DOC + 3-MONTH GATE
 # ============================================================
-def compute_yield(db, harvest_weight):
-    """Yield = stock x survival x harvest_weight / 1000 (mula growth_indicators)."""
+def fetch_growth_indicators(db):
+    """Kunin ang latest growth_indicators doc. None kung wala."""
     docs = list(db.collection("growth_indicators").limit(1).stream())
     if not docs:
-        print("[WARN] Walang growth_indicators")
-        return None, 50, 80.0, None
+        return None
+    return docs[0]
 
-    doc = docs[0]
-    gi = doc.to_dict()
+# ============================================================
+# 5. COMPUTE YIELD
+# ============================================================
+def compute_yield(gi_doc, gi, harvest_weight):
+    """Yield = stock x survival x harvest_weight / 1000 (mula growth_indicators)."""
     stock = gi.get("initialStock", 50)
     survival = gi.get("survivalRate", 80.0)
-
     yield_kg = stock * (survival / 100.0) * harvest_weight / 1000.0
-    return doc.reference, stock, survival, yield_kg
+    return gi_doc.reference, stock, survival, yield_kg
 
 # ============================================================
 # 6. ISULAT PABALIK SA FIRESTORE
@@ -273,6 +277,8 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings):
         "rfReadingsUsed": n_readings,
         "rfUpdatedAt": firestore.SERVER_TIMESTAMP,
         "rfNote": notes.get(mode, "Unknown mode"),
+        "rfPending": False,
+        "rfDaysUntilAvailable": None,
     }
     doc_ref.update(payload)
     print(f"[OK] Nasulat sa growth_indicators: {payload}")
@@ -285,14 +291,44 @@ def main():
     print("BANTAY ULANG — RF YIELD PREDICTION (Batch Inference)")
     print("=" * 55)
 
-    # --- READ GUARDRAIL (bago pa kumonek) ---
-    # Planong reads: MAX_READINGS (water) + ~2 (growth_indicators)
-    planned = MAX_READINGS + 2
+    db = connect_firestore()
+
+    # --- 3-MONTH GATE (panelist requirement) — checked BEFORE the read
+    # guardrail and the (expensive, up to 5000-read) water-data fetch, so a
+    # too-young cycle costs one cheap read instead of thousands. ---
+    gi_doc = fetch_growth_indicators(db)
+    if gi_doc is None:
+        print("[ERROR] Walang growth_indicators doc — hindi makakasulat")
+        return
+
+    gi = gi_doc.to_dict()
+    cycle_start = gi.get("cycleStart")
+    days_since_start = (datetime.now(timezone.utc) - cycle_start).days if cycle_start is not None else None
+    eligible = days_since_start is not None and days_since_start >= GATE_DAYS
+
+    if not eligible:
+        days_remaining = (GATE_DAYS - days_since_start) if days_since_start is not None else None
+        weeks_remaining = math.ceil(days_remaining / 7) if days_remaining is not None else None
+        reason = "walang cycleStart" if days_since_start is None else f"{days_since_start} araw pa lang (kailangan {GATE_DAYS})"
+        print(f"[GATE] Hindi pa eligible: {reason}")
+        gi_doc.reference.update({
+            "rfPending": True,
+            "rfDaysUntilAvailable": days_remaining,
+        })
+        print(f"[GATE] Na-mark bilang rfPending"
+              + (f" — ~{weeks_remaining} linggo pa" if weeks_remaining is not None else "") + ".")
+        print("[EXIT] Wala pang isusulat na prediction.")
+        return
+
+    print(f"[GATE] Eligible — {days_since_start} araw na mula sa cycle start.")
+
+    # --- READ GUARDRAIL (bago kumuha ng water data) ---
+    # Planong reads: MAX_READINGS (water) + ~1 (write-back)
+    planned = MAX_READINGS + 1
     if not check_read_guardrail(planned):
         print("[EXIT] Hindi tumuloy — read guardrail.")
         return
 
-    db = connect_firestore()
     model = joblib.load(MODEL_FILE)
     print(f"[OK] Na-load ang model: {MODEL_FILE}")
 
@@ -301,8 +337,8 @@ def main():
 
     # I-update ang read counter (aktwal na nagamit)
     current = load_read_counter()
-    save_read_counter(current + actual_reads + 2)  # +2 para sa growth_indicators
-    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + 2:,} reads ngayong araw")
+    save_read_counter(current + actual_reads + 1)  # +1 para sa gate check (nasa itaas na)
+    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + 1:,} reads ngayong araw")
 
     # Determine mode
     if water is None or any(v is None for v in water.values()):
@@ -323,11 +359,7 @@ def main():
           f"(mula {ASSUMED_START_WEIGHT}g, {HARVEST_WEEK} weeks)")
 
     # Compute yield
-    result = compute_yield(db, harvest_weight)
-    if result[0] is None:
-        print("[ERROR] Walang growth_indicators doc — hindi makakasulat")
-        return
-    doc_ref, stock, survival, yield_kg = result
+    doc_ref, stock, survival, yield_kg = compute_yield(gi_doc, gi, harvest_weight)
     print(f"[OK] YIELD = {stock} x {survival}% x {harvest_weight:.1f}g / 1000 = {yield_kg:.2f} kg")
 
     # Isulat pabalik

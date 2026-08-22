@@ -25,6 +25,8 @@ const DEFAULT_COST_PER_KG = 250;
 const INCOME_MIN_RATE = 150;
 const INCOME_AVG_RATE = 300;
 const INCOME_MAX_RATE = 450;
+// Panelist requirement: yield prediction only after 3 months of real cultivation data
+const RF_GATE_DAYS = 90;
 
 function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock)      || 0;
@@ -34,11 +36,24 @@ function calcYield(growthData, wqScore) {
 
     const baseYield     = initialStock * (survivalRate / 100) * (avgWeightG / 1000);
 
+    // Panelist requirement: no yield prediction — RF OR formula — until the
+    // cycle has run for RF_GATE_DAYS. Folded directly into eligibility so a
+    // stale rfProjectedYield already sitting in Firestore from before this
+    // gate existed can't slip through. Missing cycleStart fails closed.
+    const cycleStartDate = toDateValue(growthData.cycleStart);
+    const daysSinceCycleStart = cycleStartDate
+        ? (Date.now() - cycleStartDate.getTime()) / (24 * 60 * 60 * 1000)
+        : null;
+    const eligible = daysSinceCycleStart != null && daysSinceCycleStart >= RF_GATE_DAYS;
+    const weeksRemaining = (!eligible && daysSinceCycleStart != null)
+        ? Math.ceil((RF_GATE_DAYS - daysSinceCycleStart) / 7)
+        : null;
+
     // RF batch-inference fields (written together by ml-analytics/predict_yield.py).
     // rfProjectedYield presence is the single availability gate — if the RF script
     // hasn't run yet, this is NaN and everything below falls back to the formula.
     const rfProjectedYield = Number(growthData.rfProjectedYield);
-    const rfAvailable      = Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;
+    const rfAvailable      = eligible && Number.isFinite(rfProjectedYield) && rfProjectedYield > 0;
 
     const adjustedYield = rfAvailable ? rfProjectedYield : baseYield;
     const finalWeight   = rfAvailable ? Number(growthData.rfProjectedWeight) : avgWeightG;
@@ -53,6 +68,8 @@ function calcYield(growthData, wqScore) {
         avgWeightG,
         baseYield,
         wqScore,
+        eligible,
+        weeksRemaining,
         adjustedYield,
         finalWeight,
         costPerKg,
@@ -112,41 +129,78 @@ function updateUI(result, cycleData, sensorData) {
         : "--";
     setEl("harvest-date-value", estHarvestDateStr);
 
-    // Big yield banner (RF-based when available, formula fallback otherwise)
-    setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
-    setEl("yp-yield-sub", result.rfAvailable
-        ? "Random Forest projection from live sensor data"
-        : "Based on stock, survival rate & weight per piece (formula estimate)");
+    if (!result.eligible) {
+        // Panelist gate: suppress the ENTIRE yield display — RF and formula
+        // fallback alike — until RF_GATE_DAYS have passed. Neither number is
+        // backed by real cultivation data yet.
+        const pendingMsg = result.weeksRemaining != null
+            ? `Prediction available in ${result.weeksRemaining} week${result.weeksRemaining === 1 ? "" : "s"}`
+            : "Prediction pending — cycle start date not set";
 
-    // RF mode badge + metadata
-    const modeBadge = document.getElementById("yp-rf-mode-badge");
-    if (modeBadge) {
-        if (result.rfAvailable) {
-            modeBadge.textContent = RF_MODE_LABELS[result.rfMode] || "RF Prediction";
-            modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (result.rfMode || "unknown");
-        } else {
-            modeBadge.textContent = "Formula Estimate";
+        setEl("yp-yield-big", "Pending");
+        setEl("yp-yield-sub", pendingMsg);
+
+        const modeBadge = document.getElementById("yp-rf-mode-badge");
+        if (modeBadge) {
+            modeBadge.textContent = "Pending";
             modeBadge.className   = "yp-rf-mode-badge is-fallback";
         }
+        setEl("yp-rf-note", "");
+        setEl("yp-rf-readings", "");
+        setEl("yp-rf-updated", "");
+
+        setEl("yp-income-min", "₱--");
+        setEl("yp-income-avg", "₱--");
+        setEl("yp-income-max", "₱--");
+        setEl("yp-estimated-cost", "₱--");
+        setEl("yp-net-profit", "₱--");
+        setEl("yp-cost-per-kg-rate", "--");
+
+        setEl("predictedYieldValue", "Pending");
+        setEl("predictedYieldConfidence", pendingMsg);
+    } else {
+        // Big yield banner (RF-based when available, formula fallback otherwise)
+        setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
+        setEl("yp-yield-sub", result.rfAvailable
+            ? "Random Forest projection from live sensor data"
+            : "Based on stock, survival rate & weight per piece (formula estimate)");
+
+        // RF mode badge + metadata
+        const modeBadge = document.getElementById("yp-rf-mode-badge");
+        if (modeBadge) {
+            if (result.rfAvailable) {
+                modeBadge.textContent = RF_MODE_LABELS[result.rfMode] || "RF Prediction";
+                modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (result.rfMode || "unknown");
+            } else {
+                modeBadge.textContent = "Formula Estimate";
+                modeBadge.className   = "yp-rf-mode-badge is-fallback";
+            }
+        }
+        setEl("yp-rf-note", result.rfAvailable ? result.rfNote : "");
+        setEl("yp-rf-readings", result.rfAvailable && result.rfReadingsUsed != null
+            ? "Based on " + result.rfReadingsUsed.toLocaleString("en-PH") + " sensor readings"
+            : "");
+        const rfUpdatedDate = result.rfAvailable ? toDateValue(result.rfUpdatedAt) : null;
+        setEl("yp-rf-updated", rfUpdatedDate
+            ? "Last updated: " + rfUpdatedDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
+            : "");
+
+        // Income cards
+        setEl("yp-income-min", fmtPeso(result.incomeMin));
+        setEl("yp-income-avg", fmtPeso(result.incomeAvg));
+        setEl("yp-income-max", fmtPeso(result.incomeMax));
+
+        // Profit estimate (cost per kg is a user-set placeholder — always labeled "estimated")
+        setEl("yp-estimated-cost", fmtPeso(result.estimatedCost));
+        setEl("yp-net-profit", fmtPeso(result.netProfit));
+        setEl("yp-cost-per-kg-rate", "at ₱" + fmt(result.costPerKg, 0) + " / kg (estimated)");
+
+        // Keep the existing metric card in sync
+        setEl("predictedYieldValue", fmt(result.adjustedYield, 1) + " kg");
+        setEl("predictedYieldConfidence", result.rfAvailable
+            ? (RF_MODE_LABELS[result.rfMode] || "RF Prediction")
+            : "Formula estimate — current cycle data");
     }
-    setEl("yp-rf-note", result.rfAvailable ? result.rfNote : "");
-    setEl("yp-rf-readings", result.rfAvailable && result.rfReadingsUsed != null
-        ? "Based on " + result.rfReadingsUsed.toLocaleString("en-PH") + " sensor readings"
-        : "");
-    const rfUpdatedDate = result.rfAvailable ? toDateValue(result.rfUpdatedAt) : null;
-    setEl("yp-rf-updated", rfUpdatedDate
-        ? "Last updated: " + rfUpdatedDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
-        : "");
-
-    // Income cards
-    setEl("yp-income-min", fmtPeso(result.incomeMin));
-    setEl("yp-income-avg", fmtPeso(result.incomeAvg));
-    setEl("yp-income-max", fmtPeso(result.incomeMax));
-
-    // Profit estimate (cost per kg is a user-set placeholder — always labeled "estimated")
-    setEl("yp-estimated-cost", fmtPeso(result.estimatedCost));
-    setEl("yp-net-profit", fmtPeso(result.netProfit));
-    setEl("yp-cost-per-kg-rate", "at ₱" + fmt(result.costPerKg, 0) + " / kg (estimated)");
 
     // Per-sensor score chips
     if (sensorData) {
@@ -177,14 +231,6 @@ function updateUI(result, cycleData, sensorData) {
     // Reveal section
     const section = document.getElementById("ypSection");
     if (section) section.classList.remove("yp-loading");
-
-    // Keep the existing metric card in sync
-    const yieldEl = document.getElementById("predictedYieldValue");
-    const confEl  = document.getElementById("predictedYieldConfidence");
-    if (yieldEl) yieldEl.textContent = fmt(result.adjustedYield, 1) + " kg";
-    if (confEl)  confEl.textContent  = result.rfAvailable
-        ? (RF_MODE_LABELS[result.rfMode] || "RF Prediction")
-        : "Formula estimate — current cycle data";
 }
 
 // ─── Public init ───────────────────────────────────────────────────────────────
