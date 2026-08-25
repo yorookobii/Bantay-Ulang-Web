@@ -9,3 +9,6 @@ serviceAccountKey.json
 firebase-adminsdk*.json
 *.joblib
 read_counter.json
+
+__pycache__/
+*.pyc
