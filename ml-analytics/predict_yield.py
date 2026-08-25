@@ -242,6 +242,16 @@ def project_harvest_weight(model, water, start_weight):
     return weight
 
 # ============================================================
+# 4b. FETCH TOTAL DEATHS SINCE CYCLE START (data-based survival)
+# ============================================================
+def fetch_total_deaths(db, cycle_start):
+    """Kabuuang deathCount mula mortality_records mula cycle_start.
+    Mirrors dashboard.js loadMortalityStat / survivalChart.js loadDeathsByWeek."""
+    docs = list(db.collection("mortality_records").where("createdAt", ">=", cycle_start).stream())
+    total_deaths = sum((d.to_dict().get("deathCount") or 0) for d in docs)
+    return total_deaths, len(docs)
+
+# ============================================================
 # 0. GROWTH_INDICATORS DOC + 3-MONTH GATE
 # ============================================================
 def fetch_growth_indicators(db):
@@ -254,17 +264,18 @@ def fetch_growth_indicators(db):
 # ============================================================
 # 5. COMPUTE YIELD
 # ============================================================
-def compute_yield(gi_doc, gi, harvest_weight):
-    """Yield = stock x survival x harvest_weight / 1000 (mula growth_indicators)."""
+def compute_yield(gi_doc, gi, harvest_weight, total_deaths):
+    """Yield = stock x survival x harvest_weight / 1000. Survival computed from
+    logged mortality_records, not a typed Settings field (mirrors dashboard.js)."""
     stock = gi.get("initialStock", 50)
-    survival = gi.get("survivalRate", 80.0)
+    survival = max(0.0, ((stock - total_deaths) / stock) * 100.0) if stock > 0 else 0.0
     yield_kg = stock * (survival / 100.0) * harvest_weight / 1000.0
     return gi_doc.reference, stock, survival, yield_kg
 
 # ============================================================
 # 6. ISULAT PABALIK SA FIRESTORE
 # ============================================================
-def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings):
+def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note):
     notes = {
         "test": "Test-mode: assumed optimal conditions (walang readings pa)",
         "hybrid": "Hybrid: real water params, assumed biomass/feed",
@@ -276,7 +287,7 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings):
         "rfMode": mode,
         "rfReadingsUsed": n_readings,
         "rfUpdatedAt": firestore.SERVER_TIMESTAMP,
-        "rfNote": notes.get(mode, "Unknown mode"),
+        "rfNote": notes.get(mode, "Unknown mode") + " " + survival_note,
         "rfPending": False,
         "rfDaysUntilAvailable": None,
     }
@@ -322,6 +333,22 @@ def main():
 
     print(f"[GATE] Eligible — {days_since_start} araw na mula sa cycle start.")
 
+    # --- DATA-BASED SURVIVAL (mortality_records, mirrors dashboard.js/survivalChart.js) ---
+    # Fetched before the read guardrail — it's a small, technician-logged
+    # collection, not sensor-volume like the water-averages fetch below.
+    try:
+        total_deaths, mortality_reads = fetch_total_deaths(db, cycle_start)
+    except Exception as e:
+        print(f"[ERROR] Hindi nakuha ang mortality_records: {e}")
+        print("[EXIT] Hindi tumuloy — survival data unavailable.")
+        return
+
+    if total_deaths == 0:
+        survival_note = "No mortality logged this cycle — survival assumed 100%."
+    else:
+        survival_note = "Survival based on current logged mortality (as-of-date), not final harvest survival."
+    print(f"[OK] Mortality: {total_deaths} logged deaths mula cycle start ({mortality_reads} records read)")
+
     # --- READ GUARDRAIL (bago kumuha ng water data) ---
     # Planong reads: MAX_READINGS (water) + ~1 (write-back)
     planned = MAX_READINGS + 1
@@ -337,8 +364,8 @@ def main():
 
     # I-update ang read counter (aktwal na nagamit)
     current = load_read_counter()
-    save_read_counter(current + actual_reads + 1)  # +1 para sa gate check (nasa itaas na)
-    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + 1:,} reads ngayong araw")
+    save_read_counter(current + actual_reads + mortality_reads + 1)  # +1 para sa gate check (nasa itaas na)
+    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + mortality_reads + 1:,} reads ngayong araw")
 
     # Determine mode
     if water is None or any(v is None for v in water.values()):
@@ -359,11 +386,11 @@ def main():
           f"(mula {ASSUMED_START_WEIGHT}g, {HARVEST_WEEK} weeks)")
 
     # Compute yield
-    doc_ref, stock, survival, yield_kg = compute_yield(gi_doc, gi, harvest_weight)
-    print(f"[OK] YIELD = {stock} x {survival}% x {harvest_weight:.1f}g / 1000 = {yield_kg:.2f} kg")
+    doc_ref, stock, survival, yield_kg = compute_yield(gi_doc, gi, harvest_weight, total_deaths)
+    print(f"[OK] YIELD = {stock} x {survival:.1f}% x {harvest_weight:.1f}g / 1000 = {yield_kg:.2f} kg")
 
     # Isulat pabalik
-    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings)
+    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note)
 
     print("=" * 55)
     print("TAPOS — prediction nasa Firestore growth_indicators")

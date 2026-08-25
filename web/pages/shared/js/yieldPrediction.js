@@ -12,7 +12,7 @@ import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualitySc
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
-//  Yield (kg)   = RF-projected harvest weight × survivalRate × initialStock
+//  Yield (kg)   = RF-projected harvest weight × survival (from mortality_records) × initialStock
 //  (see ml-analytics/predict_yield.py). No formula fallback — if RF hasn't
 //  produced a prediction for this cycle yet, adjustedYield is null and the
 //  UI shows a "being processed" state instead of a number.
@@ -32,7 +32,6 @@ const RF_GATE_DAYS = 90;
 
 function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock) || 0;
-    const survivalRate = Number(growthData.survivalRate) || 0;
     const costPerKg     = Number(growthData.costPerKg) > 0 ? Number(growthData.costPerKg) : DEFAULT_COST_PER_KG;
 
     // Panelist requirement: no yield prediction until the cycle has run for
@@ -66,7 +65,6 @@ function calcYield(growthData, wqScore) {
 
     return {
         initialStock,
-        survivalRate,
         wqScore,
         eligible,
         weeksRemaining,

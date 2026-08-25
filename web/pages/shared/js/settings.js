@@ -79,10 +79,9 @@ if (form) {
 
 const DEFAULT_COST_PER_KG = 250;
 
-const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_survivalRate', 'gi_costPerKg'];
+const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_costPerKg'];
 const GROWTH_FIELD_MAP = {
     gi_initialStock: 'initialStock',
-    gi_survivalRate: 'survivalRate',
     gi_costPerKg:    'costPerKg',
 };
 let growthDocRef = null;
@@ -116,14 +115,13 @@ async function loadGrowthParams() {
 
 async function saveGrowthParams() {
     const initialStock = parseFloat(document.getElementById('gi_initialStock')?.value) || 0;
-    const survivalRate = parseFloat(document.getElementById('gi_survivalRate')?.value) || 0;
     const costPerKgRaw = document.getElementById('gi_costPerKg')?.value;
     const costPerKg    = costPerKgRaw !== '' && costPerKgRaw != null ? parseFloat(costPerKgRaw) : DEFAULT_COST_PER_KG;
 
     const cycleStartVal = document.getElementById('gi_cycleStart')?.value;
     const cycleStart     = cycleStartVal ? new Date(cycleStartVal + 'T00:00:00') : null;
 
-    const payload = { initialStock, survivalRate, costPerKg, cycleStart, timestamp: serverTimestamp() };
+    const payload = { initialStock, costPerKg, cycleStart, timestamp: serverTimestamp() };
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });
