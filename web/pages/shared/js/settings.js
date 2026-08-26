@@ -7,6 +7,46 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/f
 
 const THRESHOLDS_DOC = doc(db, 'settings', 'thresholds');
 
+// ── Shared confirm modal ──────────────────────────────────────────────────────
+
+const confirmOverlay = document.getElementById('confirmModalOverlay');
+const confirmTitleEl = document.getElementById('confirmModalTitle');
+const confirmMsgEl   = document.getElementById('confirmModalMsg');
+const confirmBtn     = document.getElementById('confirmModalConfirm');
+const cancelBtn      = document.getElementById('confirmModalCancel');
+let pendingConfirmResolve = null;
+
+function confirmDialog(title, message) {
+    if (pendingConfirmResolve) return Promise.resolve(false);
+    return new Promise((resolve) => {
+        pendingConfirmResolve = resolve;
+        if (confirmTitleEl) confirmTitleEl.textContent = title;
+        if (confirmMsgEl) confirmMsgEl.textContent = message;
+        if (confirmOverlay) {
+            confirmOverlay.classList.add('show');
+            confirmOverlay.setAttribute('aria-hidden', 'false');
+        }
+    });
+}
+
+function closeConfirmDialog(result) {
+    if (confirmOverlay) {
+        confirmOverlay.classList.remove('show');
+        confirmOverlay.setAttribute('aria-hidden', 'true');
+    }
+    if (pendingConfirmResolve) {
+        const resolve = pendingConfirmResolve;
+        pendingConfirmResolve = null;
+        resolve(result);
+    }
+}
+
+if (confirmBtn) confirmBtn.addEventListener('click', () => closeConfirmDialog(true));
+if (cancelBtn) cancelBtn.addEventListener('click', () => closeConfirmDialog(false));
+if (confirmOverlay) confirmOverlay.addEventListener('click', (e) => {
+    if (e.target === confirmOverlay) closeConfirmDialog(false);
+});
+
 const FIELDS = [
     'ph_min', 'ph_max',
     'temp_min', 'temp_max',
@@ -52,6 +92,8 @@ const msgEl = document.getElementById('threshold-saved-msg');
 if (form) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const ok = await confirmDialog('Save changes?', 'Are you sure you want to save these changes?');
+        if (!ok) return;
         const btn = form.querySelector('button[type="submit"]');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         try {
@@ -85,6 +127,7 @@ const GROWTH_FIELD_MAP = {
     gi_costPerKg:    'costPerKg',
 };
 let growthDocRef = null;
+let loadedCycleStart = null;
 
 async function loadGrowthParams() {
     try {
@@ -102,7 +145,9 @@ async function loadGrowthParams() {
 
             const cycleStartEl = document.getElementById('gi_cycleStart');
             if (cycleStartEl && data.cycleStart?.toDate) {
-                cycleStartEl.value = data.cycleStart.toDate().toISOString().slice(0, 10);
+                const iso = data.cycleStart.toDate().toISOString().slice(0, 10);
+                cycleStartEl.value = iso;
+                loadedCycleStart = iso;
             }
             // One-time check: confirm the latest-by-timestamp doc actually carries
             // cycleStart (a manually-added field on an older doc would never surface here).
@@ -138,6 +183,12 @@ const growthMsgEl = document.getElementById('growth-saved-msg');
 if (growthForm) {
     growthForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const newCycleStart = document.getElementById('gi_cycleStart')?.value;
+        const cycleStartChanged = loadedCycleStart != null && newCycleStart !== loadedCycleStart;
+        const ok = cycleStartChanged
+            ? await confirmDialog('Change cycle start date?', 'Changing the cycle start date will reset yield predictions and the 3-month prediction timer for this cycle. Are you sure you want to continue?')
+            : await confirmDialog('Save changes?', 'Are you sure you want to save these changes?');
+        if (!ok) return;
         const btn = growthForm.querySelector('button[type="submit"]');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         try {
