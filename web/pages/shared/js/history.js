@@ -264,6 +264,13 @@ function resetPagination() {
 // assignedTo may be null, role stored as assignedRole — a different field
 // name than the manual writer uses). Both are checked below; this naming
 // inconsistency is a known system-wide issue, not fixed here.
+//
+// Assignee display is resolved LIVE from the "users" collection (uid -> name),
+// not from the stored assignedToName — assign-actions.js bakes the raw uid
+// into assignedToName when the user has no fullName at assignment time, and
+// alertsEngine.js never writes assignedToName at all. A live lookup means
+// both cases resolve correctly, and a user who sets their name later isn't
+// stuck showing an old id. See resolveAssignee() below.
 
 const TASK_PAGE_SIZE = 20;
 const TASK_COLL = "tasks";
@@ -271,6 +278,50 @@ const TASK_COLL = "tasks";
 let taskPageCursors = [null];
 let taskCurrentPage = 0;
 let taskHasMore = false;
+
+// ─── uid -> display name (batch-fetched once, same pattern as
+// assign-actions.js's loadUsers(), cached like getCycleStartMs() above) ────────
+
+function resolveUserDisplayName(userData) {
+    return userData.fullName || userData.displayName || userData.email || null;
+}
+
+let userNameMapPromise = null;
+
+async function loadUserNameMap() {
+    const map = new Map();
+    try {
+        const snap = await getDocs(collection(db, "users"));
+        snap.forEach(d => {
+            const name = resolveUserDisplayName(d.data());
+            if (name) map.set(d.id, name);
+        });
+    } catch (err) {
+        console.warn("history: could not load users for task assignee lookup:", err);
+    }
+    return map;
+}
+
+function getUserNameMap() {
+    if (!userNameMapPromise) userNameMapPromise = loadUserNameMap();
+    return userNameMapPromise;
+}
+
+// assignedTo is the source of truth; assignedToName is only trusted as a
+// fallback when it's distinguishable from the raw uid — assign-actions.js
+// writes assignedToName = personUid when the user had no fullName, so an
+// exact match to assignedTo means "this is a baked-in id, not a name."
+function resolveAssignee(data, userNameMap) {
+    if (data.assignedTo == null) return "Unassigned";
+
+    const liveName = userNameMap.get(data.assignedTo);
+    if (liveName) return liveName;
+
+    if (data.assignedToName && data.assignedToName !== data.assignedTo) {
+        return data.assignedToName;
+    }
+    return "Unknown";
+}
 
 function buildTaskQuery(cursorDoc) {
     const clauses = [orderBy("createdAt", "desc")];
@@ -289,7 +340,7 @@ function fmtTaskDate(ts) {
         " · " + d.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" });
 }
 
-function buildTaskRow(data) {
+function buildTaskRow(data, userNameMap) {
     const tr = document.createElement("tr");
 
     const status      = String(data.status || "pending").toLowerCase();
@@ -299,7 +350,7 @@ function buildTaskRow(data) {
     // assignedToRole (assign-actions.js) vs assignedRole (alertsEngine.js) — check both.
     const role      = data.assignedToRole || data.assignedRole || "";
     const roleLabel = role ? capitalize(role) : "";
-    const assignee  = data.assignedToName || (data.assignedTo == null ? "Unassigned" : data.assignedTo);
+    const assignee  = resolveAssignee(data, userNameMap);
 
     const source = data.createdBy === "system" ? "System" : "Admin";
 
@@ -343,7 +394,14 @@ async function loadTaskPage(pageIndex) {
     if (errorEl)   errorEl.style.display   = "none";
 
     try {
-        const snap = await getDocs(buildTaskQuery(taskPageCursors[pageIndex] ?? null));
+        // Run concurrently: the users lookup only needs to resolve before rows
+        // are built, not before the tasks query starts. getUserNameMap() is
+        // memoized, so every page after the first awaits an already-resolved
+        // promise here — no repeat fetch.
+        const [snap, userNameMap] = await Promise.all([
+            getDocs(buildTaskQuery(taskPageCursors[pageIndex] ?? null)),
+            getUserNameMap()
+        ]);
         if (loadingEl) loadingEl.style.display = "none";
 
         if (snap.empty) {
@@ -353,7 +411,7 @@ async function loadTaskPage(pageIndex) {
             return;
         }
 
-        snap.forEach(doc => tbody.appendChild(buildTaskRow(doc.data())));
+        snap.forEach(doc => tbody.appendChild(buildTaskRow(doc.data(), userNameMap)));
 
         taskHasMore = snap.docs.length === TASK_PAGE_SIZE;
         if (taskHasMore && !taskPageCursors[pageIndex + 1]) {
