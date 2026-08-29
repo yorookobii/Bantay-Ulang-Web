@@ -120,6 +120,9 @@ if (form) {
 // ── Growth Parameters ─────────────────────────────────────────────────────────
 
 const DEFAULT_COST_PER_KG = 250;
+// Ulang grow-out period — matches yieldPrediction.js's harvest-date computation
+// so web and Flutter (which reads stored cycleEnd) agree.
+const GROWOUT_DAYS = 150;
 
 const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_costPerKg'];
 const GROWTH_FIELD_MAP = {
@@ -145,7 +148,11 @@ async function loadGrowthParams() {
 
             const cycleStartEl = document.getElementById('gi_cycleStart');
             if (cycleStartEl && data.cycleStart?.toDate) {
-                const iso = data.cycleStart.toDate().toISOString().slice(0, 10);
+                // Local getters, not toISOString() (which is UTC) — the save path
+                // writes local midnight (new Date(val + 'T00:00:00')), so the loader
+                // must read back in local time too or the date box drifts by a day.
+                const d = data.cycleStart.toDate();
+                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 cycleStartEl.value = iso;
                 loadedCycleStart = iso;
             }
@@ -165,8 +172,12 @@ async function saveGrowthParams() {
 
     const cycleStartVal = document.getElementById('gi_cycleStart')?.value;
     const cycleStart     = cycleStartVal ? new Date(cycleStartVal + 'T00:00:00') : null;
+    // cycleEnd is derived, not user-set — no UI field for it. Recomputed from
+    // cycleStart on every save so it can never go stale (overwrites any old
+    // manually-entered value). Flutter reads this stored field directly.
+    const cycleEnd = cycleStart ? new Date(cycleStart.getTime() + GROWOUT_DAYS * 24 * 60 * 60 * 1000) : null;
 
-    const payload = { initialStock, costPerKg, cycleStart, timestamp: serverTimestamp() };
+    const payload = { initialStock, costPerKg, cycleStart, cycleEnd, timestamp: serverTimestamp() };
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });
