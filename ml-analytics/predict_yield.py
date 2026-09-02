@@ -38,9 +38,15 @@ ASSUMED_START_WEIGHT = 2.0  # juvenile start (g) — project buong 18 weeks
 HARVEST_WEEK = 18
 GATE_DAYS = 90  # panelist requirement: yield prediction only after 3 months of real cultivation data
 
-# Fetch settings
-BATCH = 500                 # readings kada batch (iwas timeout)
-MAX_READINGS = 5000         # limitahan (sapat na sa stable average)
+# Fetch settings — per-day direct reads (see fetch_day_readings), cache-aware
+DAILY_CACHE_FILE = "daily_averages_cache.json"  # per-day aggregate cache (gitignored)
+ESTIMATED_READS_PER_DAY = 720  # rough estimate for the guardrail PRE-check only —
+                                # correct against actual live daily doc counts;
+                                # post-fetch counter update always uses the real count.
+GRACE_DAYS = 2  # old empty days (older than today - GRACE_DAYS) are marked
+                # "confirmed empty" and stop being retried; the last GRACE_DAYS
+                # days are excluded from the completeness requirement entirely
+                # (assumed possible delayed upload, not a permanent gap).
 
 # Read guardrail (Firestore free tier protection)
 DAILY_READ_LIMIT = 50000    # Firestore free tier (Spark plan)
@@ -53,6 +59,16 @@ FEATURES = [
     "avgWaterTemp", "avgPh", "avgDissolvedOxygen",
     "avgTds", "avgTurbidity", "avgFeedRate",
 ]
+
+# water stat field -> reading doc's statistics.<key>.average (single source
+# of truth, shared by fetch_day_readings)
+STAT_MAP = {
+    "avgWaterTemp": "waterTemperatureC",
+    "avgPh": "phValue",
+    "avgDissolvedOxygen": "oxygenLevelMgL",
+    "avgTds": "tdsPpm",
+    "avgTurbidity": "turbidityNTU",
+}
 
 # ============================================================
 # READ GUARDRAIL
@@ -128,78 +144,170 @@ def connect_firestore():
     return db
 
 # ============================================================
-# 2. KUNIN + I-AGGREGATE ANG WATER DATA (collection group, batched)
+# 2. DAILY AGGREGATE CACHE (incremental, per-day direct reads)
 # ============================================================
-def fetch_water_averages(db):
+def load_daily_cache():
+    """Basahin ang per-day aggregate cache. {"cycleStart": None, "days": {}}
+    kung wala pa o corrupt ang file (parehong graceful-degrade style ng
+    load_read_counter())."""
+    if os.path.exists(DAILY_CACHE_FILE):
+        try:
+            with open(DAILY_CACHE_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"cycleStart": None, "days": {}}
+
+def save_daily_cache(cache):
+    """I-save ang buong daily cache dict pabalik sa DAILY_CACHE_FILE."""
+    try:
+        with open(DAILY_CACHE_FILE, "w") as f:
+            json.dump(cache, f)
+    except IOError as e:
+        print(f"[WARN] Hindi na-save ang daily cache: {e}")
+
+def reconcile_daily_cache(cache, cycle_start):
+    """I-clear ang buong cache kung iba na ang cycleStart (bagong grow
+    cycle) — invalid na ang mga naka-cache na araw. Mirrors
+    readingsService.js's reconcileCycleStart()."""
+    cycle_start_iso = cycle_start.isoformat()
+    if cache.get("cycleStart") != cycle_start_iso:
+        return {"cycleStart": cycle_start_iso, "days": {}}
+    return cache
+
+def get_missing_dates(cache, start_date, today):
+    """Mga petsa mula start_date hanggang KAHAPON (hindi kasama si today,
+    laging fresh-fetch iyon) na wala pang entry sa cache["days"]."""
+    missing = []
+    d = start_date
+    while d < today:
+        if d.isoformat() not in cache["days"]:
+            missing.append(d)
+        d += timedelta(days=1)
+    return missing
+
+def fetch_day_readings(db, year, month, day):
     """
-    Collection group query sa "readings" (kahit anong petsa naka-nest),
-    batched para hindi mag-timeout. I-average ang statistics.*.average.
-    Nagbabalik: (water_dict, used_count, actual_reads)
+    Direktang path read para sa ISANG araw (hindi collection_group scan):
+    HistoryLogs/Ulang/years/reading_YYYY/reading_MM/reading_DD/readings
+    (zero-padded ang month/day segments — verified sa Firestore console).
+
+    Nagbabalik: (day_avgs dict {feat: float|None}, usable_n, docs_streamed)
     """
-    stat_map = {
-        "avgWaterTemp": "waterTemperatureC",
-        "avgPh": "phValue",
-        "avgDissolvedOxygen": "oxygenLevelMgL",
-        "avgTds": "tdsPpm",
-        "avgTurbidity": "turbidityNTU",
-    }
-    collected = {k: [] for k in stat_map}
+    coll = (
+        db.collection("HistoryLogs").document("Ulang")
+          .collection("years").document(f"reading_{year}")
+          .collection(f"reading_{month:02d}").document(f"reading_{day:02d}")
+          .collection("readings")
+    )
+    docs = list(coll.stream())
 
-    used = 0
-    skipped = 0
-    last_doc = None
-    total_fetched = 0
+    collected = {k: [] for k in STAT_MAP}
+    usable_n = 0
+    for doc in docs:
+        data = doc.to_dict()
+        stats = data.get("statistics", {})
+        if not stats:
+            continue
+        got = False
+        for feat, stat_key in STAT_MAP.items():
+            param = stats.get(stat_key, {})
+            avg = param.get("average")
+            if avg is not None:
+                collected[feat].append(float(avg))
+                got = True
+        if got:
+            usable_n += 1
 
-    while total_fetched < MAX_READINGS:
-        q = db.collection_group("readings").limit(BATCH)
-        if last_doc is not None:
-            q = q.start_after(last_doc)
+    day_avgs = {feat: (float(np.mean(vals)) if vals else None) for feat, vals in collected.items()}
+    return day_avgs, usable_n, len(docs)
 
-        batch_docs = list(q.stream())
-        if not batch_docs:
-            break
+def backfill_missing_days(db, daily_cache, missing_dates, budget_remaining, grace_cutoff):
+    """
+    Auto-capped, non-interactive backfill loop: fetches missing days
+    (oldest first) directly via fetch_day_readings, stopping BEFORE any day
+    likely to exceed budget_remaining (pre-check) and immediately after any
+    day that did anyway (post-check safety net). Saves the cache after
+    EVERY day — if the process is killed mid-loop, only the in-flight day
+    is lost, every prior day this run is already durable.
 
-        for doc in batch_docs:
-            data = doc.to_dict()
-            stats = data.get("statistics", {})
-            if not stats:
-                skipped += 1
-                continue
-            got = False
-            for feat, stat_key in stat_map.items():
-                param = stats.get(stat_key, {})
-                avg = param.get("average")
-                if avg is not None:
-                    collected[feat].append(float(avg))
-                    got = True
-            if got:
-                used += 1
-            else:
-                skipped += 1
+    A day with n == 0 usable readings is cached as an empty marker
+    ({"n": 0}) once it's older than grace_cutoff — a real cache key, so
+    get_missing_dates() naturally treats it as done and never re-fetches
+    it. A day within the grace window (>= grace_cutoff) is left uncached
+    on n == 0, in case it's a delayed upload — retried next run.
 
-        last_doc = batch_docs[-1]
-        total_fetched += len(batch_docs)
-        print(f"[INFO] Nakuha: {total_fetched} readings...")
+    No input() prompt — fully automatic. A run that stops here because of
+    the budget leaves the cache exactly where it left off; the next run
+    resumes via get_missing_dates() (cached days = 0 reads).
 
-        if len(batch_docs) < BATCH:
-            break
+    Nagbabalik: (reads_used, days_fetched)
+    """
+    reads_used = 0
+    days_fetched = 0
 
-    print(f"[INFO] Kabuuan: {total_fetched} readings scanned")
+    for d in missing_dates:
+        if reads_used + ESTIMATED_READS_PER_DAY > budget_remaining:
+            break  # pre-check: don't start a day likely to overshoot
 
-    if used == 0:
-        print("[WARN] Walang usable readings — test-mode fallback")
-        return None, 0, total_fetched
+        day_avgs, n, docs_streamed = fetch_day_readings(db, d.year, d.month, d.day)
+        reads_used += docs_streamed
+        if n > 0:
+            entry = dict(day_avgs)
+            entry["n"] = n
+            daily_cache["days"][d.isoformat()] = entry
+        elif d < grace_cutoff:
+            # genuinely empty, past the grace window — mark done, never retry
+            daily_cache["days"][d.isoformat()] = {"n": 0}
+        # else: n == 0 but still within the grace window — leave uncached,
+        # retry next run (possible delayed upload).
+        save_daily_cache(daily_cache)
+        days_fetched += 1
+        status = "cached" if (n > 0 or d < grace_cutoff) else "grace-retry"
+        print(f"[BACKFILL] {d.isoformat()}: {n} usable readings ({docs_streamed} read, {status})")
+
+        if reads_used >= budget_remaining:
+            break  # post-check: a day ran hotter than the estimate
+
+    return reads_used, days_fetched
+
+def fetch_today_and_average(db, daily_cache, today):
+    """
+    Call ONLY once backfill is complete (zero missing days). Fetches TODAY
+    fresh — never cached as final, patuloy pang dumadagdag ang readings
+    ngayong araw — then computes the READING-COUNT-WEIGHTED whole-cycle
+    average across all cached days + today.
+
+    Nagbabalik: (water_dict, total_readings_used, actual_reads)
+    """
+    today_avgs, today_n, actual_reads = fetch_day_readings(db, today.year, today.month, today.day)
+    print(f"[INFO] {today.isoformat()} (today, hindi kino-cache): {today_n} usable readings ({actual_reads} read)")
+
+    all_days = list(daily_cache["days"].values())
+    if today_n > 0:
+        all_days.append(dict(today_avgs, n=today_n))
 
     water = {}
-    for feat, vals in collected.items():
-        if vals:
-            water[feat] = float(np.mean(vals))
-        else:
-            print(f"[WARN] Walang data para sa {feat}")
-            water[feat] = None
+    for feat in STAT_MAP:
+        weighted_sum = 0.0
+        weight_total = 0
+        for day in all_days:
+            val = day.get(feat)
+            n = day.get("n", 0)
+            if val is not None and n > 0:
+                weighted_sum += val * n
+                weight_total += n
+        water[feat] = (weighted_sum / weight_total) if weight_total > 0 else None
 
-    print(f"[OK] Na-aggregate: {used} readings (skipped: {skipped})")
-    return water, used, total_fetched
+    total_n = sum(day.get("n", 0) for day in all_days)
+    if total_n == 0:
+        print("[WARN] Walang usable readings sa buong cycle range — test-mode fallback")
+        return None, 0, actual_reads
+
+    data_days = sum(1 for day in all_days if day.get("n", 0) > 0)
+    empty_days = len(all_days) - data_days
+    print(f"[OK] Na-aggregate: {total_n} readings sa {data_days} data days ({len(all_days)} sa range, {empty_days} empty) — weighted by n")
+    return water, total_n, actual_reads
 
 # ============================================================
 # 3. ASSUMED VALUES (HYBRID MODE)
@@ -349,23 +457,70 @@ def main():
         survival_note = "Survival based on current logged mortality (as-of-date), not final harvest survival."
     print(f"[OK] Mortality: {total_deaths} logged deaths mula cycle start ({mortality_reads} records read)")
 
-    # --- READ GUARDRAIL (bago kumuha ng water data) ---
-    # Planong reads: MAX_READINGS (water) + ~1 (write-back)
-    planned = MAX_READINGS + 1
-    if not check_read_guardrail(planned):
+    # --- DAILY CACHE — load + reconcile + missing-days list. Local file I/O
+    # only, no Firestore reads, so safe to do before any budget/guardrail
+    # check. ---
+    daily_cache = load_daily_cache()
+    daily_cache = reconcile_daily_cache(daily_cache, cycle_start)
+    today = datetime.now(timezone.utc).date()
+    missing_dates = get_missing_dates(daily_cache, cycle_start.date(), today)
+    grace_cutoff = today - timedelta(days=GRACE_DAYS)
+
+    # --- AUTO-CAPPED BACKFILL (no prompt) — spreads a large initial
+    # backfill across multiple runs/days instead of one big fetch. Budget =
+    # what's left of today's SAFETY_THRESHOLD after reads already spent
+    # today. ---
+    current_reads_today = load_read_counter()
+    budget_remaining = max(0, SAFETY_THRESHOLD - current_reads_today)
+    reads_used, days_fetched = backfill_missing_days(db, daily_cache, missing_dates, budget_remaining, grace_cutoff)
+    if days_fetched:
+        print(f"[BACKFILL] {days_fetched}/{len(missing_dates)} day(s) fetched this run ({reads_used} reads).")
+
+    # Persist the counter NOW — includes the gate check (+1) and
+    # mortality_reads from earlier in this run, not just reads_used, so an
+    # incomplete-backfill exit below still records every read this run
+    # actually spent. Must happen BEFORE the completeness gate can return,
+    # or a same-day re-run wouldn't know this budget was already used.
+    save_read_counter(current_reads_today + reads_used + mortality_reads + 1)
+
+    # --- COMPLETENESS GATE — do NOT fetch today or predict until every day
+    # from cycleStart to (today - GRACE_DAYS) is cached (real data or an
+    # empty marker). The last GRACE_DAYS days are excluded from this check
+    # on purpose — they're allowed to still be pending delayed uploads
+    # without blocking prediction indefinitely. Partial state is fine; the
+    # prediction just waits on the OLD days, not the recent grace window. ---
+    remaining_missing = get_missing_dates(daily_cache, cycle_start.date(), grace_cutoff)
+    if remaining_missing:
+        total_days_in_range = (grace_cutoff - cycle_start.date()).days
+        cached_days = total_days_in_range - len(remaining_missing)
+        gi_doc.reference.update({
+            "rfPending": True,
+            "rfBackfillDaysRemaining": len(remaining_missing),
+            "rfNote": f"Building sensor history: {cached_days}/{total_days_in_range} days cached "
+                      f"— backfill incomplete, re-run to continue (quota resets daily).",
+        })
+        print(f"[BACKFILL] Incomplete — {len(remaining_missing)} day(s) remaining. Exiting; re-run to continue.")
+        return
+
+    # --- READ GUARDRAIL (bago kumuha ng today's data) — backfill is
+    # self-limiting and already done above, so this only guards the small,
+    # steady-state "fetch today" step. ---
+    planned_today = ESTIMATED_READS_PER_DAY + 1
+    if not check_read_guardrail(planned_today):
         print("[EXIT] Hindi tumuloy — read guardrail.")
         return
 
     model = joblib.load(MODEL_FILE)
     print(f"[OK] Na-load ang model: {MODEL_FILE}")
 
-    # Kunin ang water data
-    water, n_readings, actual_reads = fetch_water_averages(db)
+    # Kunin ang water data — backfill complete, fetch today + weighted average
+    water, n_readings, actual_reads = fetch_today_and_average(db, daily_cache, today)
 
-    # I-update ang read counter (aktwal na nagamit)
+    # I-update ang read counter (dagdag na lang dito — backfill + mortality +
+    # gate check ay na-save na sa itaas)
     current = load_read_counter()
-    save_read_counter(current + actual_reads + mortality_reads + 1)  # +1 para sa gate check (nasa itaas na)
-    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + mortality_reads + 1:,} reads ngayong araw")
+    save_read_counter(current + actual_reads)
+    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads:,} reads ngayong araw")
 
     # Determine mode
     if water is None or any(v is None for v in water.values()):

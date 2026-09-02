@@ -9,6 +9,7 @@ serviceAccountKey.json
 firebase-adminsdk*.json
 *.joblib
 read_counter.json
+daily_averages_cache.json
 
 __pycache__/
 *.pyc
