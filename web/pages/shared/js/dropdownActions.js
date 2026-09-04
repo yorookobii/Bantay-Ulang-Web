@@ -1,4 +1,4 @@
-import { auth, db } from './firebase.js';
+import { auth } from './firebase.js';
 import {
     signOut,
     reauthenticateWithCredential,
@@ -6,16 +6,19 @@ import {
     updatePassword
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-    collection,
-    query,
-    where,
-    getDocs
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    markSeen,
+    computeUnseenCount,
+    fetchActiveAlerts,
+    SEVERITY_ICON,
+    formatRelativeTime,
+    updateBadge
+} from './notificationsShared.js';
 
 const isOnTechnicianPage = window.location.pathname.includes('/technician/');
 const BASE = isOnTechnicianPage ? '../shared/' : './';
 const PROFILE_URL  = `${BASE}profile.html`;
 const SETTINGS_URL = `${BASE}settings.html`;
+const REALTIME_URL = `${BASE}real-time-monitoring.html`;
 const LOGIN_URL    = '../security/admin-tech-login.html';
 const SESSION_KEY  = 'bantay-ulang-auth-user';
 
@@ -146,54 +149,6 @@ function closeModal() {
 
 // ── Notification bell (active alerts) ────────────────────────────────────────
 
-// localStorage analog of Flutter's SharedPreferences seen-notification set
-// (see notification_service.dart / landing_page.dart) — same key, same
-// "alert:<docId>" entry format, so seen state has the same shape on both.
-const SEEN_KEY = 'seen_notification_keys';
-
-const SEVERITY_ICON = {
-    critical: { icon: 'fa-solid fa-triangle-exclamation', color: '#dc2626' },
-    high:     { icon: 'fa-solid fa-circle-exclamation',   color: '#ea580c' },
-    medium:   { icon: 'fa-solid fa-circle-exclamation',   color: '#d97706' },
-    low:      { icon: 'fa-solid fa-circle-info',          color: '#2563eb' }
-};
-
-function getSeenKeys() {
-    try {
-        return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)) || []);
-    } catch (_) {
-        return new Set();
-    }
-}
-
-function markSeen(keys) {
-    const seen = getSeenKeys();
-    keys.forEach((key) => seen.add(key));
-    try {
-        localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
-    } catch (_) {}
-}
-
-function formatRelativeTime(date) {
-    if (!date) return '';
-    const mins = Math.floor((Date.now() - date.getTime()) / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-}
-
-async function fetchActiveAlerts() {
-    // Filters by status only (matches dashboard.js:232-239) so no composite
-    // Firestore index is required; sort/limit happen client-side instead.
-    const snap = await getDocs(query(collection(db, 'alerts'), where('status', '==', 'active')));
-    return snap.docs
-        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-        .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
-        .slice(0, 15);
-}
-
 function renderNotifications(dropdownEl, alerts) {
     if (!alerts.length) {
         dropdownEl.innerHTML = '<div class="notification-item">No new notifications</div>';
@@ -202,25 +157,28 @@ function renderNotifications(dropdownEl, alerts) {
     dropdownEl.innerHTML = alerts.map((alert) => {
         const { icon, color } = SEVERITY_ICON[alert.severity] || SEVERITY_ICON.low;
         const time = formatRelativeTime(alert.createdAt?.toDate?.());
-        return `<div class="notification-item">
+        return `<div class="notification-item" data-alert-id="${alert.id}">
             <i class="${icon}" style="color:${color}"></i>
             <span>${alert.message || 'Alert'}${time ? ` <small style="color:#9ca3af;">(${time})</small>` : ''}</span>
         </div>`;
     }).join('');
-}
 
-function updateBadge(badgeEl, unseenCount) {
-    if (!badgeEl) return;
-    badgeEl.textContent = unseenCount > 9 ? '9+' : String(unseenCount);
-    badgeEl.style.display = unseenCount > 0 ? 'inline-block' : 'none';
+    // Per-item seen marking: clicking a specific alert marks only that one
+    // and takes the user to Real-Time Monitoring. Opening the bell itself
+    // never marks anything (see populateNotifications below).
+    dropdownEl.querySelectorAll('.notification-item[data-alert-id]').forEach((item) => {
+        item.addEventListener('click', () => {
+            markSeen([`alert:${item.getAttribute('data-alert-id')}`]);
+            window.location.href = REALTIME_URL;
+        });
+    });
 }
 
 async function populateNotifications() {
     const notifDropdown = document.getElementById('notificationDropdown');
     if (!notifDropdown) return;
 
-    const notifIcon = document.querySelector('.notification-icon');
-    const badgeEl   = document.querySelector('.notification-badge');
+    const badgeEl = document.querySelector('.notification-badge');
 
     let alerts = [];
     try {
@@ -230,17 +188,7 @@ async function populateNotifications() {
     }
 
     renderNotifications(notifDropdown, alerts);
-
-    const seen = getSeenKeys();
-    const unseenCount = alerts.filter((alert) => !seen.has(`alert:${alert.id}`)).length;
-    updateBadge(badgeEl, unseenCount);
-
-    if (notifIcon) {
-        notifIcon.addEventListener('click', () => {
-            markSeen(alerts.map((alert) => `alert:${alert.id}`));
-            updateBadge(badgeEl, 0);
-        });
-    }
+    updateBadge(badgeEl, computeUnseenCount(alerts));
 }
 
 // ── Public init ──────────────────────────────────────────────────────────────

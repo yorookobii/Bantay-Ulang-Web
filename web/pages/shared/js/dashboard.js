@@ -638,7 +638,7 @@ function renderAlertBanner(container, alertData, totalCount) {
                 moreHtml +
             '</div>' +
         '</div>' +
-        '<a href="real-time-monitoring.html" class="tab-action-btn">View All Alerts →</a>';
+        '<a href="all-alerts.html" class="tab-action-btn">View All Alerts →</a>';
 }
 
 function renderNoBanner(container) {

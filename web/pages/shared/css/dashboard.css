@@ -452,7 +452,7 @@
                 display: none; z-index: 1000;
             }
             .topbar .notification-dropdown.show { display: block; }
-            .topbar .notification-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #666; display: flex; align-items: center; gap: 10px; }
+            .topbar .notification-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #666; display: flex; align-items: center; gap: 10px; cursor: pointer; }
             .topbar .notification-item i { font-size: 14px; color: #3498db; flex-shrink: 0; width: 16px; text-align: center; }
             .topbar .notification-item:last-child { border-bottom: none; }
             .topbar .notification-item:hover { background-color: #f9f9f9; }
