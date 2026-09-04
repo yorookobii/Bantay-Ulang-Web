@@ -363,7 +363,7 @@
                 .sidebar.collapsed .user-info {
                     display: none;
                 }
-                .sidebar.collapsed .logo-row { justify-content: center; }
+                .sidebar.collapsed .logo-row { justify-content: center; flex-wrap: nowrap; gap: 4px; }
                 .sidebar.collapsed .sidebar-toggle { margin-left: auto; }
                 .sidebar.collapsed .sidebar-toggle i { transform: rotate(180deg); }
                 .sidebar.collapsed .sidebar-menu a { justify-content: center; padding: 15px; }

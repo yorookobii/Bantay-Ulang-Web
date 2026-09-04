@@ -485,6 +485,8 @@
                 }
                 .sidebar.collapsed .logo-row {
                     justify-content: center;
+                    flex-wrap: nowrap;
+                    gap: 4px;
                 }
                 .sidebar.collapsed .sidebar-toggle {
                     margin-left: auto;
