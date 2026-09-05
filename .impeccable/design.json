@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-05T03:42:24Z",
+  "title": "Design System: Bantay Ulang",
+  "extensions": {
+    "colorMeta": {
+      "working-teal": { "role": "primary", "displayName": "Working Teal", "canonical": "#0d9488", "tonalRamp": ["#042f2e", "#0f4a45", "#0d9488", "#14b8a6", "#2dd4bf", "#5eead4", "#99f6e4", "#ccfbf1"] },
+      "active-emerald": { "role": "secondary", "displayName": "Active Emerald", "canonical": "#10b981", "tonalRamp": ["#022c22", "#065f46", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#ecfdf5"] },
+      "deep-water-navy": { "role": "neutral", "displayName": "Deep Water Navy", "canonical": "#15212e", "tonalRamp": ["#0a1017", "#15212e", "#1f3040", "#2c4356", "#3c5871", "#5a7893", "#8ca4b8", "#c6d4de"] },
+      "mist-gray": { "role": "neutral", "displayName": "Mist Gray", "canonical": "#f3f4f6", "tonalRamp": ["#111827", "#374151", "#6b7280", "#9ca3af", "#d1d5db", "#e5e7eb", "#f3f4f6", "#f9fafb"] },
+      "critical-red": { "role": "status", "displayName": "Critical Red", "canonical": "#dc2626", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fee2e2"] },
+      "warning-amber": { "role": "status", "displayName": "Warning Amber", "canonical": "#d97706", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fcd34d", "#fef3c7"] },
+      "success-green": { "role": "status", "displayName": "Success Green", "canonical": "#059669", "tonalRamp": ["#022c22", "#064e3b", "#065f46", "#047857", "#059669", "#34d399", "#a7f3d0", "#d1fae5"] },
+      "info-blue": { "role": "status", "displayName": "Info Blue", "canonical": "#2563eb", "tonalRamp": ["#172554", "#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#60a5fa", "#93c5fd", "#dbeafe"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page-level headings." },
+      "metric": { "displayName": "Metric", "purpose": "Large numeric values in metric cards." },
+      "headline": { "displayName": "Headline", "purpose": "Card and panel titles." },
+      "body": { "displayName": "Body", "purpose": "Running copy, list items, form values." },
+      "label": { "displayName": "Label", "purpose": "Status pills and meta text." }
+    },
+    "shadows": [
+      { "name": "resting-card", "value": "0 1px 3px rgba(0,0,0,0.08)", "purpose": "Default state for metric/chart/panel/sensor cards." },
+      { "name": "rail-edge", "value": "2px 0 5px rgba(0,0,0,0.1)", "purpose": "Sidebar edge against content." },
+      { "name": "dropdown", "value": "0 4px 12px rgba(0,0,0,0.1)", "purpose": "Notification and profile dropdowns." },
+      { "name": "modal", "value": "0 20px 40px rgba(0,0,0,0.15)", "purpose": "Report modal and sensor history modal." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "all 0.3s ease", "purpose": "Default hover/transition easing across nav links, buttons, dropdowns." },
+      { "name": "ease-panel", "value": "0.25s ease", "purpose": "Sidebar collapse/expand and topbar-left shift." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "1024px" },
+      { "name": "mobile", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary action on a screen (Generate Report, Add Sensor, Save Threshold).",
+      "html": "<button class=\"ds-btn-primary\"><i class=\"fa-solid fa-file-lines\"></i> Generate Report</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #0d9488; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; } .ds-btn-primary:hover { background: #374151; }"
+    },
+    {
+      "name": "Status Pill (Optimal)",
+      "kind": "chip",
+      "refersTo": "status-badge-optimal",
+      "description": "Semantic success/optimal status indicator.",
+      "html": "<span class=\"ds-pill-optimal\"><i class=\"fa-solid fa-check\"></i> Optimal</span>",
+      "css": ".ds-pill-optimal { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; background: #d1fae5; color: #059669; }"
+    },
+    {
+      "name": "Status Pill (Critical)",
+      "kind": "chip",
+      "refersTo": "status-badge-critical",
+      "description": "Semantic critical/alert status indicator.",
+      "html": "<span class=\"ds-pill-critical\"><i class=\"fa-solid fa-triangle-exclamation\"></i> Critical</span>",
+      "css": ".ds-pill-critical { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; background: #fee2e2; color: #dc2626; }"
+    },
+    {
+      "name": "Metric Card",
+      "kind": "card",
+      "refersTo": "metric-card",
+      "description": "Top-row KPI tile with icon, title, large value, and trend line.",
+      "html": "<div class=\"ds-metric-card\"><div class=\"ds-card-icon\"><i class=\"fa-solid fa-water\"></i></div><div class=\"ds-card-title\">Total Yield Expected</div><div class=\"ds-card-value\">128 kg</div></div>",
+      "css": ".ds-metric-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.08); } .ds-card-icon { width: 40px; height: 40px; border-radius: 10px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; } .ds-card-title { font-size: 13px; color: #6b7280; font-weight: 500; margin-bottom: 6px; } .ds-card-value { font-size: 28px; font-weight: 700; color: #111827; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "field-input",
+      "description": "Standard numeric/text input, e.g. threshold configuration.",
+      "html": "<input class=\"ds-input\" type=\"number\" value=\"7.2\">",
+      "css": ".ds-input { width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; color: #111827; } .ds-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.15); }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "sidebar-menu-item",
+      "description": "Navy rail link, at rest / hover / active.",
+      "html": "<a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><i class=\"fa-solid fa-grid-2\"></i><span>Dashboard</span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; padding: 15px 20px; color: #bdc3c7; text-decoration: none; border-left: 3px solid transparent; background: #15212e; transition: all 0.3s ease; } .ds-nav-item i { margin-right: 12px; font-size: 16px; width: 20px; text-align: center; } .ds-nav-item:hover { background-color: #34495e; color: #ecf0f1; border-left-color: #3498db; } .ds-nav-item--active { background-color: rgba(16,185,129,0.25); color: #6ee7b7; border-left-color: #10b981; }"
+    },
+    {
+      "name": "Top Alert Banner",
+      "kind": "custom",
+      "refersTo": "top-alert-banner",
+      "description": "Severity-tinted strip surfacing the most urgent active alert at the top of a page.",
+      "html": "<div class=\"ds-alert-banner ds-alert-banner--critical\"><i class=\"fa-solid fa-triangle-exclamation\"></i><div><strong>pH out of range</strong><p>Pond 2 reading 5.4, below safe minimum 6.5.</p></div></div>",
+      "css": ".ds-alert-banner { display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; border-radius: 10px; border-left: 4px solid transparent; } .ds-alert-banner--critical { background: #fef2f2; border-left-color: #dc2626; color: #111827; } .ds-alert-banner--critical i { color: #dc2626; font-size: 20px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Aquarist's Console",
+    "overview": "Bantay Ulang's admin/technician dashboard reads as an instrument panel for a working aquaculture site, not a marketing surface. A near-black navy sidebar anchors the eye like a control-room rail; the working area is a calm, low-saturation gray so sensor numbers, charts, and alerts carry the contrast. Every screen is built to be scanned in seconds during a shift, then acted on: a metric, a trend, a status pill, an assignable task. The one warm move in an otherwise neutral system is Working Teal, spent only on the single primary action per screen, so it always reads as \"do this next.\"\n\nThis system deliberately does not try to be the product's brand voice. The system-native Segoe UI stack, flat white cards, and restrained accent are workhorse choices for an Operate surface: reachable at a glance, forgettable in a good way, and correct across the admin's long dashboard sessions and the technician's shorter task-completion visits.",
+    "keyCharacteristics": [
+      "Navy control rail (sidebar) against a mist-gray working surface",
+      "One accent, Working Teal, spent only on primary actions",
+      "Whisper-flat cards: hairline border, almost no shadow at rest",
+      "Severity communicated through color-coded pill badges and left-border banner strips, never through icon alone",
+      "System font stack throughout; no display typeface"
+    ],
+    "rules": [
+      { "name": "The One Action Rule", "body": "Working Teal appears on at most one button per screen — the primary action. Every other actionable element is either neutral (ghost/text) or a status color carrying semantic meaning, never a second brand accent.", "section": "colors" },
+      { "name": "The No-Display-Face Rule", "body": "This system never introduces a second font family. A brief that wants a distinct brand voice belongs in a different surface, not in this console.", "section": "typography" },
+      { "name": "The Overlay-Owns-Shadow Rule", "body": "Anything permanently on the canvas (cards, sidebar, topbar) stays whisper-flat; only things that appear and get dismissed (modals, dropdowns) earn a heavy shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep Working Teal to one primary action per screen (The One Action Rule).",
+      "Do reuse the fixed status-color pairs (critical/warning/success/info) identically everywhere severity is shown — pills, banners, card icons.",
+      "Do keep cards whisper-flat at rest; save real shadow for modals and dropdowns.",
+      "Do use the 6/8 → 10/12 → 16/24px radius bands by role (control → container → overlay), not arbitrarily."
+    ],
+    "donts": [
+      "Don't introduce a second accent color alongside Working Teal and Active Emerald — route anything else through the semantic status palette or neutrals.",
+      "Don't add a display/brand typeface to this console; that belongs to the login/marketing surfaces, not the operate dashboard.",
+      "Don't give a resting card a heavier shadow than a dropdown or modal — that inverts the system's depth hierarchy.",
+      "Don't reuse the sidebar's legacy blue hover accent (#3498db) as a new UI color; it's an unresolved leftover, not an intentional third accent."
+    ]
+  }
+}
