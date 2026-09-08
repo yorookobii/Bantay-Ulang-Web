@@ -6,15 +6,19 @@ Kumukuha ng water parameters mula Firestore (collection group query sa
 ini-average, pinapakain sa trained Random Forest, nag-pro-project ng harvest
 weight, at isinusulat ang yield prediction pabalik sa growth_indicators.
 
-HYBRID MODE:
+DATA MODE (auto-detected sa rfMode):
   - Water parameters: TOTOO mula Firestore (temp, pH, DO, tds, turbidity)
-  - currentWeight + feedRate: ASSUMED (walang stock/feed data pa)
+  - currentWeight: TOTOO mula ulang_growth_records kung may sample na para
+    sa cycle; kung wala pa, ASSUMED (2.0g juvenile start) — graceful fallback
+  - feedRate: ASSUMED pa rin (optimal_feed_rate curve) — hiwalay na phase
 
 READ GUARDRAIL:
   - Nagta-track ng Firestore reads kada araw (local JSON file)
   - Nag-wa-warning bago maabot ang free tier limit (50,000 reads/araw)
 
-Palitan ang HYBRID_MODE = False kapag may totoong biomass/feed na.
+HYBRID_MODE = True: manual override — puwersahang gamitin ang assumed weight
+(2.0g / week 1) kahit may totoong weight data. Default False: totoong weight
+kapag meron, assumed kapag wala. Auto-detected pa rin ang rfMode label.
 """
 
 import firebase_admin
@@ -33,8 +37,9 @@ from datetime import datetime, timedelta, timezone
 SERVICE_KEY = "serviceAccountKey.json"
 MODEL_FILE = "rf_growth_model.joblib"
 
-HYBRID_MODE = True          # True: assumed weight/feed; False: totoong data
-ASSUMED_START_WEIGHT = 2.0  # juvenile start (g) — project buong 18 weeks
+HYBRID_MODE = False         # manual override: True = force assumed weight
+                            # (2.0g / week 1) kahit may totoong weight data
+ASSUMED_START_WEIGHT = 2.0  # juvenile start (g) — fallback kapag walang sample
 HARVEST_WEEK = 18
 GATE_DAYS = 90  # panelist requirement: yield prediction only after 3 months of real cultivation data
 
@@ -330,10 +335,14 @@ def get_optimal_fallback():
 # ============================================================
 # 4. PROJECT HARVEST WEIGHT (via RF)
 # ============================================================
-def project_harvest_weight(model, water, start_weight):
-    """I-project ang weight mula start_weight hanggang harvest (week 18)."""
+def project_harvest_weight(model, water, start_weight, start_week=1):
+    """I-project ang weight mula (start_week, start_weight) hanggang harvest
+    (week 18). start_weight = timbang na PAPASOK sa start_week; may growth step
+    kada linggo mula start_week..18. Feed assumed pa rin (optimal_feed_rate
+    curve). start_week > HARVEST_WEEK -> empty loop, ibabalik ang start_weight
+    (nasa/lampas na sa harvest)."""
     weight = start_weight
-    for wk in range(1, HARVEST_WEEK + 1):
+    for wk in range(start_week, HARVEST_WEEK + 1):
         feed_rate = optimal_feed_rate(weight)  # assumed (hybrid)
         feat = pd.DataFrame([{
             "weekNumber": wk,
@@ -358,6 +367,41 @@ def fetch_total_deaths(db, cycle_start):
     docs = list(db.collection("mortality_records").where("createdAt", ">=", cycle_start).stream())
     total_deaths = sum((d.to_dict().get("deathCount") or 0) for d in docs)
     return total_deaths, len(docs)
+
+# ============================================================
+# 4c. FETCH LATEST REAL WEIGHT (ulang_growth_records, real currentWeight)
+# ============================================================
+def fetch_latest_real_weight(db, cycle_start):
+    """Latest week's average weight (g) mula ulang_growth_records.
+    Sinasalamin ang avgWeightChart.js loadWeightsByWeek: week = floor(days_
+    since_cycleStart / 7) + 1, per-week AVERAGE (hindi raw sum), kunin ang
+    PINAKA-BAGONG week na may sample -> yun ang totoong currentWeight at week
+    index nito. Ganito rin ang bucketing sa web para magkasundo.
+
+    Nagbabalik: (avg_weight_g, latest_week, records_read) o
+    (None, None, records_read) kung walang usable sample."""
+    docs = list(db.collection("ulang_growth_records").where("createdAt", ">=", cycle_start).stream())
+    MS_PER_WEEK = 7 * 24 * 60 * 60  # seconds (mirror ng JS MS_PER_WEEK)
+
+    by_week = {}  # {week: [weights]}
+    for d in docs:
+        data = d.to_dict()
+        created = data.get("createdAt")
+        weight = data.get("weight")
+        if created is None or weight is None:
+            continue  # malformed doc — skip (mirror ng JS Number.isFinite guard)
+        week = int((created - cycle_start).total_seconds() // MS_PER_WEEK) + 1
+        if week < 1:
+            continue
+        by_week.setdefault(week, []).append(float(weight))
+
+    if not by_week:
+        return None, None, len(docs)
+
+    latest_week = max(by_week)  # LATEST week na may sample
+    vals = by_week[latest_week]
+    avg_weight = sum(vals) / len(vals)  # per-week average, hindi raw sum
+    return avg_weight, latest_week, len(docs)
 
 # ============================================================
 # 0. GROWTH_INDICATORS DOC + 3-MONTH GATE
@@ -387,7 +431,7 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, surviv
     notes = {
         "test": "Test-mode: assumed optimal conditions (walang readings pa)",
         "hybrid": "Hybrid: real water params, assumed biomass/feed",
-        "real": "Full real-data prediction",
+        "real": "Real water + real biomass weight; feed via optimal-rate curve",
     }
     payload = {
         "rfProjectedWeight": round(harvest_weight, 2),
@@ -516,29 +560,47 @@ def main():
     # Kunin ang water data — backfill complete, fetch today + weighted average
     water, n_readings, actual_reads = fetch_today_and_average(db, daily_cache, today)
 
-    # I-update ang read counter (dagdag na lang dito — backfill + mortality +
-    # gate check ay na-save na sa itaas)
-    current = load_read_counter()
-    save_read_counter(current + actual_reads)
-    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads:,} reads ngayong araw")
+    # Totoong biomass weight mula ulang_growth_records (maliit na manual-log
+    # collection, tulad ng mortality_records). Fetched DITO — pagkatapos ng
+    # backfill/guardrail gates — para hindi masayang ang reads sa maagang exit.
+    real_weight, real_week, ulang_reads = fetch_latest_real_weight(db, cycle_start)
 
-    # Determine mode
+    # I-update ang read counter (dagdag na lang dito — backfill + mortality +
+    # gate check ay na-save na sa itaas). Kasama ang today + ulang_growth reads.
+    current = load_read_counter()
+    save_read_counter(current + actual_reads + ulang_reads)
+    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + ulang_reads:,} reads ngayong araw")
+
+    # Determine mode + currentWeight source — auto-detected mula sa TOTOONG
+    # data na ginamit (hindi na label lang). HYBRID_MODE=True = manual override
+    # para puwersahang gamitin ang assumed weight kahit may totoong sample.
     if water is None or any(v is None for v in water.values()):
         print("[MODE] Walang kumpletong water data -> TEST-MODE (assumed optimal)")
         water = get_optimal_fallback()
         mode = "test"
         n_readings = 0
+        start_weight, start_week = ASSUMED_START_WEIGHT, 1
     else:
-        mode = "hybrid" if HYBRID_MODE else "real"
-        print(f"[MODE] {mode.upper()} — totoong water params")
+        use_real_weight = (real_weight is not None) and not HYBRID_MODE
+        if use_real_weight:
+            start_weight, start_week = real_weight, real_week + 1  # project weeks AFTER measured
+            mode = "real"
+        else:
+            start_weight, start_week = ASSUMED_START_WEIGHT, 1
+            mode = "hybrid"
+        print(f"[MODE] {mode.upper()} — totoong water params, "
+              + ("totoong weight" if use_real_weight else "assumed weight"))
         print(f"       Water: temp={water['avgWaterTemp']:.1f} pH={water['avgPh']:.2f} "
               f"DO={water['avgDissolvedOxygen']:.1f} tds={water['avgTds']:.0f} "
               f"turb={water['avgTurbidity']:.1f}")
+        if real_weight is not None and HYBRID_MODE:
+            print(f"[WEIGHT] Override: may totoong weight ({real_weight:.1f}g sa week "
+                  f"{real_week}) pero HYBRID_MODE=True -> assumed pa rin.")
 
-    # Project harvest weight
-    harvest_weight = project_harvest_weight(model, water, ASSUMED_START_WEIGHT)
+    # Project harvest weight mula sa (start_week, start_weight)
+    harvest_weight = project_harvest_weight(model, water, start_weight, start_week)
     print(f"[OK] Projected harvest weight: {harvest_weight:.1f}g "
-          f"(mula {ASSUMED_START_WEIGHT}g, {HARVEST_WEEK} weeks)")
+          f"(mula {start_weight:.1f}g sa week {start_week}, hanggang week {HARVEST_WEEK})")
 
     # Compute yield
     doc_ref, stock, survival, yield_kg = compute_yield(gi_doc, gi, harvest_weight, total_deaths)
