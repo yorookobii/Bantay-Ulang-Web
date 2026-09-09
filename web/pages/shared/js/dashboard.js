@@ -219,7 +219,7 @@ function applyRecentLogsSnapshot(snapshot) {
                 sortValue: loggedAt ? loggedAt.getTime() : index,
                 title: getTextField(data, ["action", "title", "event", "name"], doc.id),
                 timeText: getTextField(data, ["timeText", "time"], formatLogTime(loggedAt)),
-                actor: getTextField(data, ["role", "actor", "user", "source", "by"], "System"),
+                actor: getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System"),
                 description: getTextField(data, ["details", "description", "message"], "No details provided."),
                 type: getTextField(data, ["status", "type", "level"], "").toLowerCase()
             };
