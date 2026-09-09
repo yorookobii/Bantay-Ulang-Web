@@ -108,6 +108,7 @@ function getCycleStartMs() {
 let chartInstance     = null;
 let currentSensorAttr = null;
 let currentRange      = "24h";
+let lastTriggerEl     = null;
 
 function formatLabel(date, rangeKey) {
     if (rangeKey === "24h") {
@@ -305,6 +306,9 @@ function openModal(sensorAttr) {
     overlay.classList.add("active");
     document.body.style.overflow = "hidden";
 
+    const closeBtn = document.getElementById("shModalClose");
+    if (closeBtn) closeBtn.focus();
+
     loadAndRender(sensorAttr, currentRange);
 }
 
@@ -314,6 +318,7 @@ function closeModal() {
     overlay.classList.remove("active");
     document.body.style.overflow = "";
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    if (lastTriggerEl) { lastTriggerEl.focus(); lastTriggerEl = null; }
 }
 
 export function initSensorHistoryModal() {
@@ -325,7 +330,14 @@ export function initSensorHistoryModal() {
         hint.innerHTML = '<i class="fa-solid fa-chart-line"></i>';
         hint.setAttribute("aria-hidden", "true");
         card.appendChild(hint);
-        card.addEventListener("click", () => openModal(card.dataset.sensor));
+        card.addEventListener("click", () => { lastTriggerEl = card; openModal(card.dataset.sensor); });
+        card.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+                e.preventDefault();
+                lastTriggerEl = card;
+                openModal(card.dataset.sensor);
+            }
+        });
     });
 
     const overlay = document.getElementById("sensorHistoryModal");
@@ -350,9 +362,27 @@ export function initSensorHistoryModal() {
     });
 
     document.addEventListener("keydown", e => {
+        const o = document.getElementById("sensorHistoryModal");
+        if (!o || !o.classList.contains("active")) return;
+
         if (e.key === "Escape") {
-            const o = document.getElementById("sensorHistoryModal");
-            if (o && o.classList.contains("active")) closeModal();
+            closeModal();
+            return;
+        }
+
+        if (e.key === "Tab") {
+            const focusable = Array.from(o.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])'))
+                .filter(el => !el.disabled && el.offsetParent !== null);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last  = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
         }
     });
 }

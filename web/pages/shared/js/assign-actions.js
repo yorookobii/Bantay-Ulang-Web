@@ -2,8 +2,9 @@ import { db, auth } from './firebase.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
     collection, query, orderBy, onSnapshot,
-    addDoc, deleteDoc, doc, getDocs, serverTimestamp
+    addDoc, deleteDoc, doc, updateDoc, getDocs, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { PARAM_LABELS } from './notificationsShared.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -74,6 +75,60 @@ function showToast(msg, type = 'success') {
 // ── State ─────────────────────────────────────────────────────────────────
 let allUsers       = [];   // { uid, fullName, email, role }[]
 let currentUserUid = null;
+
+// Alert context carried in from All Alerts (?alert_id=&param=). Empty when the
+// page is opened directly for a manual, alert-less assignment.
+const alertCtx = (() => {
+    // URL params first — used verbatim when the server keeps the query string.
+    const p = new URLSearchParams(location.search);
+    let alertId = p.get('alert_id') || '';
+    let param   = p.get('param')    || '';
+
+    // Fallback: the sessionStorage handoff from All Alerts, for dev servers whose
+    // clean-URL redirect strips the query string.
+    if (!alertId) {
+        try {
+            const stashed = JSON.parse(sessionStorage.getItem('pendingAlertCtx') || 'null');
+            if (stashed && stashed.alertId) {
+                alertId = stashed.alertId;
+                param   = stashed.param || '';
+            }
+        } catch (_) { /* malformed JSON / storage disabled — ignore */ }
+    }
+
+    // Consume the handoff on every load so a later manual visit (or F5) doesn't
+    // resurrect a stale banner, and stray new-tab writes get cleaned up.
+    try { sessionStorage.removeItem('pendingAlertCtx'); } catch (_) {}
+
+    return { alertId, param };
+})();
+
+function alertParamLabel() {
+    return PARAM_LABELS[alertCtx.param] || alertCtx.param || 'sensor';
+}
+
+// Reveal the context banner on load when an alert was carried in.
+(function showAlertContext() {
+    if (!alertCtx.alertId) return;
+    const banner  = document.getElementById('alertContextBanner');
+    const paramEl = document.getElementById('alertContextParam');
+    if (!banner || !paramEl) return;
+    paramEl.textContent = alertParamLabel();
+    banner.hidden = false;
+})();
+
+// After a successful assign-with-context: flip the banner to a done state and
+// surface the "Back to Alerts" link so the handled state / donut update is visible.
+function markAlertContextHandled() {
+    const banner = document.getElementById('alertContextBanner');
+    const verb   = document.getElementById('alertContextVerb');
+    const icon   = document.getElementById('alertContextIcon');
+    const back   = document.getElementById('alertContextBack');
+    if (banner) banner.classList.add('is-handled');
+    if (verb)   verb.textContent = 'Action assigned for';
+    if (icon)   icon.className = 'fa-solid fa-circle-check';
+    if (back)   back.hidden = false;
+}
 
 // ── Load users from Firestore and populate Person dropdown ────────────────
 async function loadUsers() {
@@ -194,7 +249,7 @@ async function handleSubmit(e) {
     try {
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assigning…'; }
 
-        await addDoc(collection(db, 'tasks'), {
+        const taskPayload = {
             title,
             description,
             assignedTo:     personUid,
@@ -205,7 +260,29 @@ async function handleSubmit(e) {
             dueDate,
             status:    'pending',
             createdAt: serverTimestamp()
-        });
+        };
+        if (alertCtx.alertId) {
+            taskPayload.alertId        = alertCtx.alertId;
+            taskPayload.alertParameter = alertCtx.param || '';
+        }
+
+        const taskRef = await addDoc(collection(db, 'tasks'), taskPayload);
+
+        // Link the alert to this task and mark it handled. Human layer only —
+        // does not touch alert.status, which the alertsEngine owns.
+        if (alertCtx.alertId) {
+            try {
+                await updateDoc(doc(db, 'alerts', alertCtx.alertId), {
+                    handledAt:     serverTimestamp(),
+                    handledBy:     currentUserUid,
+                    handledTaskId: taskRef.id
+                });
+                markAlertContextHandled();
+            } catch (err) {
+                showToast('Task saved, but linking it to the alert failed: ' + (err.code || err.message), 'error');
+                console.error('updateDoc alerts handled*:', err);
+            }
+        }
 
         document.getElementById('assignForm').reset();
         populatePeople('');

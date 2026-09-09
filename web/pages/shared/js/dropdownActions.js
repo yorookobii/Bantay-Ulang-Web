@@ -48,7 +48,7 @@ function buildModal() {
 
     overlay.innerHTML = `
 <div style="background:#fff;border-radius:12px;padding:32px;width:420px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.18);">
-  <button id="cp-close" type="button"
+  <button id="cp-close" type="button" aria-label="Close"
     style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;line-height:1;">&#x2715;</button>
   <h3 style="margin:0 0 4px;font-size:17px;font-weight:700;color:#111827;font-family:'Segoe UI',sans-serif;">Change Password</h3>
   <p style="margin:0 0 22px;font-size:13px;color:#6b7280;font-family:'Segoe UI',sans-serif;">Enter your current password to verify, then set a new one.</p>
@@ -232,16 +232,25 @@ export function initDropdown({ handleToggle = true } = {}) {
 
     document.querySelectorAll('.profile-menu-item').forEach(item => {
         const text = item.textContent.trim();
+        let handler = null;
         if (text.includes('My Profile')) {
-            item.addEventListener('click', () => { window.location.href = PROFILE_URL; });
+            handler = () => { window.location.href = PROFILE_URL; };
         } else if (text.includes('Settings')) {
-            item.addEventListener('click', () => { window.location.href = SETTINGS_URL; });
+            handler = () => { window.location.href = SETTINGS_URL; };
         } else if (text.includes('Change Password')) {
-            item.addEventListener('click', openModal);
+            handler = openModal;
         } else if (text.includes('Logout')) {
             if (item.id === 'logoutMenuItem') return; // already handled by dashboard.js
             item.removeAttribute('onclick');
-            item.addEventListener('click', doLogout);
+            handler = doLogout;
         }
+        if (!handler) return;
+        item.addEventListener('click', handler);
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                handler(e);
+            }
+        });
     });
 }

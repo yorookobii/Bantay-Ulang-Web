@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <title>Real-Time Monitoring - Bantay Ulang Bulacan</title>
+        <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/real-time-monitoring.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     </head>
@@ -17,18 +18,18 @@
                             <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
                         </div>
                         <span class="logo-text">Bantay Ulang</span>
-                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
                     </div>
                 </div>
                 <ul class="sidebar-menu">
-                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
-                    <li><a href="real-time-monitoring.html" class="active" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
-                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
-                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
-                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
-                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
-                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
-                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+                    <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large" aria-hidden="true"></i><span>Dashboard</span></a></li>
+                    <li><a href="real-time-monitoring.html" class="active" title="Real-Time Monitoring"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Real-Time Monitoring</span></a></li>
+                    <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt" aria-hidden="true"></i><span>Automation</span></a></li>
+                    <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database" aria-hidden="true"></i><span>Analytics</span></a></li>
+                    <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>History</span></a></li>
+                    <li><a href="users.html" title="Users"><i class="fa-solid fa-users" aria-hidden="true"></i><span>Users</span></a></li>
+                    <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>Assign Actions</span></a></li>
+                    <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span></a></li>
                 </ul>
                 <div class="sidebar-footer">
                     <div class="user-profile">
@@ -45,35 +46,35 @@
 
             <!-- Topbar -->
             <header class="topbar">
-                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
 
                 <!-- Right Side Items -->
                 <div class="topbar-right">
                     <div class="notification-container">
-                        <div class="notification-icon">
-                            <i class="fa-regular fa-bell"></i>
+                        <div class="notification-icon" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
+                            <i class="fa-regular fa-bell" aria-hidden="true"></i>
                             <span class="notification-badge"></span>
                         </div>
                         <div class="notification-dropdown" id="notificationDropdown">
-                            <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
-                            <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
-                            <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                            <div class="notification-item"><i class="fa-solid fa-book-open-reader" aria-hidden="true"></i> New report submitted</div>
+                            <div class="notification-item"><i class="fa-solid fa-user" aria-hidden="true"></i> New user registration</div>
+                            <div class="notification-item"><i class="fa-solid fa-sync-alt" aria-hidden="true"></i> System update available</div>
                         </div>
                     </div>
                     <div style="position: relative;">
-                        <div class="admin-profile">
+                        <div class="admin-profile" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
                             <div class="admin-avatar"><span>A</span></div>
                             <div class="admin-info">
                                 <div class="admin-name"></div>
                                 <div class="admin-role"></div>
                             </div>
-                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;" aria-hidden="true"></i>
                         </div>
-                        <div class="profile-dropdown" id="profileDropdown">
-                            <div class="profile-menu-item">👤 My Profile</div>
-                            <div class="profile-menu-item">⚙️ Settings</div>
-                            <div class="profile-menu-item">🔐 Change Password</div>
-                            <div class="profile-menu-item">🚪 Logout</div>
+                        <div class="profile-dropdown" id="profileDropdown" role="menu">
+                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-user" aria-hidden="true"></i> My Profile</div>
+                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</div>
+                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-lock" aria-hidden="true"></i> Change Password</div>
+                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Logout</div>
                         </div>
                     </div>
                 </div>
@@ -99,9 +100,9 @@
                     </div>
 
                     <div class="sensor-grid" id="sensorGrid">
-                        <div class="sensor-card" data-sensor="ph" data-base="7.2" data-min="6.8" data-max="7.8" data-unit="" data-decimals="1">
+                        <div class="sensor-card" data-sensor="ph" data-base="7.2" data-min="6.8" data-max="7.8" data-unit="" data-decimals="1" role="button" tabindex="0" aria-label="View history for pH Sensor">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">pH Sensor</div>
@@ -112,9 +113,9 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card" data-sensor="do" data-base="6.8" data-min="5.5" data-max="8.2" data-unit=" mg/L" data-decimals="1">
+                        <div class="sensor-card" data-sensor="do" data-base="6.8" data-min="5.5" data-max="8.2" data-unit=" mg/L" data-decimals="1" role="button" tabindex="0" aria-label="View history for DO Sensor">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">DO Sensor</div>
@@ -125,9 +126,9 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card" data-sensor="temp" data-base="24.4" data-min="23" data-max="26" data-unit="°C" data-decimals="1">
+                        <div class="sensor-card" data-sensor="temp" data-base="24.4" data-min="23" data-max="26" data-unit="°C" data-decimals="1" role="button" tabindex="0" aria-label="View history for Water Temp Probe">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">Water Temp Probe</div>
@@ -138,9 +139,9 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card" data-sensor="salinity" data-base="15" data-min="12" data-max="18" data-unit=" ppt" data-decimals="0">
+                        <div class="sensor-card" data-sensor="salinity" data-base="15" data-min="12" data-max="18" data-unit=" ppt" data-decimals="0" role="button" tabindex="0" aria-label="View history for Salinity">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">Salinity</div>
@@ -151,9 +152,9 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card" data-sensor="tds">
+                        <div class="sensor-card" data-sensor="tds" role="button" tabindex="0" aria-label="View history for TDS Sensor">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">TDS Sensor</div>
@@ -164,9 +165,9 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card" data-sensor="turbidity" data-base="3.5" data-min="2" data-max="5" data-unit=" NTU" data-decimals="1">
+                        <div class="sensor-card" data-sensor="turbidity" data-base="3.5" data-min="2" data-max="5" data-unit=" NTU" data-decimals="1" role="button" tabindex="0" aria-label="View history for Turbidity">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">Turbidity</div>
@@ -179,7 +180,7 @@
 
                         <div class="sensor-card" data-sensor="water-level">
                             <div class="sensor-head">
-                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet"></i></div>
+                                <div class="sensor-icon-wrap optimal"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
                                 <span class="sensor-status optimal">OPTIMAL</span>
                             </div>
                             <div class="sensor-name">Water Level</div>

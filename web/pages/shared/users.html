@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-        <link rel="stylesheet" href="css/users.css">
-    </head>
-    <body>
-        <div class="app">
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/shell.css">
+    <link rel="stylesheet" href="css/users.css">
+</head>
+
+<body>
+    <div class="app">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -14,19 +17,28 @@
                         <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
                     </div>
                     <span class="logo-text">Bantay Ulang</span>
-                    
-                    <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+
+                    <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i
+                            class="fa-solid fa-chevron-left"></i></button>
                 </div>
             </div>
             <ul class="sidebar-menu">
-                <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
-                <li><a href="real-time-monitoring.html" title="Real-Time Data"><i class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
-                <li><a href="automation.html" title="Automation"><i class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
-                <li><a href="analytics.html" title="Analytics"><i class="fa-solid fa-database"></i><span>Analytics</span></a></li>
-                <li><a href="history.html" title="History"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
-                <li><a href="users.html" class="active" title="Users"><i class="fa-solid fa-users"></i><span>Users</span></a></li>
-                <li><a href="assign-actions.html" title="Assign Actions"><i class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
-                <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+                <li><a href="dashboard.html" title="Dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+                </li>
+                <li><a href="real-time-monitoring.html" title="Real-Time Data"><i
+                            class="fa-solid fa-chart-line"></i><span>Real-Time Monitoring</span></a></li>
+                <li><a href="automation.html" title="Automation"><i
+                            class="fa-solid fa-bolt"></i><span>Automation</span></a></li>
+                <li><a href="analytics.html" title="Analytics"><i
+                            class="fa-solid fa-database"></i><span>Analytics</span></a></li>
+                <li><a href="history.html" title="History"><i
+                            class="fa-solid fa-clock-rotate-left"></i><span>History</span></a></li>
+                <li><a href="users.html" class="active" title="Users"><i
+                            class="fa-solid fa-users"></i><span>Users</span></a></li>
+                <li><a href="assign-actions.html" title="Assign Actions"><i
+                            class="fa-solid fa-clipboard-list"></i><span>Assign Actions</span></a></li>
+                <li><a href="settings.html" title="Settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+                </li>
             </ul>
             <div class="sidebar-footer">
                 <div class="user-profile">
@@ -43,7 +55,8 @@
 
         <!-- Topbar -->
         <header class="topbar">
-            <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+            <button type="button" class="topbar-menu-btn" id="topbarMenuBtn" aria-label="Open menu"><i
+                    class="fa-solid fa-bars"></i></button>
 
             <!-- Right Side Items -->
             <div class="topbar-right">
@@ -53,12 +66,14 @@
                         <span class="notification-badge"></span>
                     </div>
                     <div class="notification-dropdown" id="notificationDropdown">
-                        <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted</div>
+                        <div class="notification-item"><i class="fa-solid fa-book-open-reader"></i> New report submitted
+                        </div>
                         <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
-                        <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available</div>
+                        <div class="notification-item"><i class="fa-solid fa-sync-alt"></i> System update available
+                        </div>
                     </div>
                 </div>
-                <div style="position: relative;" >
+                <div style="position: relative;">
                     <div class="admin-profile" onclick="toggleProfile()">
                         <div class="admin-avatar"><span>A</span></div>
                         <div class="admin-info">
@@ -76,9 +91,9 @@
                 </div>
             </div>
         </header>
-        
+
         <!-- Main Content -->
-        <main>
+        <main class="content">
 
             <div class="user_headings">
                 <h2>User Management</h2>
@@ -93,18 +108,18 @@
             <div id="users-container"></div>
 
         </main>
-        </div>
+    </div>
 
-        <script type="module" src="js/users.js"></script>
-        <script type="module" src="../../assets/js/firebase-init.js"></script>
-        <script type="module">
-            import { loadUserProfile } from './js/userProfile.js';
-            loadUserProfile();
-        </script>
-        <script type="module">
-            import { initDropdown } from './js/dropdownActions.js';
-            initDropdown({ handleToggle: false });
-        </script>
-    </body>
+    <script type="module" src="js/users.js"></script>
+    <script type="module" src="../../assets/js/firebase-init.js"></script>
+    <script type="module">
+        import { loadUserProfile } from './js/userProfile.js';
+        loadUserProfile();
+    </script>
+    <script type="module">
+        import { initDropdown } from './js/dropdownActions.js';
+        initDropdown({ handleToggle: false });
+    </script>
+</body>
+
 </html>
-

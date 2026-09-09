@@ -6,31 +6,46 @@
                     var profileDropdown = container.querySelector('.profile-dropdown');
                     var notifBtn = container.querySelector('.notification-icon');
                     var profileBtn = container.querySelector('.admin-profile');
-                    if (notifBtn && notifDropdown) {
-                        notifBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            notifDropdown.classList.toggle('show');
-                            if (profileDropdown) profileDropdown.classList.remove('show');
+                    function toggleDropdown(btn, dropdown, otherBtn, otherDropdown) {
+                        var open = dropdown.classList.toggle('show');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                        if (open && otherDropdown) {
+                            otherDropdown.classList.remove('show');
+                            if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+                        }
+                    }
+                    function activateOnKey(el, handler) {
+                        el.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                                e.preventDefault();
+                                handler(e);
+                            }
                         });
                     }
-                    if (profileBtn && profileDropdown) {
-                        profileBtn.addEventListener('click', function(e) {
+                    if (notifBtn && notifDropdown) {
+                        var onNotifToggle = function(e) {
                             e.stopPropagation();
-                            profileDropdown.classList.toggle('show');
-                            if (notifDropdown) notifDropdown.classList.remove('show');
-                        });
+                            toggleDropdown(notifBtn, notifDropdown, profileBtn, profileDropdown);
+                        };
+                        notifBtn.addEventListener('click', onNotifToggle);
+                        activateOnKey(notifBtn, onNotifToggle);
+                    }
+                    if (profileBtn && profileDropdown) {
+                        var onProfileToggle = function(e) {
+                            e.stopPropagation();
+                            toggleDropdown(profileBtn, profileDropdown, notifBtn, notifDropdown);
+                        };
+                        profileBtn.addEventListener('click', onProfileToggle);
+                        activateOnKey(profileBtn, onProfileToggle);
                     }
                     document.addEventListener('click', function(e) {
                         if (container.contains(e.target)) return;
-                        if (notifDropdown) notifDropdown.classList.remove('show');
-                        if (profileDropdown) profileDropdown.classList.remove('show');
+                        if (notifDropdown) { notifDropdown.classList.remove('show'); if (notifBtn) notifBtn.setAttribute('aria-expanded', 'false'); }
+                        if (profileDropdown) { profileDropdown.classList.remove('show'); if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false'); }
                     });
-                    var menuItems = container.querySelectorAll('.profile-menu-item');
-                    menuItems.forEach(function(item) {
-                        if (item.textContent.indexOf('Logout') !== -1) {
-                            item.addEventListener('click', function() { alert('Logging out...'); });
-                        }
-                    });
+                    // Logout is handled by dropdownActions.js's initDropdown() (real
+                    // Firebase sign-out); this page used to also bind a fake
+                    // alert()-only handler here, which fired alongside the real one.
 
                     var sidebar = document.getElementById('sidebar');
                     var overlay = document.getElementById('sidebarOverlay');

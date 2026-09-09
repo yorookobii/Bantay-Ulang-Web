@@ -83,6 +83,11 @@
                 <!-- New assignment form -->
                 <div class="assign-form-card">
                     <h2><i class="fa-solid fa-plus-circle"></i> New assignment</h2>
+                    <div id="alertContextBanner" class="alert-context-banner" hidden>
+                        <i id="alertContextIcon" class="fa-solid fa-link" aria-hidden="true"></i>
+                        <span><span id="alertContextVerb">Assigning action for</span> <strong id="alertContextParam"></strong> alert</span>
+                        <a id="alertContextBack" href="all-alerts.html" class="alert-context-back" hidden>&larr; Back to Alerts</a>
+                    </div>
                     <form id="assignForm">
                         <div class="form-row">
                             <div class="form-group">
