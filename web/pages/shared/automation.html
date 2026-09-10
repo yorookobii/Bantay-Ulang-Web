@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/automation.css">
         <link rel="stylesheet" href="css/feeding.css">
+        <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
     <body>
         <div class="app">
@@ -135,6 +136,10 @@
         </div>
 
         <script src="js/automation.js"></script>
+        <script type="module">
+            import { initSidebar } from './js/sidebar.js';
+            initSidebar();
+        </script>
         <script type="module">
             import { db, auth } from "./js/firebase.js";
             import {

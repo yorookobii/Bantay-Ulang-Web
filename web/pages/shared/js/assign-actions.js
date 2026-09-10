@@ -7,6 +7,7 @@ import {
 import { PARAM_LABELS } from './notificationsShared.js';
 import { SUGGESTIONS } from './alertsEngine.js';
 import { getRanges, loadThresholds } from './thresholds.js';
+import { initSidebar } from './sidebar.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -26,39 +27,8 @@ import { getRanges, loadThresholds } from './thresholds.js';
     });
 })();
 
-// ── Sidebar collapse: icon-only on desktop, close drawer on mobile ─────────
-(function () {
-    const sidebar = document.getElementById('sidebar');
-    const app     = document.querySelector('.app');
-    const btn     = document.getElementById('sidebarToggleBtn');
-    const overlay = document.getElementById('sidebarOverlay');
-    if (!sidebar || !app || !btn) return;
-    const isMobile = () => window.innerWidth <= 768;
-    const setCollapsed = (v) => {
-        sidebar.classList.toggle('collapsed', v);
-        app.classList.toggle('sidebar-collapsed', v);
-        try { localStorage.setItem('sidebar-collapsed', v ? '1' : '0'); } catch (_) {}
-    };
-    btn.addEventListener('click', () => {
-        if (isMobile()) {
-            sidebar.classList.remove('open');
-            overlay?.classList.remove('show');
-            overlay?.setAttribute('aria-hidden', 'true');
-        } else {
-            const v = !sidebar.classList.contains('collapsed');
-            setCollapsed(v);
-            btn.setAttribute('aria-label', v ? 'Expand sidebar' : 'Collapse sidebar');
-        }
-    });
-    if (!isMobile()) {
-        try {
-            if (localStorage.getItem('sidebar-collapsed') === '1') {
-                setCollapsed(true);
-                btn.setAttribute('aria-label', 'Expand sidebar');
-            }
-        } catch (_) {}
-    }
-})();
+// ── Sidebar collapse/toggle, persistence and click-to-collapse ────────────
+initSidebar();
 
 // ── Toast notification ────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {

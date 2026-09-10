@@ -9,6 +9,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getReadingsInRange } from "./readingsService.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
+import { initSidebar } from "./sidebar.js";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
@@ -481,33 +482,8 @@ function setupTopbarSidebar() {
         overlay?.setAttribute("aria-hidden", "true");
     });
 
-    if (sidebar && appEl && toggleBtn) {
-        const isMobile = () => window.innerWidth <= 768;
-        const setCollapsed = collapsed => {
-            sidebar.classList.toggle("collapsed", collapsed);
-            appEl.classList.toggle("sidebar-collapsed", collapsed);
-            try { localStorage.setItem("sidebar-collapsed", collapsed ? "1" : "0"); } catch (_) {}
-        };
-        toggleBtn.addEventListener("click", () => {
-            if (isMobile()) {
-                sidebar.classList.remove("open");
-                overlay?.classList.remove("show");
-                overlay?.setAttribute("aria-hidden", "true");
-            } else {
-                const collapsed = !sidebar.classList.contains("collapsed");
-                setCollapsed(collapsed);
-                toggleBtn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-            }
-        });
-        if (!isMobile()) {
-            try {
-                if (localStorage.getItem("sidebar-collapsed") === "1") {
-                    setCollapsed(true);
-                    toggleBtn.setAttribute("aria-label", "Expand sidebar");
-                }
-            } catch (_) {}
-        }
-    }
+    // Sidebar collapse/toggle, persistence and click-to-collapse.
+    initSidebar();
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

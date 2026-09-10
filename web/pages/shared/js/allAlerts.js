@@ -10,6 +10,7 @@ import {
 } from './notificationsShared.js';
 import { getReadingsInRange } from './readingsService.js';
 import { db } from './firebase.js';
+import { initSidebar } from './sidebar.js';
 import {
     collection,
     query,
@@ -490,40 +491,5 @@ init();
     }
 })();
 
-// ── Sidebar: collapse/expand on desktop ──────────────────────────────────────
-(function () {
-    const sidebar = document.getElementById('sidebar');
-    const app = document.querySelector('.app');
-    const sidebarToggle = document.getElementById('sidebarToggleBtn');
-    const overlay = document.getElementById('sidebarOverlay');
-
-    if (!sidebar || !app || !sidebarToggle) return;
-
-    function isMobile() { return window.innerWidth <= 768; }
-
-    function setCollapsed(collapsed) {
-        sidebar.classList.toggle('collapsed', collapsed);
-        app.classList.toggle('sidebar-collapsed', collapsed);
-        try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch (_) { }
-    }
-
-    sidebarToggle.addEventListener('click', () => {
-        if (isMobile()) {
-            sidebar.classList.remove('open');
-            if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); }
-        } else {
-            const collapsed = !sidebar.classList.contains('collapsed');
-            setCollapsed(collapsed);
-            sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-        }
-    });
-
-    if (!isMobile()) {
-        try {
-            if (localStorage.getItem('sidebar-collapsed') === '1') {
-                setCollapsed(true);
-                sidebarToggle.setAttribute('aria-label', 'Expand sidebar');
-            }
-        } catch (_) { }
-    }
-})();
+// ── Sidebar collapse/toggle, persistence and click-to-collapse ───────────────
+initSidebar();

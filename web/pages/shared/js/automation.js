@@ -50,42 +50,7 @@
                         });
                     }
 
-                    /* Sidebar toggle: collapse on desktop, close drawer on mobile */
-                    var sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-                    if (sidebar && app && sidebarToggleBtn) {
-                        function isMobile() { return window.innerWidth <= 768; }
-                        function setCollapsed(collapsed) {
-                            if (collapsed) {
-                                sidebar.classList.add('collapsed');
-                                app.classList.add('sidebar-collapsed');
-                            } else {
-                                sidebar.classList.remove('collapsed');
-                                app.classList.remove('sidebar-collapsed');
-                            }
-                            try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
-                        }
-                        sidebarToggleBtn.addEventListener('click', function() {
-                            if (isMobile()) {
-                                sidebar.classList.remove('open');
-                                if (overlay) {
-                                    overlay.classList.remove('show');
-                                    overlay.setAttribute('aria-hidden', 'true');
-                                }
-                            } else {
-                                var collapsed = !sidebar.classList.contains('collapsed');
-                                setCollapsed(collapsed);
-                                sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-                            }
-                        });
-                        if (!isMobile()) {
-                            try {
-                                if (localStorage.getItem('sidebar-collapsed') === '1') {
-                                    setCollapsed(true);
-                                    sidebarToggleBtn.setAttribute('aria-label', 'Expand sidebar');
-                                }
-                            } catch (e) {}
-                        }
-                    }
+                    /* Sidebar collapse/toggle is wired by shared/js/sidebar.js (initSidebar). */
                 }
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', init);

@@ -1,6 +1,7 @@
 import { auth, db } from "../../../assets/js/firebase-init.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initSidebar } from "../../shared/js/sidebar.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -332,46 +333,8 @@ function initTechnicianTasks() {
             });
         }
 
-        var sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
-        if (sidebar && app && sidebarToggleBtn) {
-            function isMobile() { return window.innerWidth <= 768; }
-
-            function setCollapsed(collapsed) {
-                if (collapsed) {
-                    sidebar.classList.add("collapsed");
-                    app.classList.add("sidebar-collapsed");
-                } else {
-                    sidebar.classList.remove("collapsed");
-                    app.classList.remove("sidebar-collapsed");
-                }
-
-                try {
-                    localStorage.setItem("dashboard-sidebar-collapsed", collapsed ? "1" : "0");
-                } catch (e) {}
-            }
-
-            sidebarToggleBtn.addEventListener("click", function() {
-                if (isMobile()) {
-                    sidebar.classList.remove("open");
-                    if (overlay) {
-                        overlay.classList.remove("show");
-                        overlay.setAttribute("aria-hidden", "true");
-                    }
-                } else {
-                    var collapsed = !sidebar.classList.contains("collapsed");
-                    setCollapsed(collapsed);
-                    sidebarToggleBtn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-                }
-            });
-
-            if (!isMobile()) {
-                try {
-                    var saved = localStorage.getItem("dashboard-sidebar-collapsed");
-                    if (saved === "1") setCollapsed(true);
-                    if (saved === "1") sidebarToggleBtn.setAttribute("aria-label", "Expand sidebar");
-                } catch (e) {}
-            }
-        }
+        // Sidebar collapse/toggle, persistence and click-to-collapse.
+        initSidebar();
     }
 
     if (document.readyState === "loading") {

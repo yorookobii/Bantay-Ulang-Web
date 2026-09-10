@@ -198,6 +198,34 @@
     .app.sidebar-collapsed main { margin-left: var(--sidebar-collapsed-width); }
 }
 
+/* No-flash restore: head script sets html.sidebar-init-collapsed before first
+   paint; initSidebar() removes it once the real classes apply. */
+@media (min-width: 769px) {
+    html.sidebar-init-collapsed .sidebar { width: var(--sidebar-collapsed-width); }
+    html.sidebar-init-collapsed .sidebar .logo-text,
+    html.sidebar-init-collapsed .sidebar .sidebar-menu span,
+    html.sidebar-init-collapsed .sidebar .menu-badge,
+    html.sidebar-init-collapsed .sidebar .user-info { display: none; }
+    html.sidebar-init-collapsed .topbar { left: var(--sidebar-collapsed-width); }
+    html.sidebar-init-collapsed .content,
+    html.sidebar-init-collapsed main { margin-left: var(--sidebar-collapsed-width); }
+    /* Pre-apply the collapsed logo-row layout so the arrow does not wrap below
+       the logo then snap back (a reflow jump, not a transition). */
+    html.sidebar-init-collapsed .sidebar .logo-row { justify-content: center; flex-wrap: nowrap; gap: 4px; }
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle { margin-left: auto; }
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle i { transform: rotate(180deg); }
+    html.sidebar-init-collapsed .sidebar,
+    html.sidebar-init-collapsed .topbar,
+    html.sidebar-init-collapsed .content,
+    html.sidebar-init-collapsed main,
+    html.sidebar-init-collapsed .sidebar .sidebar-menu a,
+    html.sidebar-init-collapsed .sidebar .sidebar-menu a i,
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle,
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle i,
+    html.sidebar-init-collapsed .sidebar .logo-row,
+    html.sidebar-init-collapsed .sidebar .user-profile { transition: none !important; }
+}
+
 /* Topbar responsive (match dashboard) */
 @media (max-width: 768px) {
     .topbar {

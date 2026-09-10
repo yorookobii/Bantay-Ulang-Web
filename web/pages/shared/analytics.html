@@ -8,6 +8,7 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/analytics.css">
+        <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
     <body>
         <div class="app">
@@ -295,6 +296,10 @@
             </main>
         </div>
         <script src="js/analytics.js"></script>
+        <script type="module">
+            import { initSidebar } from './js/sidebar.js';
+            initSidebar();
+        </script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
         <script type="module">
             import { initYieldPrediction } from "./js/yieldPrediction.js";

@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/real-time-monitoring.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+        <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
     <body>
         <div class="app">
@@ -231,6 +232,10 @@
         </div>
 
         <script src="js/real-time-monitoring.js"></script>
+        <script type="module">
+            import { initSidebar } from './js/sidebar.js';
+            initSidebar();
+        </script>
         <script type="module" src="../../assets/js/firebase-init.js"></script>
         <script type="module">
             import { receiveSensorData } from "./js/sensorReadings.js";

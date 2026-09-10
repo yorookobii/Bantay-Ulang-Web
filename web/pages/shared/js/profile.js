@@ -1,6 +1,7 @@
 import { auth, db } from './firebase.js';
 import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { initSidebar } from './sidebar.js';
 
 const form        = document.getElementById('profile-form');
 const fullNameEl  = document.getElementById('profile-fullname');
@@ -103,41 +104,5 @@ if (form) {
     }
 })();
 
-// ── Sidebar: collapse/expand on desktop ──────────────────────────────────────
-
-(function () {
-    const sidebar       = document.getElementById('sidebar');
-    const app           = document.querySelector('.app');
-    const sidebarToggle = document.getElementById('sidebarToggleBtn');
-    const overlay       = document.getElementById('sidebarOverlay');
-
-    if (!sidebar || !app || !sidebarToggle) return;
-
-    function isMobile() { return window.innerWidth <= 768; }
-
-    function setCollapsed(collapsed) {
-        sidebar.classList.toggle('collapsed', collapsed);
-        app.classList.toggle('sidebar-collapsed', collapsed);
-        try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch (_) {}
-    }
-
-    sidebarToggle.addEventListener('click', () => {
-        if (isMobile()) {
-            sidebar.classList.remove('open');
-            if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); }
-        } else {
-            const collapsed = !sidebar.classList.contains('collapsed');
-            setCollapsed(collapsed);
-            sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-        }
-    });
-
-    if (!isMobile()) {
-        try {
-            if (localStorage.getItem('sidebar-collapsed') === '1') {
-                setCollapsed(true);
-                sidebarToggle.setAttribute('aria-label', 'Expand sidebar');
-            }
-        } catch (_) {}
-    }
-})();
+// ── Sidebar collapse/toggle, persistence and click-to-collapse ───────────────
+initSidebar();
