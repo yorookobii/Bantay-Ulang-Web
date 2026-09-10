@@ -63,6 +63,12 @@ function groupByType(alerts) {
         const key = TYPE_GROUPS[alert.type] ? alert.type : 'out_of_range';
         (groups[key] = groups[key] || []).push(alert);
     });
+    // Within each group, keep active alerts on top and handled ones (handledAt
+    // set by Assign Actions) at the bottom. Stable sort preserves the existing
+    // createdAt-desc order within each partition.
+    Object.keys(groups).forEach((key) => {
+        groups[key].sort((a, b) => (a.handledAt != null ? 1 : 0) - (b.handledAt != null ? 1 : 0));
+    });
     return groups;
 }
 
