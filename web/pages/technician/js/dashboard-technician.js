@@ -2,6 +2,7 @@ import { auth, db } from "../../../assets/js/firebase-init.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initSidebar } from "../../shared/js/sidebar.js";
+import { normalizeStatus } from "../../shared/js/taskStatus.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -201,9 +202,9 @@ async function loadTechnicianTasks(assignedToId) {
         );
 
         const snapshot = await getDocs(tasksQuery);
-        const tasks = snapshot.docs.map(function(taskDoc) {
-            return { id: taskDoc.id, ...taskDoc.data() };
-        });
+        const tasks = snapshot.docs
+            .map(function(taskDoc) { return { id: taskDoc.id, ...taskDoc.data() }; })
+            .filter(function(t) { return normalizeStatus(t.status) !== "completed"; });
 
         renderTechnicianTasks(tasks);
     } catch (error) {
@@ -225,9 +226,9 @@ async function loadSummaryCards(assignedToId) {
         );
         var pending = 0, inProgress = 0, done = 0;
         tasksSnap.forEach(function(d) {
-            var s = String(d.data().status || "pending").toLowerCase();
-            if (s === "in-progress" || s === "in_progress") { inProgress++; }
-            else if (s === "done" || s === "completed") { done++; }
+            var s = normalizeStatus(d.data().status);
+            if (s === "in-progress") { inProgress++; }
+            else if (s === "completed") { done++; }
             else { pending++; }
         });
         var tasksValue = document.getElementById("tasks-value");

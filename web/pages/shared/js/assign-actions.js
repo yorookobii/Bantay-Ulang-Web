@@ -8,6 +8,7 @@ import { PARAM_LABELS } from './notificationsShared.js';
 import { SUGGESTIONS } from './alertsEngine.js';
 import { getRanges, loadThresholds } from './thresholds.js';
 import { initSidebar } from './sidebar.js';
+import { normalizeStatus } from './taskStatus.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -200,15 +201,17 @@ function populatePeople(roleFilter) {
 }
 
 // ── Tasks table ───────────────────────────────────────────────────────────
+// Keys are the normalizeStatus() output values ('completed' covers both the
+// web technician's 'completed' and the mobile app's 'done').
 const STATUS_CLASS = {
     pending:      'status-pending',
     'in-progress':'status-in-progress',
-    done:         'status-done'
+    completed:    'status-done'
 };
 const STATUS_LABEL = {
     pending:      'Pending',
     'in-progress':'In progress',
-    done:         'Done'
+    completed:    'Completed'
 };
 
 function fmtDate(str) {
@@ -251,7 +254,7 @@ function renderTasks(snapshot) {
 
     snapshot.forEach(docSnap => {
         const d      = docSnap.data();
-        const status = d.status || 'pending';
+        const status = normalizeStatus(d.status);
         const role   = d.assignedToRole || '';
         const roleLabel = role ? role.charAt(0).toUpperCase() + role.slice(1) : '—';
 

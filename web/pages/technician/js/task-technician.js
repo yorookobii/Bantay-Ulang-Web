@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/f
 import {
     collection, doc, getDocs, orderBy, query, updateDoc, where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { normalizeStatus } from "../../shared/js/taskStatus.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -16,13 +17,6 @@ function getSessionProfileId() {
         if (raw) return JSON.parse(raw)?.profileId || null;
     } catch (_) {}
     return null;
-}
-
-function normalizeStatus(status) {
-    const s = String(status || "").trim().toLowerCase();
-    if (s === "done" || s === "completed") return "completed";
-    if (s === "in-progress" || s === "in_progress" || s === "inprogress") return "in-progress";
-    return "pending";
 }
 
 function normalizePriority(task) {
