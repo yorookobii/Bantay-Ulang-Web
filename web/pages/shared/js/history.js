@@ -10,6 +10,7 @@ import {
 import { getReadingsInRange } from "./readingsService.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
+import { normalizeStatus } from "./taskStatus.js";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
@@ -331,8 +332,9 @@ function buildTaskQuery(cursorDoc) {
     return query(collection(db, TASK_COLL), ...clauses);
 }
 
-const TASK_STATUS_CLASS = { pending: "pending", "in-progress": "in-progress", done: "completed" };
-const TASK_STATUS_LABEL = { pending: "Pending", "in-progress": "In Progress", done: "Done" };
+// Keys are normalizeStatus() output ('completed' covers both web 'completed' and mobile 'done').
+const TASK_STATUS_CLASS = { pending: "pending", "in-progress": "in-progress", completed: "completed" };
+const TASK_STATUS_LABEL = { pending: "Pending", "in-progress": "In Progress", completed: "Completed" };
 
 function fmtTaskDate(ts) {
     const d = ts?.toDate?.();
@@ -344,7 +346,7 @@ function fmtTaskDate(ts) {
 function buildTaskRow(data, userNameMap) {
     const tr = document.createElement("tr");
 
-    const status      = String(data.status || "pending").toLowerCase();
+    const status      = normalizeStatus(data.status);
     const statusClass = TASK_STATUS_CLASS[status] || "pending";
     const statusLabel = TASK_STATUS_LABEL[status] || capitalize(status);
 
