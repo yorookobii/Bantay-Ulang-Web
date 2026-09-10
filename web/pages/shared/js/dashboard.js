@@ -201,7 +201,10 @@ function renderRecentLogs(entries) {
 }
 
 function applyActiveAlertsSnapshot(snapshot) {
-    setActiveAlertsValue(snapshot.size);
+    // Exclude alerts already handled via Assign Actions (handledAt set,
+    // status still "active").
+    const count = snapshot.docs.filter(d => d.data().handledAt == null).length;
+    setActiveAlertsValue(count);
 }
 
 function applyRecentLogsSnapshot(snapshot) {
@@ -630,13 +633,17 @@ async function loadTopAlert() {
         var snap = await getDocs(
             query(collection(db, 'alerts'), where('status', '==', 'active'))
         );
-        if (snap.empty) { renderNoBanner(bannerEl); return; }
+
+        // Exclude alerts already handled via Assign Actions (handledAt set,
+        // status still "active") so the banner matches the Active Alerts card.
+        var unhandled = snap.docs.filter(function (d) { return d.data().handledAt == null; });
+        if (!unhandled.length) { renderNoBanner(bannerEl); return; }
 
         var topData = null;
         var topRank = -1;
         var topTime = 0;
 
-        snap.docs.forEach(function(d) {
+        unhandled.forEach(function(d) {
             var data = d.data();
             var rank = SEVERITY_RANK[data.severity] || 0;
             var t    = (data.createdAt && data.createdAt.seconds) ? data.createdAt.seconds : 0;
@@ -648,7 +655,7 @@ async function loadTopAlert() {
         });
 
         if (topData) {
-            renderAlertBanner(bannerEl, topData, snap.size);
+            renderAlertBanner(bannerEl, topData, unhandled.length);
         } else {
             renderNoBanner(bannerEl);
         }
