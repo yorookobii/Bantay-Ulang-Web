@@ -479,3 +479,23 @@
         gap: 4px;
     }
 }
+
+/* Breadcrumb trail */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    color: var(--color-slate, #6b7280);
+}
+.breadcrumb a {
+    color: var(--color-working-teal, #0d9488);
+    text-decoration: none;
+}
+.breadcrumb a:hover {
+    color: var(--color-working-teal-hover, #0f766e);
+    text-decoration: underline;
+}
+.breadcrumb-sep { color: var(--color-slate, #6b7280); }
+.breadcrumb-current { color: var(--color-slate, #6b7280); font-weight: 600; }
