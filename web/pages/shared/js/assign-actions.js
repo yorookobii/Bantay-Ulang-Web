@@ -2,9 +2,11 @@ import { db, auth } from './firebase.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
     collection, query, orderBy, onSnapshot,
-    addDoc, deleteDoc, doc, updateDoc, getDocs, serverTimestamp
+    addDoc, deleteDoc, doc, updateDoc, getDoc, getDocs, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { PARAM_LABELS } from './notificationsShared.js';
+import { SUGGESTIONS } from './alertsEngine.js';
+import { getRanges, loadThresholds } from './thresholds.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -128,6 +130,67 @@ function markAlertContextHandled() {
     if (verb)   verb.textContent = 'Action assigned for';
     if (icon)   icon.className = 'fa-solid fa-circle-check';
     if (back)   back.hidden = false;
+}
+
+// ── Pre-fill Notes from the carried-in alert ─────────────────────────────
+// Rebuilds the status line (mirrors alertsEngine.js buildMessage) and appends
+// the existing per-parameter corrective advice. Notes only — Action type is
+// left for the admin to choose. One Firestore read; fully editable result.
+async function prefillFromAlert() {
+    if (!alertCtx.alertId) return;
+    const notesEl = document.getElementById('notes');
+    if (!notesEl || notesEl.value.trim() !== '') return;   // never clobber typed text
+
+    let a;
+    try {
+        const snap = await getDoc(doc(db, 'alerts', alertCtx.alertId));
+        if (!snap.exists()) return;
+        a = snap.data();
+    } catch (err) {
+        console.warn('assign-actions: could not load alert for pre-fill:', err);
+        return;
+    }
+    if (notesEl.value.trim() !== '') return;                // admin typed during the fetch
+
+    const param = a.parameter || alertCtx.param || '';
+    const value = a.currentValue;
+
+    // Water level is a boolean safe/unsafe flag — no numeric direction to derive,
+    // so reuse the alert's own message verbatim instead of asserting high/low.
+    if (param === 'waterLevel') {
+        if (a.message) notesEl.value = a.message;
+        return;
+    }
+
+    // Populate the ranges cache from Firestore before reading it, so direction
+    // math and the status-line safe range use the admin's configured thresholds
+    // rather than defaults (shared one-shot fetch; never rejects — falls back to
+    // defaults on error). Mirrors how alertsEngine gets its ranges.
+    try { await loadThresholds(); } catch (_) { /* getRanges() falls back to defaults */ }
+    if (notesEl.value.trim() !== '') return;   // admin typed during the fetch
+
+    const r = getRanges()[param];
+    let direction = null;
+    if (r && Number.isFinite(value)) {
+        if (r.min != null && value < r.min) direction = 'low';
+        else if (r.max != null && value > r.max) direction = 'high';
+    }
+
+    const label = (r && r.label) || PARAM_LABELS[param] || param || 'Sensor';
+    const unit  = (r && r.unit) || '';
+    const safeRangeStr = (r && r.safeRangeStr) || a.safeRange || '';
+    const display = Number.isFinite(value)
+        ? (Number.isInteger(value) ? value : parseFloat(value.toFixed(2)))
+        : value;
+    const valueStr = unit ? `${display} ${unit}` : String(display);
+
+    const statusLine = direction
+        ? `${label} is ${direction === 'high' ? 'above' : 'below'} the safe range. Current: ${valueStr}. Safe range: ${safeRangeStr}.`
+        : `${label} alert. Current: ${valueStr}.`;
+
+    const advice = direction ? ((SUGGESTIONS[param] || {})[direction] || '') : '';
+
+    notesEl.value = [statusLine, advice].filter(Boolean).join('\n\n');
 }
 
 // ── Load users from Firestore and populate Person dropdown ────────────────
@@ -299,6 +362,9 @@ async function handleSubmit(e) {
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
     currentUserUid = user.uid;
+
+    // Pre-fill Notes from the alert context, if any (independent of the table).
+    prefillFromAlert();
 
     // Populate the Person dropdown from real Firestore users
     await loadUsers();

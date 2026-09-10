@@ -29,7 +29,7 @@ import { loadThresholds, getRanges } from "./thresholds.js";
  *   deviceId     : string    – originating device identifier, e.g. "ESP32-001"
  */
 
-const SUGGESTIONS = {
+export const SUGGESTIONS = {
     phLevel: {
         high: "Add acid buffer or increase water change frequency.",
         low:  "Add alkaline buffer or check CO₂ and aeration levels."
