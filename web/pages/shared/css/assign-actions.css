@@ -177,6 +177,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     color: #374151;
 }
 .assignments-table tbody tr:hover { background: #f9fafb; }
+/* Overdue task rows: red left accent (see isOverdue in assign-actions.js) */
+.assignments-table tr.task-overdue td:first-child { box-shadow: inset 4px 0 0 0 #ef4444; }
 .status-badge {
     display: inline-flex;
     align-items: center;

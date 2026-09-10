@@ -218,6 +218,21 @@ function fmtDate(str) {
         : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// Web technician writes 'completed'; the mobile app writes 'done' — both mean finished.
+const DONE_STATUSES = new Set(['done', 'completed']);
+
+// Overdue = due date is a calendar day before today AND the task isn't finished.
+// Due-today is NOT overdue (still has the whole day). Missing/invalid dueDate → not overdue.
+function isOverdue(task) {
+    if (DONE_STATUSES.has(String(task.status || '').trim().toLowerCase())) return false;
+    if (typeof task.dueDate !== 'string' || !task.dueDate) return false;
+    const due = new Date(task.dueDate + 'T00:00:00');       // local midnight of due day (same as fmtDate)
+    if (Number.isNaN(due.getTime())) return false;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return due < startOfToday;
+}
+
 function renderTasks(snapshot) {
     const tbody = document.getElementById('assignmentsBody');
     if (!tbody) return;
@@ -241,6 +256,7 @@ function renderTasks(snapshot) {
         const roleLabel = role ? role.charAt(0).toUpperCase() + role.slice(1) : '—';
 
         const tr = document.createElement('tr');
+        if (isOverdue(d)) tr.classList.add('task-overdue');
         tr.innerHTML = `
             <td>${d.assignedToName || '—'}</td>
             <td>${roleLabel}</td>
