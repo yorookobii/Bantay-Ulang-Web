@@ -35,24 +35,27 @@ function getSensorStatus(key, value) {
     const { min, max } = range;
     const hasMin = min != null;
     const hasMax = max != null;
+    if (!hasMin && !hasMax) return "normal"; // unconfigured threshold — no band possible
 
     const belowMin = hasMin && v < min;
     const aboveMax = hasMax && v > max;
-    if (!belowMin && !aboveMax) return "normal";
 
-    let ratio;
+    // Out of range — always critical, however slight the overshoot.
+    if (belowMin || aboveMax) return "critical";
+
+    // In range — flag the near-edge 10% band on either side as a warning.
     if (hasMin && hasMax) {
-        const rangeSize = max - min;
-        ratio = belowMin ? (min - v) / rangeSize : (v - max) / rangeSize;
+        const edgeBand = (max - min) * 0.10;
+        if (v <= min + edgeBand || v >= max - edgeBand) return "warning";
     } else if (hasMin) {
-        // One-sided min (e.g. DO > 5): ratio relative to the minimum threshold
-        ratio = (min - v) / min;
+        // One-sided min (e.g. DO > 5): near-edge = within 10% above the floor.
+        if (v <= min * 1.10) return "warning";
     } else {
-        // One-sided max (e.g. turbidity < 25): ratio relative to the max threshold
-        ratio = (v - max) / max;
+        // One-sided max (e.g. turbidity < 25): near-edge = within 10% below the ceiling.
+        if (v >= max * 0.90) return "warning";
     }
 
-    return ratio <= 0.10 ? "warning" : "critical";
+    return "normal";
 }
 
 function formatValue(value, decimals, unit) {
