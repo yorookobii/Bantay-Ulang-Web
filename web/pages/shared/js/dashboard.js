@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import { getReadingsInRange } from "./readingsService.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
+import { reevaluateActiveAlerts } from "./alertsEngine.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -665,6 +666,7 @@ async function loadTopAlert() {
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
+    await reevaluateActiveAlerts();
     loadWelcomeData();
     loadTopAlert();
     loadMortalityStat();

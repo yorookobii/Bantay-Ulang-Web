@@ -106,6 +106,20 @@ export async function loadThresholds() {
 }
 
 /**
+ * refreshThresholds()
+ *
+ * Bypasses the loadThresholds() memo and forces a fresh Firestore fetch.
+ * Callers that must see thresholds written moments ago (e.g. re-evaluating
+ * alerts right after a Settings save on the same page) should use this
+ * instead of loadThresholds(), which would otherwise hand back a
+ * pre-save cached result.
+ */
+export async function refreshThresholds() {
+    loadPromise = null;
+    return loadThresholds();
+}
+
+/**
  * getRanges()
  *
  * Synchronous access to the last loaded ranges. Returns DEFAULT_RANGES if

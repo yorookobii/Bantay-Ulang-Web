@@ -5,6 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initSidebar } from './sidebar.js';
+import { reevaluateActiveAlerts } from './alertsEngine.js';
 
 const THRESHOLDS_DOC = doc(db, 'settings', 'thresholds');
 
@@ -83,6 +84,7 @@ async function saveThresholds() {
         if (el && el.value !== '') data[name] = parseFloat(el.value);
     });
     await setDoc(THRESHOLDS_DOC, data, { merge: true });
+    await reevaluateActiveAlerts();
 }
 
 // ── Form submit handler ───────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import {
     where,
     getDocs
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { reevaluateActiveAlerts } from './alertsEngine.js';
 
 // localStorage analog of Flutter's SharedPreferences seen-notification set
 // (see notification_service.dart / landing_page.dart) — same key, same
@@ -70,6 +71,7 @@ export async function fetchActiveAlerts() {
     // alert volume grows past 15, this cap will need decoupling (e.g. a
     // limit parameter) so "View All" can show everything without the bell
     // undercounting - not needed at current alert volume.
+    await reevaluateActiveAlerts();
     const snap = await getDocs(query(collection(db, 'alerts'), where('status', '==', 'active')));
     return snap.docs
         .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))

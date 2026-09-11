@@ -4,11 +4,13 @@ import {
     query,
     where,
     getDocs,
+    getDoc,
     addDoc,
     updateDoc,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { loadThresholds, getRanges } from "./thresholds.js";
+import { loadThresholds, getRanges, refreshThresholds } from "./thresholds.js";
+import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 
 /*
  * Firestore — alerts collection
@@ -258,12 +260,36 @@ async function findActiveAlert(param, deviceId) {
     return match || null;
 }
 
+// Shared in-range test, reused by both the live engine (below) and
+// reevaluateActiveAlerts() so there is exactly one copy of this comparison.
+function isInRange(param, value) {
+    const { min, max } = getRanges()[param];
+    const hasMin = min !== null && min !== undefined;
+    const hasMax = max !== null && max !== undefined;
+    return !((hasMin && value < min) || (hasMax && value > max));
+}
+
+// waterLevel is a boolean (safe/unsafe), not a numeric depth — see aquaponicsReading.js.
+function isWaterLevelSafe(value) {
+    return value !== false;
+}
+
+// Shared resolve write, reused by both the live engine (below) and
+// reevaluateActiveAlerts() so there is exactly one copy of this update.
+async function resolveAlert(ref, value) {
+    await updateDoc(ref, {
+        status:       "resolved",
+        resolvedAt:   serverTimestamp(),
+        currentValue: value
+    });
+}
+
 // Water level is now reported as a boolean (safe/unsafe), not a numeric depth —
 // see aquaponicsReading.js. No range/severity gradient exists for a boolean, so
 // this bypasses computeSeverity()/buildMessage() and uses a fixed message/severity.
 async function handleWaterLevel(value, deviceId) {
     const existing = await findActiveAlert("waterLevel", deviceId);
-    const isUnsafe = value === false;
+    const isUnsafe = !isWaterLevelSafe(value);
 
     if (isUnsafe) {
         const severity = "high";
@@ -288,26 +314,18 @@ async function handleWaterLevel(value, deviceId) {
         }
     } else if (existing) {
         // Water level returned to safe — resolve the alert.
-        await updateDoc(existing.ref, {
-            status:       "resolved",
-            resolvedAt:   serverTimestamp(),
-            currentValue: value
-        });
+        await resolveAlert(existing.ref, value);
     }
 }
 
 async function handleParameter(param, value, deviceId) {
     const { min, max, safeRangeStr } = getRanges()[param];
-    const hasMin = min !== null && min !== undefined;
-    const hasMax = max !== null && max !== undefined;
-
-    const belowMin   = hasMin && value < min;
-    const aboveMax   = hasMax && value > max;
-    const outOfRange = belowMin || aboveMax;
+    const outOfRange = !isInRange(param, value);
 
     const existing = await findActiveAlert(param, deviceId);
 
     if (outOfRange) {
+        const aboveMax  = max !== null && max !== undefined && value > max;
         const severity  = computeSeverity(value, min, max);
         const message   = buildMessage(param, value, aboveMax);
         const alertType = severity === "critical" ? "critical_out_of_range" : "out_of_range";
@@ -334,11 +352,7 @@ async function handleParameter(param, value, deviceId) {
         }
     } else if (existing) {
         // Parameter returned to safe range — resolve the alert.
-        await updateDoc(existing.ref, {
-            status:       "resolved",
-            resolvedAt:   serverTimestamp(),
-            currentValue: value
-        });
+        await resolveAlert(existing.ref, value);
     }
 }
 
@@ -362,6 +376,52 @@ export async function processSensorReading(data) {
     Object.keys(getRanges())
         .filter(param => param !== "waterLevel" && data[param] != null && Number.isFinite(Number(data[param])))
         .forEach(param => jobs.push(handleParameter(param, Number(data[param]), deviceId)));
+
+    await Promise.all(jobs);
+}
+
+/**
+ * reevaluateActiveAlerts()
+ *
+ * Resolve-only re-check of every active alert against the CURRENT thresholds
+ * and the latest known reading (the live Aquaponics/Ulang doc) — for the two
+ * moments the live engine's sensor-reading-updated listener can't reach:
+ * a threshold edit in Settings, and a Dashboard/bell load on a page that
+ * never ran the engine at all.
+ *
+ * Never creates a new alert and never touches a still-out-of-range alert —
+ * it only ever writes to alert docs already fetched from the status=='active'
+ * query, using the same isInRange/isWaterLevelSafe/resolveAlert primitives
+ * the live engine uses.
+ */
+export async function reevaluateActiveAlerts() {
+    // Bypass the loadThresholds() memo — must see thresholds saved moments
+    // ago on this same page, not a pre-save cached result.
+    await refreshThresholds();
+
+    const readingSnap = await getDoc(AQUAPONICS_REF);
+    if (!readingSnap.exists()) return;
+    const data = normalizeAquaponicsReading(readingSnap.data());
+
+    const activeSnap = await getDocs(
+        query(collection(db, "alerts"), where("status", "==", "active"))
+    );
+
+    const jobs = activeSnap.docs.map(async (alertDoc) => {
+        const { parameter, status } = alertDoc.data();
+        if (status !== "active") return; // resolved by the live engine in the meantime
+        const value = data[parameter];
+        if (value == null) return; // no current reading for this parameter — leave it alone
+
+        if (parameter === "waterLevel") {
+            if (isWaterLevelSafe(value)) await resolveAlert(alertDoc.ref, value);
+            return;
+        }
+
+        const numValue = Number(value);
+        if (!Number.isFinite(numValue)) return;
+        if (isInRange(parameter, numValue)) await resolveAlert(alertDoc.ref, numValue);
+    });
 
     await Promise.all(jobs);
 }
