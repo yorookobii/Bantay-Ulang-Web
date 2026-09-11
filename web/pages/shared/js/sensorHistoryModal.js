@@ -1,55 +1,49 @@
-import { db } from "./firebase.js";
-import {
-    collection,
-    query,
-    orderBy,
-    limit,
-    getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
-import { getReadingsInRange } from "./readingsService.js";
 
 // Presentation-only config (chart color, display label/unit). Safe-range
 // bounds and display text are derived live from the shared thresholds
 // module — see buildSafeText() / getRanges() — not stored here.
+// liveKey is the field name used in the "sensor-reading-updated" event detail
+// (see aquaponicsReading.js's normalizeAquaponicsReading) — NOT the old
+// HistoryLogs field name, which differed for pH ("ph" vs "phLevel").
 const SENSOR_CONFIG = {
     "ph": {
-        key: "ph",
+        liveKey: "phLevel",
         rangeKey: "phLevel",
         label: "pH Level",
         unit: "",
         color: "#2563eb"
     },
     "do": {
-        key: "dissolvedOxygen",
+        liveKey: "dissolvedOxygen",
         rangeKey: "dissolvedOxygen",
         label: "Dissolved Oxygen",
         unit: " mg/L",
         color: "#0891b2"
     },
     "temp": {
-        key: "waterTemp",
+        liveKey: "waterTemp",
         rangeKey: "waterTemp",
         label: "Water Temperature",
         unit: "°C",
         color: "#dc2626"
     },
     "salinity": {
-        key: "salinity",
+        liveKey: "salinity",
         rangeKey: "salinity",
         label: "Salinity",
         unit: " ppt",
         color: "#7c3aed"
     },
     "turbidity": {
-        key: "turbidity",
+        liveKey: "turbidity",
         rangeKey: "turbidity",
         label: "Turbidity",
         unit: " NTU",
         color: "#b45309"
     },
     "tds": {
-        key: "tds",
+        liveKey: "tds",
         rangeKey: "tds",
         label: "TDS",
         unit: " ppm",
@@ -69,92 +63,49 @@ function buildSafeText(range, unit) {
     return "Safe range: —";
 }
 
-const RANGES = {
-    "24h": { ms: 24 * 60 * 60 * 1000,       label: "Last 24 Hours" },
-    "7d":  { ms: 7  * 24 * 60 * 60 * 1000,  label: "Last 7 Days"   },
-    "30d": { ms: 30 * 24 * 60 * 60 * 1000,  label: "Last 30 Days"  }
-};
+// Fixed safe-zone fill bounds derived from the threshold range, not from the
+// rolling window's data — so the band never shifts as live points scroll in
+// and out, and appendLivePoint() can just push the same two constants on
+// every tick instead of recomputing a pad from the current dataset.
+function safeZoneBounds(range) {
+    const hasMin = range.min != null;
+    const hasMax = range.max != null;
+    if (!hasMin && !hasMax) return null;
 
-// ── growth_indicators cycleStart (one-shot, mirrors dashboard.js) ──────────
+    const refWidth = hasMin && hasMax ? (range.max - range.min) : (hasMin ? range.min : range.max) * 0.5;
+    const pad = Math.max(refWidth * 0.3, 0.5);
 
-function toDateValue(value) {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    if (typeof value.toDate === "function") return value.toDate();
-    if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return {
+        min: hasMin ? range.min : Math.max(0, range.max - pad),
+        max: hasMax ? range.max : range.min + pad
+    };
 }
 
-async function loadCycleStartMs() {
-    try {
-        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
-        if (snap.empty) return null;
-
-        const cycleStart = toDateValue(snap.docs[0].data().cycleStart);
-        return cycleStart ? cycleStart.getTime() : null;
-    } catch (err) {
-        console.warn("sensorHistoryModal: unable to load growth_indicators for cycleStart:", err);
-        return null;
-    }
-}
-
-let cycleStartMsPromise = null;
-function getCycleStartMs() {
-    if (!cycleStartMsPromise) cycleStartMsPromise = loadCycleStartMs();
-    return cycleStartMsPromise;
-}
+const MAX_POINTS = 40; // ~10 min at ~15s/tick
 
 let chartInstance     = null;
 let currentSensorAttr = null;
-let currentRange      = "24h";
+let currentSafeBand   = null; // { min, max } | null — set on open, fixed for the session
+let livePoints        = [];   // [{ time, value }], capped at MAX_POINTS
 let lastTriggerEl     = null;
 
-function formatLabel(date, rangeKey) {
-    if (rangeKey === "24h") {
-        return date.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" });
-    }
-    return date.toLocaleDateString("en-PH", {
-        month: "short", day: "numeric",
-        hour: "2-digit", minute: "2-digit"
-    });
+function formatLabel(date) {
+    return date.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-async function fetchHistory(sensorKey, rangeKey, cycleStartMs) {
-    const now = Date.now();
-    const cutoff = now - RANGES[rangeKey].ms;
-    const readings = await getReadingsInRange(cycleStartMs, cutoff, now);
-
-    return readings
-        .map(reading => {
-            const val = reading[sensorKey];
-            if (typeof val !== "number" || !Number.isFinite(val)) return null;
-            return { time: new Date(reading.measuredAtMs), value: val };
-        })
-        .filter(Boolean);
-}
-
-function buildChart(canvas, config, points, rangeKey, range, safeText) {
+function buildChart(canvas, config, points, band, safeText) {
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
-    const labels = points.map(p => formatLabel(p.time, rangeKey));
+    const labels = points.map(p => formatLabel(p.time));
     const values = points.map(p => p.value);
 
-    const hasSafeRange = range.min != null || range.max != null;
     const datasets = [];
 
-    if (hasSafeRange) {
-        const dataMin = Math.min(...values);
-        const dataMax = Math.max(...values);
-        const pad     = Math.max((dataMax - dataMin) * 0.3, 0.5);
-
-        const safeMinFill = range.min != null ? range.min : Math.max(0, dataMin - pad);
-        const safeMaxFill = range.max != null ? range.max : dataMax + pad;
-
+    if (band) {
         datasets.push(
             {
                 label: "__safeMin",
-                data: labels.map(() => safeMinFill),
+                data: labels.map(() => band.min),
                 borderColor: "transparent",
                 backgroundColor: "transparent",
                 pointRadius: 0,
@@ -164,7 +115,7 @@ function buildChart(canvas, config, points, rangeKey, range, safeText) {
             },
             {
                 label: "Safe Zone",
-                data: labels.map(() => safeMaxFill),
+                data: labels.map(() => band.max),
                 borderColor: "transparent",
                 backgroundColor: "rgba(16, 185, 129, 0.18)",
                 pointRadius: 0,
@@ -243,65 +194,58 @@ function buildChart(canvas, config, points, rangeKey, range, safeText) {
     });
 }
 
-async function loadAndRender(sensorAttr, rangeKey) {
-    const config = SENSOR_CONFIG[sensorAttr];
-    if (!config) return;
+// Appends one live point to the currently-open chart, rolling the window at
+// MAX_POINTS. Builds the Chart.js instance once (first point after open);
+// every point after that mutates chartInstance.data in place and calls
+// update() — never destroy()+new Chart() per tick.
+function appendLivePoint(value, time) {
+    livePoints.push({ time, value });
+    if (livePoints.length > MAX_POINTS) livePoints.shift();
 
-    await loadThresholds();
-    const range    = getRanges()[config.rangeKey];
-    const safeText = buildSafeText(range, config.unit);
+    const canvas = document.getElementById("shChart");
+    const empty  = document.getElementById("shEmptyState");
+    const safeEl = document.getElementById("shSafeRangeText");
 
-    const canvas  = document.getElementById("shChart");
-    const loading = document.getElementById("shLoadingState");
-    const empty   = document.getElementById("shEmptyState");
-    const safeEl  = document.getElementById("shSafeRangeText");
-
-    if (canvas)  canvas.classList.add("sh-hidden");
-    if (loading) loading.classList.remove("sh-hidden");
-    if (empty)   empty.classList.add("sh-hidden");
-    if (safeEl)  safeEl.textContent = safeText;
-
-    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-
-    try {
-        const cycleStartMs = await getCycleStartMs();
-        const points = await fetchHistory(config.key, rangeKey, cycleStartMs);
-        if (loading) loading.classList.add("sh-hidden");
-
-        if (!points.length) {
-            if (empty) empty.classList.remove("sh-hidden");
-            return;
-        }
-
+    if (!chartInstance) {
         if (canvas) canvas.classList.remove("sh-hidden");
-        buildChart(canvas, config, points, rangeKey, range, safeText);
-    } catch (err) {
-        console.error("sensorHistoryModal:", err);
-        if (loading) loading.classList.add("sh-hidden");
-        if (empty) {
-            empty.textContent = "Failed to load sensor data.";
-            empty.classList.remove("sh-hidden");
-        }
+        if (empty)  empty.classList.add("sh-hidden");
+        const safeText = safeEl ? safeEl.textContent : "";
+        buildChart(canvas, SENSOR_CONFIG[currentSensorAttr], livePoints, currentSafeBand, safeText);
+        return;
     }
+
+    const label = formatLabel(time);
+    const datasets = chartInstance.data.datasets;
+    chartInstance.data.labels.push(label);
+    datasets.forEach((ds, i) => {
+        const isValueLine = i === datasets.length - 1;
+        ds.data.push(isValueLine ? value : (i === 0 ? currentSafeBand.min : currentSafeBand.max));
+    });
+
+    if (chartInstance.data.labels.length > MAX_POINTS) {
+        chartInstance.data.labels.shift();
+        datasets.forEach(ds => ds.data.shift());
+    }
+    chartInstance.update();
 }
 
-function openModal(sensorAttr) {
+async function openModal(sensorAttr) {
     const config = SENSOR_CONFIG[sensorAttr];
     if (!config) return;
 
     currentSensorAttr = sensorAttr;
-    currentRange      = "24h";
+    livePoints = [];
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
     const overlay  = document.getElementById("sensorHistoryModal");
     const title    = document.getElementById("shModalTitle");
     const subtitle = document.getElementById("shModalSubtitle");
+    const canvas   = document.getElementById("shChart");
+    const empty    = document.getElementById("shEmptyState");
+    const safeEl   = document.getElementById("shSafeRangeText");
 
-    if (title)    title.textContent    = config.label + " History";
-    if (subtitle) subtitle.textContent = RANGES[currentRange].label;
-
-    overlay.querySelectorAll(".sh-toggle-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.range === "24h");
-    });
+    if (title)    title.textContent    = config.label + " — Live";
+    if (subtitle) subtitle.textContent = `Last ~${Math.round(MAX_POINTS * 15 / 60)} minutes`;
 
     overlay.classList.add("active");
     document.body.style.overflow = "hidden";
@@ -309,7 +253,21 @@ function openModal(sensorAttr) {
     const closeBtn = document.getElementById("shModalClose");
     if (closeBtn) closeBtn.focus();
 
-    loadAndRender(sensorAttr, currentRange);
+    await loadThresholds();
+    const range = getRanges()[config.rangeKey];
+    currentSafeBand = safeZoneBounds(range);
+    if (safeEl) safeEl.textContent = buildSafeText(range, config.unit);
+
+    const latest = window.latestSensorReading;
+    const seedValue = latest ? latest[config.liveKey] : null;
+    if (seedValue != null && Number.isFinite(Number(seedValue))) {
+        const seedTime = latest.measuredAt?.toDate ? latest.measuredAt.toDate() : new Date();
+        appendLivePoint(Number(seedValue), seedTime);
+    } else if (canvas && empty) {
+        canvas.classList.add("sh-hidden");
+        empty.textContent = "Waiting for live data…";
+        empty.classList.remove("sh-hidden");
+    }
 }
 
 function closeModal() {
@@ -350,15 +308,22 @@ export function initSensorHistoryModal() {
     const closeBtn = document.getElementById("shModalClose");
     if (closeBtn) closeBtn.addEventListener("click", closeModal);
 
-    document.querySelectorAll(".sh-toggle-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            currentRange = btn.dataset.range;
-            const subtitle = document.getElementById("shModalSubtitle");
-            if (subtitle) subtitle.textContent = RANGES[currentRange].label;
-            document.querySelectorAll(".sh-toggle-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            if (currentSensorAttr) loadAndRender(currentSensorAttr, currentRange);
-        });
+    // Persistent — attached once, not per modal-open. No-ops (early return)
+    // whenever the modal isn't open, so there is nothing to leak or clean up
+    // on close.
+    document.addEventListener("sensor-reading-updated", (e) => {
+        const modalOverlay = document.getElementById("sensorHistoryModal");
+        if (!modalOverlay || !modalOverlay.classList.contains("active")) return;
+        if (!currentSensorAttr) return;
+
+        const config = SENSOR_CONFIG[currentSensorAttr];
+        if (!config) return;
+
+        const raw = e.detail[config.liveKey];
+        if (raw == null || !Number.isFinite(Number(raw))) return; // skip — don't plot a gap as 0
+
+        const time = e.detail.measuredAt?.toDate ? e.detail.measuredAt.toDate() : new Date();
+        appendLivePoint(Number(raw), time);
     });
 
     document.addEventListener("keydown", e => {

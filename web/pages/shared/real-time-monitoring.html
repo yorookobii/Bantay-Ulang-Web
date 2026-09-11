@@ -211,22 +211,14 @@
                     </button>
                 </div>
                 <div class="sh-modal-body">
-                    <div class="sh-modal-toggle">
-                        <button class="sh-toggle-btn active" data-range="24h">24 Hours</button>
-                        <button class="sh-toggle-btn" data-range="7d">7 Days</button>
-                        <button class="sh-toggle-btn" data-range="30d">30 Days</button>
-                    </div>
                     <div class="sh-safe-range-row">
                         <span class="sh-safe-dot"></span>
                         <span id="shSafeRangeText" class="sh-safe-text"></span>
                     </div>
                     <div class="sh-chart-area">
                         <canvas id="shChart"></canvas>
-                        <div id="shLoadingState" class="sh-overlay-state">
-                            <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading data…
-                        </div>
                         <div id="shEmptyState" class="sh-overlay-state sh-hidden">
-                            No readings found for this time period.
+                            Waiting for live data…
                         </div>
                     </div>
                 </div>
