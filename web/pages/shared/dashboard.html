@@ -102,15 +102,16 @@
 
                 <!-- Metrics Row -->
                 <div class="metrics-row">
-                    <div class="metric-card">
+                    <div class="metric-card" id="hardware-status-card">
                         <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
                         <div class="card-header">
-                            <div class="card-icon status"><i class="fa-solid fa-check"></i></div>
+                            <div class="card-icon status" id="hardware-status-icon"><i class="fa-solid fa-check"></i></div>
                             <span class="card-title">System Hardware Status</span>
                         </div>
-                        <div class="card-value">Normal</div>
-                        <div class="card-trend positive">
-                            <i class="fa-solid fa-arrow-up"></i> +100% stable
+                        <div class="card-value" id="hardware-status-value">Connecting…</div>
+                        <div class="card-trend positive" id="hardware-status-trend">
+                            <i class="fa-solid fa-circle-check" id="hardware-status-trend-icon"></i>
+                            <span id="hardware-status-updated">Last updated —</span>
                         </div>
                     </div>
                     <div class="metric-card">

@@ -1,10 +1,11 @@
 import { auth, db } from "./firebase.js";
-import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { reevaluateActiveAlerts } from "./alertsEngine.js";
 import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
+import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -73,6 +74,129 @@ function formatLogTime(value, fallback = "Just now") {
         hour: "2-digit",
         minute: "2-digit"
     });
+}
+
+// ── System Hardware Status (Aquaponics/Ulang data freshness) ──────────────────
+
+const HW_ONLINE_THRESHOLD_MS = 60 * 1000;   // <60s = Online (~4 missed cycles at ~15s/tick)
+const HW_STALE_THRESHOLD_MS  = 300 * 1000;  // 60s–300s = Stale; >300s (5m) = Offline
+const HW_CHECK_INTERVAL_MS   = 15 * 1000;   // Periodic age re-check interval
+
+let latestHardwareMeasuredAt = null; // Date | null
+let hardwareTimer = null;
+
+function formatUpdatedAgo(ageMs) {
+    if (ageMs == null || !Number.isFinite(ageMs)) {
+        return "Last updated —";
+    }
+    const sec = Math.floor(ageMs / 1000);
+    if (sec < 60) return `Last updated ${Math.max(0, sec)}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `Last updated ${min}m ago`;
+    const hrs = Math.floor(min / 60);
+    if (hrs < 24) return `Last updated ${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `Last updated ${days}d ago`;
+}
+
+function evaluateHardwareFreshness(measuredAtDate) {
+    if (!measuredAtDate) {
+        return { state: "offline", label: "Offline", updatedText: "Last updated —" };
+    }
+
+    const measuredTime = measuredAtDate.getTime();
+    if (!Number.isFinite(measuredTime)) {
+        return { state: "offline", label: "Offline", updatedText: "Last updated —" };
+    }
+
+    const ageMs = Math.max(0, Date.now() - measuredTime);
+
+    if (ageMs > HW_STALE_THRESHOLD_MS) {
+        return { state: "offline", label: "Offline", updatedText: formatUpdatedAgo(ageMs) };
+    }
+    if (ageMs > HW_ONLINE_THRESHOLD_MS) {
+        return { state: "stale", label: "Stale", updatedText: formatUpdatedAgo(ageMs) };
+    }
+    return { state: "online", label: "Online", updatedText: formatUpdatedAgo(ageMs) };
+}
+
+function renderHardwareStatus(measuredAtDate) {
+    const valueEl   = document.getElementById("hardware-status-value");
+    const iconEl    = document.getElementById("hardware-status-icon");
+    const trendEl   = document.getElementById("hardware-status-trend");
+    const updatedEl = document.getElementById("hardware-status-updated");
+
+    if (!valueEl && !iconEl && !trendEl) return;
+
+    const { state, label, updatedText } = evaluateHardwareFreshness(measuredAtDate);
+
+    if (valueEl) valueEl.textContent = label;
+    if (updatedEl) updatedEl.textContent = updatedText;
+
+    if (iconEl) {
+        iconEl.className = "card-icon status status--" + state;
+        let iconHtml = '<i class="fa-solid fa-circle-check"></i>';
+        if (state === "stale")   iconHtml = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        if (state === "offline") iconHtml = '<i class="fa-solid fa-circle-xmark"></i>';
+        iconEl.innerHTML = iconHtml;
+    }
+
+    if (trendEl) {
+        let trendClass = "card-trend positive";
+        let trendIcon = "fa-circle-check";
+        if (state === "stale") {
+            trendClass = "card-trend warning";
+            trendIcon = "fa-clock";
+        } else if (state === "offline") {
+            trendClass = "card-trend negative";
+            trendIcon = "fa-circle-exclamation";
+        }
+        trendEl.className = trendClass;
+
+        const trendIconEl = document.getElementById("hardware-status-trend-icon");
+        if (trendIconEl) {
+            trendIconEl.className = "fa-solid " + trendIcon;
+        }
+    }
+}
+
+function initHardwareStatusMonitor() {
+    if (hardwareTimer) {
+        clearInterval(hardwareTimer);
+        hardwareTimer = null;
+    }
+
+    // Periodic timer to re-evaluate age even when no new readings arrive (e.g. hardware freeze/disconnect)
+    hardwareTimer = setInterval(() => {
+        renderHardwareStatus(latestHardwareMeasuredAt);
+    }, HW_CHECK_INTERVAL_MS);
+
+    // Initial render with null until snapshot fires
+    renderHardwareStatus(null);
+
+    // Single onSnapshot listener on Aquaponics/Ulang doc
+    const unsubscribe = onSnapshot(
+        AQUAPONICS_REF,
+        (snapshot) => {
+            if (!snapshot.exists()) {
+                latestHardwareMeasuredAt = null;
+                renderHardwareStatus(null);
+                return;
+            }
+
+            const data = normalizeAquaponicsReading(snapshot.data());
+            window.latestSensorReading = data;
+            latestHardwareMeasuredAt = toDateValue(data.measuredAt);
+            renderHardwareStatus(latestHardwareMeasuredAt);
+        },
+        (error) => {
+            console.warn("[dashboard] Aquaponics/Ulang hardware listener error:", error);
+            latestHardwareMeasuredAt = null;
+            renderHardwareStatus(null);
+        }
+    );
+
+    return unsubscribe;
 }
 
 // Panelist requirement: yield prediction only after 3 months of real cultivation data
@@ -578,6 +702,7 @@ async function loadTopAlert() {
 
 document.addEventListener('DOMContentLoaded', async function() {
     await reevaluateActiveAlerts();
+    initHardwareStatusMonitor();
     loadWelcomeData();
     loadTopAlert();
     loadMortalityStat();

@@ -422,6 +422,9 @@
 }
 
 .metric-card .card-icon.status { background: var(--color-success-green-bg, #d1fae5); color: var(--color-success-green, #059669); }
+.metric-card .card-icon.status.status--online  { background: var(--color-success-green-bg, #d1fae5); color: var(--color-success-green, #059669); }
+.metric-card .card-icon.status.status--stale   { background: var(--color-warning-amber-bg, #fef3c7); color: var(--color-warning-amber, #d97706); }
+.metric-card .card-icon.status.status--offline { background: var(--color-critical-red-bg, #fee2e2);  color: var(--color-critical-red, #dc2626); }
 .metric-card .card-icon.population { background: var(--color-info-blue-bg, #dbeafe); color: var(--color-info-blue, #2563eb); }
 .metric-card .card-icon.alerts { background: var(--color-warning-amber-bg, #fef3c7); color: var(--color-warning-amber, #d97706); }
 
@@ -447,6 +450,7 @@
 }
 
 .metric-card .card-trend.positive { color: var(--color-success-green, #059669); }
+.metric-card .card-trend.warning  { color: var(--color-warning-amber, #d97706); }
 .metric-card .card-trend.negative { color: var(--color-critical-red, #dc2626); }
 .metric-card .card-trend.action { color: var(--color-success-green, #059669); }
 
