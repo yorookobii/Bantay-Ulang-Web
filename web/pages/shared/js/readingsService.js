@@ -1,5 +1,5 @@
 import * as cacheStore from "./cacheStore.js";
-import { fetchNewReadings } from "./historyLogsReader.js";
+import { fetchNewReadings, DEFAULT_FETCH_LIMIT } from "./historyLogsReader.js";
 
 /*
  * readingsService.js — integration layer combining cacheStore.js (local
@@ -123,4 +123,28 @@ export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
         if (untilMs != null && reading.measuredAtMs > untilMs) return false;
         return true;
     });
+}
+
+/**
+ * catchUpCache(cycleStartMs, opts)
+ *
+ * Repeatedly advances syncCache() — each call fetches the page just past
+ * wherever the persisted lastSync left off (see syncCache() above) — until a
+ * page comes back smaller than DEFAULT_FETCH_LIMIT (fetchNewReadings's real
+ * "no more pages" signal) or the time budget/iteration cap is hit.
+ *
+ * Exists because a cold cache (first-ever visit, cleared site data, or a
+ * grow cycle that started well before the requested window) can be many
+ * pages behind "now" — a single getReadingsInRange() call only advances one
+ * page, so its window-filtered result can stay empty for several calls even
+ * while syncCache is making real progress. Call this BEFORE getReadingsInRange()
+ * when the caller needs the cache fully caught up rather than whatever one
+ * page happens to return.
+ */
+export async function catchUpCache(cycleStartMs, { maxIterations = 150, timeBudgetMs = 10000 } = {}) {
+    const deadline = Date.now() + timeBudgetMs;
+    for (let i = 0; i < maxIterations && Date.now() < deadline; i++) {
+        const page = await syncCache(cycleStartMs);
+        if (page.length < DEFAULT_FETCH_LIMIT) break; // exhausted — no more pages to fetch
+    }
 }

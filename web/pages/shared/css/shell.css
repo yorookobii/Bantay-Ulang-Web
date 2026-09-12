@@ -781,3 +781,19 @@ body {
         right: 0;
     }
 }
+
+/* ── Shared chart loading overlay (Environmental Trends widget + page) ──── */
+.chart-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #fff;
+    color: var(--color-slate, #6b7280);
+    font-size: 13px;
+}
+.chart-loading-overlay.chart-hidden {
+    display: none;
+}

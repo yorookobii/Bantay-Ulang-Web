@@ -35,7 +35,7 @@ import {
  */
 
 const READINGS_COLLECTION_GROUP = "readings";
-const DEFAULT_FETCH_LIMIT = 1000;
+export const DEFAULT_FETCH_LIMIT = 1000;
 
 /**
  * normalizeHistoryReading(docData)

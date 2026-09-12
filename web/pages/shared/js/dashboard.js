@@ -1,10 +1,10 @@
 import { auth, db } from "./firebase.js";
 import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getReadingsInRange } from "./readingsService.js";
-import { loadThresholds, getRanges } from "./thresholds.js";
+import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { reevaluateActiveAlerts } from "./alertsEngine.js";
+import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
@@ -250,95 +250,6 @@ async function loadData() {
         applyRecentLogsSnapshot(logsResult.value);
     } else {
         console.warn("Unable to load logs collection.", logsResult.reason);
-    }
-}
-
-// ── Environmental Trends (readingsService) ──────────────────────────────────
-
-const ENV_PARAM_CONFIG = {
-    ph:              { label: "pH",                       yMin: 6.5, yMax: 8.5, color: "#2563eb" },
-    dissolvedOxygen: { label: "Dissolved Oxygen (mg/L)",   yMin: 5,   yMax: 9,   color: "#0891b2" },
-    waterTemp:       { label: "Temperature (°C)",          yMin: 20,  yMax: 32,  color: "#dc2626" },
-    salinity:        { label: "Salinity (ppt)",            yMin: 0,   yMax: 18,  color: "#7c3aed" },
-    turbidity:       { label: "Turbidity (NTU)",           yMin: 0,   yMax: 25,  color: "#b45309" },
-    tds:             { label: "TDS (ppm)",                 color: "#0d9488" }
-};
-
-const ENV_RANGE_CONFIG = {
-    "24h": { ms: 24 * 60 * 60 * 1000,      label: "Last 24 Hours" },
-    "7d":  { ms: 7  * 24 * 60 * 60 * 1000, label: "Last 7 Days" },
-    "30d": { ms: 30 * 24 * 60 * 60 * 1000, label: "Last 30 Days" }
-};
-
-function computeRange(values, fallbackMin, fallbackMax) {
-    const numericValues = values.filter((value) => typeof value === "number" && Number.isFinite(value));
-    if (!numericValues.length) return { min: fallbackMin, max: fallbackMax };
-
-    const min = Math.min(...numericValues);
-    const max = Math.max(...numericValues);
-
-    if (min === max) {
-        const pad = Math.max(Math.abs(min) * 0.15, 0.5);
-        return { min: min - pad, max: max + pad };
-    }
-
-    const pad = Math.max((max - min) * 0.15, 0.5);
-    return { min: min - pad, max: max + pad };
-}
-
-function formatEnvLabel(date, rangeKey) {
-    if (rangeKey === "24h") {
-        return date.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" });
-    }
-    return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-async function fetchEnvTrends(paramKey, rangeKey, cycleStartMs) {
-    const now = Date.now();
-    const cutoff = now - ENV_RANGE_CONFIG[rangeKey].ms;
-    const readings = await getReadingsInRange(cycleStartMs, cutoff, now);
-
-    return readings
-        .map((reading) => {
-            const value = reading[paramKey];
-            if (typeof value !== "number" || !Number.isFinite(value)) return null;
-            return { label: formatEnvLabel(new Date(reading.measuredAtMs), rangeKey), value };
-        })
-        .filter(Boolean);
-}
-
-function envFallbackRange(paramKey, config) {
-    if (paramKey !== "tds") return { min: config.yMin, max: config.yMax };
-
-    const tdsRange = getRanges().tds;
-    const hasBoth = tdsRange && tdsRange.min != null && tdsRange.max != null;
-    return hasBoth ? { min: tdsRange.min, max: tdsRange.max } : { min: undefined, max: undefined };
-}
-
-async function updateEnvTrendsChart(chart, paramDropdown, rangeDropdown, cycleStartMs) {
-    if (!chart) return;
-
-    const paramKey = paramDropdown ? paramDropdown.value : "ph";
-    const rangeKey = rangeDropdown ? rangeDropdown.value : "24h";
-    const config = ENV_PARAM_CONFIG[paramKey] || ENV_PARAM_CONFIG.ph;
-
-    try {
-        const points = await fetchEnvTrends(paramKey, rangeKey, cycleStartMs);
-        const labels = points.map((point) => point.label);
-        const values = points.map((point) => point.value);
-        const fallback = envFallbackRange(paramKey, config);
-        const range = computeRange(values, fallback.min, fallback.max);
-
-        chart.data.labels = labels;
-        chart.data.datasets[0].label = config.label;
-        chart.data.datasets[0].data = values;
-        chart.data.datasets[0].borderColor = config.color;
-        chart.data.datasets[0].backgroundColor = config.color + "1a";
-        chart.options.scales.y.min = range.min;
-        chart.options.scales.y.max = range.max;
-        chart.update();
-    } catch (err) {
-        console.warn("dashboard: unable to load environmental trends:", err);
     }
 }
 
@@ -674,34 +585,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadData();
 
     var envCtx = document.getElementById('envTrendsChart');
+    var envLoadingEl = document.getElementById('envTrendsLoading');
     var paramDropdown = document.getElementById('envTrendsParamDropdown');
     var rangeDropdown = document.getElementById('envTrendsRangeDropdown');
-    var envTrendsChart = null;
 
     if (envCtx) {
-        envTrendsChart = new Chart(envCtx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: '',
-                    data: [],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
+        var envTrendsChart = initEnvTrendsChart(envCtx);
 
         var cycleStartMs = null;
         try {
@@ -712,12 +601,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         var refreshEnvTrends = function() {
-            updateEnvTrendsChart(envTrendsChart, paramDropdown, rangeDropdown, cycleStartMs);
+            var paramKey = paramDropdown ? paramDropdown.value : 'ph';
+            var rangeKey = rangeDropdown ? rangeDropdown.value : '24h';
+            return refreshEnvTrendsChart(envTrendsChart, paramKey, rangeKey, cycleStartMs);
         };
 
         if (paramDropdown) paramDropdown.addEventListener('change', refreshEnvTrends);
         if (rangeDropdown) rangeDropdown.addEventListener('change', refreshEnvTrends);
 
-        refreshEnvTrends();
+        // Only the very first load can hit the cold-cache catch-up path
+        // (catchUpCache inside refreshEnvTrendsChart) — show the overlay for
+        // that call only, not on every later dropdown change.
+        if (envLoadingEl) envLoadingEl.classList.remove('chart-hidden');
+        await refreshEnvTrends();
+        if (envLoadingEl) envLoadingEl.classList.add('chart-hidden');
     }
 });

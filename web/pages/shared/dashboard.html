@@ -158,10 +158,14 @@
                                     <option value="7d">Last 7 Days</option>
                                     <option value="30d">Last 30 Days</option>
                                 </select>
+                                <a href="environmental-trends.html" class="tab-action-btn">View full trends →</a>
                             </div>
                         </div>
                         <div class="chart-wrap">
                             <canvas id="envTrendsChart"></canvas>
+                            <div id="envTrendsLoading" class="chart-loading-overlay chart-hidden">
+                                <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading historical data…
+                            </div>
                         </div>
                     </div>
                     <div class="chart-card">
