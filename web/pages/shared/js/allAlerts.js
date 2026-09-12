@@ -53,8 +53,9 @@ let readingsByParam = null;
 
 // Group categories by alert type
 const TYPE_GROUPS = {
-    critical_out_of_range: { label: 'Critical Alerts', order: 0 },
-    out_of_range:          { label: 'Warning Alerts',  order: 1 }
+    hardware_offline:      { label: 'Hardware Alerts', order: 0 },
+    critical_out_of_range: { label: 'Critical Alerts', order: 1 },
+    out_of_range:          { label: 'Warning Alerts',  order: 2 }
 };
 
 function groupByType(alerts) {
@@ -283,9 +284,17 @@ function renderSparkline(points, breachMs, sevClass, label) {
     </span>`;
 }
 
+function renderHardwareAlertIndicator() {
+    return `
+    <span class="alert-spark alert-spark--wl is-unsafe" style="color:var(--color-critical-red, #dc2626);">
+        <i class="fa-solid fa-server" style="margin-right:4px;"></i>Offline
+    </span>`;
+}
+
 // Left-column content for a card: waterLevel indicator, loading/empty
-// placeholder, or the sparkline once readings have resolved.
+// placeholder, hardware offline badge, or the sparkline once readings have resolved.
 function renderCardSpark(alert, isCritical, paramLabel) {
+    if (alert.type === 'hardware_offline') return renderHardwareAlertIndicator();
     if (alert.parameter === 'waterLevel') return renderWaterLevelIndicator(alert);
     if (!readingsByParam) return renderSparkPlaceholder('loading trend…');
 

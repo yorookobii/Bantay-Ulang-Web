@@ -126,9 +126,9 @@ async function prefillFromAlert() {
     const param = a.parameter || alertCtx.param || '';
     const value = a.currentValue;
 
-    // Water level is a boolean safe/unsafe flag — no numeric direction to derive,
-    // so reuse the alert's own message verbatim instead of asserting high/low.
-    if (param === 'waterLevel') {
+    // Hardware offline and water level have non-numeric / fixed messages —
+    // reuse the alert's own message verbatim instead of asserting high/low.
+    if (a.type === 'hardware_offline' || param === 'waterLevel') {
         if (a.message) notesEl.value = a.message;
         return;
     }

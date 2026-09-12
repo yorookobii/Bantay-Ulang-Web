@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { collection, doc, getDocs, getDoc, limit, orderBy, query, where, Timestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDocs, getDoc, addDoc, updateDoc, serverTimestamp, limit, orderBy, query, where, Timestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
@@ -157,6 +157,72 @@ function renderHardwareStatus(measuredAtDate) {
         if (trendIconEl) {
             trendIconEl.className = "fa-solid " + trendIcon;
         }
+    }
+
+    // Full alert lifecycle for hardware_offline
+    if (state === "offline") {
+        createHardwareOfflineAlert();
+    } else if (state === "online") {
+        resolveHardwareOfflineAlert();
+    }
+}
+
+let isCreatingHwAlert = false;
+let isResolvingHwAlert = false;
+
+async function findActiveHardwareAlert() {
+    try {
+        const snap = await getDocs(query(collection(db, "alerts"), where("status", "==", "active")));
+        return snap.docs.find(d => d.data().type === "hardware_offline") || null;
+    } catch (err) {
+        console.warn("[dashboard] Failed to query active hardware alert:", err);
+        return null;
+    }
+}
+
+async function createHardwareOfflineAlert() {
+    if (isCreatingHwAlert) return;
+    isCreatingHwAlert = true;
+    try {
+        const existing = await findActiveHardwareAlert();
+        if (existing) return; // Dedup: active hardware_offline alert already exists
+
+        await addDoc(collection(db, "alerts"), {
+            type:         "hardware_offline",
+            parameter:    "hardware",
+            currentValue: "Offline",
+            safeRange:    "Online",
+            message:      "Hardware offline — no sensor data received for >5 minutes.",
+            severity:     "critical",
+            status:       "active",
+            createdAt:    serverTimestamp(),
+            deviceId:     "ESP32-001"
+        });
+        console.log("[dashboard] Hardware offline alert created.");
+    } catch (err) {
+        console.error("[dashboard] Failed to create hardware offline alert:", err);
+    } finally {
+        isCreatingHwAlert = false;
+    }
+}
+
+async function resolveHardwareOfflineAlert() {
+    if (isResolvingHwAlert) return;
+    isResolvingHwAlert = true;
+    try {
+        const activeAlert = await findActiveHardwareAlert();
+        if (activeAlert) {
+            await updateDoc(activeAlert.ref, {
+                status:       "resolved",
+                resolvedAt:   serverTimestamp(),
+                currentValue: "Online"
+            });
+            console.log("[dashboard] Hardware offline alert auto-resolved.");
+        }
+    } catch (err) {
+        console.error("[dashboard] Failed to resolve hardware alert:", err);
+    } finally {
+        isResolvingHwAlert = false;
     }
 }
 
@@ -613,7 +679,9 @@ var PARAM_LABELS = {
     dissolvedOxygen: 'Dissolved Oxygen',
     salinity: 'Salinity',
     turbidity: 'Turbidity',
-    waterLevel: 'Water Level'
+    waterLevel: 'Water Level',
+    tds: 'TDS',
+    hardware: 'System Hardware'
 };
 
 function renderAlertBanner(container, alertData, totalCount) {

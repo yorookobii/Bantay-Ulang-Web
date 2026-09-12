@@ -408,8 +408,9 @@ export async function reevaluateActiveAlerts() {
     );
 
     const jobs = activeSnap.docs.map(async (alertDoc) => {
-        const { parameter, status } = alertDoc.data();
+        const { parameter, status, type } = alertDoc.data();
         if (status !== "active") return; // resolved by the live engine in the meantime
+        if (type === "hardware_offline") return; // hardware alert is not a parameter alert — never evaluate against thresholds
         const value = data[parameter];
         if (value == null) return; // no current reading for this parameter — leave it alone
 

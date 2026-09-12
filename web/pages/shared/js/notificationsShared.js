@@ -29,7 +29,8 @@ export const PARAM_LABELS = {
     salinity: 'Salinity',
     turbidity: 'Turbidity',
     waterLevel: 'Water Level',
-    tds: 'TDS'
+    tds: 'TDS',
+    hardware: 'System Hardware'
 };
 
 export function getSeenKeys() {
