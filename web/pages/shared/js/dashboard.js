@@ -252,7 +252,9 @@ function initHardwareStatusMonitor() {
 
             const data = normalizeAquaponicsReading(snapshot.data());
             window.latestSensorReading = data;
-            latestHardwareMeasuredAt = toDateValue(data.measuredAt);
+            // Prioritize explicit measuredAt from document; fallback to snapshot arrival time if missing
+            const parsedMeasuredAt = toDateValue(data.measuredAt);
+            latestHardwareMeasuredAt = parsedMeasuredAt || new Date();
             renderHardwareStatus(latestHardwareMeasuredAt);
         },
         (error) => {
