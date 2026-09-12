@@ -86,8 +86,35 @@ const MAX_POINTS = 40; // ~10 min at ~15s/tick
 let chartInstance     = null;
 let currentSensorAttr = null;
 let currentSafeBand   = null; // { min, max } | null — set on open, fixed for the session
-let livePoints        = [];   // [{ time, value }], capped at MAX_POINTS
+let isModalReady      = false;
+let isInitialSeeded   = false;
 let lastTriggerEl     = null;
+
+// Per-parameter rolling buffers keyed to SENSOR_CONFIG keys (ph, do, temp, salinity, turbidity, tds).
+// Each buffer stores [{ time, value }] capped at MAX_POINTS.
+// Persists in module memory across open/close for the lifetime of the page session.
+const sensorBuffers = Object.keys(SENSOR_CONFIG).reduce((acc, key) => {
+    acc[key] = [];
+    return acc;
+}, {});
+
+function seedFromLatestOnce() {
+    if (isInitialSeeded) return;
+    const latest = window.latestSensorReading;
+    if (!latest) return;
+    isInitialSeeded = true;
+
+    const time = latest.measuredAt?.toDate ? latest.measuredAt.toDate() : new Date();
+    for (const [param, config] of Object.entries(SENSOR_CONFIG)) {
+        const raw = latest[config.liveKey];
+        if (raw != null && Number.isFinite(Number(raw))) {
+            const buf = sensorBuffers[param];
+            if (buf && buf.length === 0) {
+                buf.push({ time, value: Number(raw) });
+            }
+        }
+    }
+}
 
 function formatLabel(date) {
     return date.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -194,37 +221,40 @@ function buildChart(canvas, config, points, band, safeText) {
     });
 }
 
-// Appends one live point to the currently-open chart, rolling the window at
-// MAX_POINTS. Builds the Chart.js instance once (first point after open);
-// every point after that mutates chartInstance.data in place and calls
-// update() — never destroy()+new Chart() per tick.
-function appendLivePoint(value, time) {
-    livePoints.push({ time, value });
-    if (livePoints.length > MAX_POINTS) livePoints.shift();
+// Updates the open Chart.js instance using sensorBuffers[currentSensorAttr] as the
+// single source of truth. Builds the chart once if not yet instantiated, or mutates
+// labels and dataset values in place — guaranteed zero divergence from the buffer.
+function updateLiveChart() {
+    if (!currentSensorAttr || !isModalReady) return;
+    const config = SENSOR_CONFIG[currentSensorAttr];
+    if (!config) return;
 
-    const canvas = document.getElementById("shChart");
-    const empty  = document.getElementById("shEmptyState");
-    const safeEl = document.getElementById("shSafeRangeText");
+    const canvas  = document.getElementById("shChart");
+    const empty   = document.getElementById("shEmptyState");
+    const safeEl  = document.getElementById("shSafeRangeText");
+    const points  = sensorBuffers[currentSensorAttr] || [];
+
+    if (points.length === 0) return;
 
     if (!chartInstance) {
         if (canvas) canvas.classList.remove("sh-hidden");
         if (empty)  empty.classList.add("sh-hidden");
         const safeText = safeEl ? safeEl.textContent : "";
-        buildChart(canvas, SENSOR_CONFIG[currentSensorAttr], livePoints, currentSafeBand, safeText);
+        buildChart(canvas, config, points, currentSafeBand, safeText);
         return;
     }
 
-    const label = formatLabel(time);
-    const datasets = chartInstance.data.datasets;
-    chartInstance.data.labels.push(label);
-    datasets.forEach((ds, i) => {
-        const isValueLine = i === datasets.length - 1;
-        ds.data.push(isValueLine ? value : (i === 0 ? currentSafeBand.min : currentSafeBand.max));
-    });
+    const labels = points.map(p => formatLabel(p.time));
+    const values = points.map(p => p.value);
 
-    if (chartInstance.data.labels.length > MAX_POINTS) {
-        chartInstance.data.labels.shift();
-        datasets.forEach(ds => ds.data.shift());
+    chartInstance.data.labels = labels;
+    if (currentSafeBand && chartInstance.data.datasets.length === 3) {
+        chartInstance.data.datasets[0].data = labels.map(() => currentSafeBand.min);
+        chartInstance.data.datasets[1].data = labels.map(() => currentSafeBand.max);
+        chartInstance.data.datasets[2].data = values;
+    } else {
+        const valDs = chartInstance.data.datasets[chartInstance.data.datasets.length - 1];
+        if (valDs) valDs.data = values;
     }
     chartInstance.update();
 }
@@ -234,7 +264,7 @@ async function openModal(sensorAttr) {
     if (!config) return;
 
     currentSensorAttr = sensorAttr;
-    livePoints = [];
+    isModalReady      = false;
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
     const overlay  = document.getElementById("sensorHistoryModal");
@@ -254,15 +284,23 @@ async function openModal(sensorAttr) {
     if (closeBtn) closeBtn.focus();
 
     await loadThresholds();
+    if (currentSensorAttr !== sensorAttr) return;
+    if (!overlay.classList.contains("active")) return;
+
     const range = getRanges()[config.rangeKey];
     currentSafeBand = safeZoneBounds(range);
     if (safeEl) safeEl.textContent = buildSafeText(range, config.unit);
+    isModalReady = true;
 
-    const latest = window.latestSensorReading;
-    const seedValue = latest ? latest[config.liveKey] : null;
-    if (seedValue != null && Number.isFinite(Number(seedValue))) {
-        const seedTime = latest.measuredAt?.toDate ? latest.measuredAt.toDate() : new Date();
-        appendLivePoint(Number(seedValue), seedTime);
+    // Guarded fallback seed: if no live ticks have fired yet and window.latestSensorReading exists
+    seedFromLatestOnce();
+
+    const points = sensorBuffers[sensorAttr] || [];
+    if (points.length > 0) {
+        if (canvas) canvas.classList.remove("sh-hidden");
+        if (empty)  empty.classList.add("sh-hidden");
+        const safeText = safeEl ? safeEl.textContent : "";
+        buildChart(canvas, config, points, currentSafeBand, safeText);
     } else if (canvas && empty) {
         canvas.classList.add("sh-hidden");
         empty.textContent = "Waiting for live data…";
@@ -276,10 +314,17 @@ function closeModal() {
     overlay.classList.remove("active");
     document.body.style.overflow = "";
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    currentSensorAttr = null;
+    currentSafeBand   = null;
+    isModalReady      = false;
     if (lastTriggerEl) { lastTriggerEl.focus(); lastTriggerEl = null; }
+    // Note: sensorBuffers is intentionally preserved across modal open/close sessions
 }
 
 export function initSensorHistoryModal() {
+    // Initial guarded seed if latest reading is already globally available
+    seedFromLatestOnce();
+
     document.querySelectorAll(".sensor-card[data-sensor]").forEach(card => {
         if (!SENSOR_CONFIG[card.dataset.sensor]) return;
 
@@ -308,22 +353,36 @@ export function initSensorHistoryModal() {
     const closeBtn = document.getElementById("shModalClose");
     if (closeBtn) closeBtn.addEventListener("click", closeModal);
 
-    // Persistent — attached once, not per modal-open. No-ops (early return)
-    // whenever the modal isn't open, so there is nothing to leak or clean up
-    // on close.
+    // Persistent listener attached once. Accumulates rolling readings in the
+    // background for ALL parameters, and updates the live chart if open.
     document.addEventListener("sensor-reading-updated", (e) => {
+        if (!e.detail) return;
+        isInitialSeeded = true; // Live events are active; never seed stale latest
+        const time = e.detail.measuredAt?.toDate ? e.detail.measuredAt.toDate() : new Date();
+
+        // 1. Background accumulation for ALL parameters
+        for (const [param, config] of Object.entries(SENSOR_CONFIG)) {
+            const raw = e.detail[config.liveKey];
+            if (raw == null || !Number.isFinite(Number(raw))) continue;
+
+            const buf = sensorBuffers[param];
+            if (!buf) continue;
+
+            const val = Number(raw);
+            const last = buf[buf.length - 1];
+            // Deduplicate if identical timestamp already exists at head
+            if (last && last.time.getTime() === time.getTime()) {
+                last.value = val;
+            } else {
+                buf.push({ time, value: val });
+                if (buf.length > MAX_POINTS) buf.shift();
+            }
+        }
+
+        // 2. If modal is open, re-render chart from buffer (single source of truth)
         const modalOverlay = document.getElementById("sensorHistoryModal");
         if (!modalOverlay || !modalOverlay.classList.contains("active")) return;
-        if (!currentSensorAttr) return;
-
-        const config = SENSOR_CONFIG[currentSensorAttr];
-        if (!config) return;
-
-        const raw = e.detail[config.liveKey];
-        if (raw == null || !Number.isFinite(Number(raw))) return; // skip — don't plot a gap as 0
-
-        const time = e.detail.measuredAt?.toDate ? e.detail.measuredAt.toDate() : new Date();
-        appendLivePoint(Number(raw), time);
+        updateLiveChart();
     });
 
     document.addEventListener("keydown", e => {
