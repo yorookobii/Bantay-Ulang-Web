@@ -82,6 +82,8 @@ function safeZoneBounds(range) {
 }
 
 const MAX_POINTS = 40; // ~10 min at ~15s/tick
+const BUFFER_STORAGE_KEY = "bantay_live_sensor_buffers";
+const BUFFER_MAX_AGE_MS = 15 * 60 * 1000; // 15 min max age for restored points
 
 let chartInstance     = null;
 let currentSensorAttr = null;
@@ -98,6 +100,64 @@ const sensorBuffers = Object.keys(SENSOR_CONFIG).reduce((acc, key) => {
     return acc;
 }, {});
 
+function saveBuffersToSession() {
+    try {
+        sessionStorage.setItem(BUFFER_STORAGE_KEY, JSON.stringify(sensorBuffers));
+    } catch (err) {
+        console.warn("[SensorHistoryModal] Failed to persist sensor buffers to sessionStorage:", err);
+    }
+}
+
+function restoreBuffersFromSession() {
+    try {
+        const raw = sessionStorage.getItem(BUFFER_STORAGE_KEY);
+        if (!raw) return false;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return false;
+
+        const now = Date.now();
+        const cutoff = now - BUFFER_MAX_AGE_MS;
+        let restoredAny = false;
+
+        for (const param of Object.keys(SENSOR_CONFIG)) {
+            const arr = parsed[param];
+            if (!Array.isArray(arr)) continue;
+
+            const validPoints = [];
+            for (const item of arr) {
+                if (!item || item.value == null) continue;
+                const val = Number(item.value);
+                if (!Number.isFinite(val)) continue;
+
+                if (!item.time) continue;
+                const time = new Date(item.time);
+                const timeMs = time.getTime();
+
+                // Drop invalid dates or points outside freshness window (with 1-min clock-skew allowance)
+                if (Number.isNaN(timeMs)) continue;
+                if (timeMs < cutoff || timeMs > now + 60000) continue;
+
+                validPoints.push({ time, value: val });
+            }
+
+            // Ensure chronological order and cap at MAX_POINTS
+            validPoints.sort((a, b) => a.time.getTime() - b.time.getTime());
+            const trimmed = validPoints.slice(-MAX_POINTS);
+
+            if (trimmed.length > 0) {
+                sensorBuffers[param] = trimmed;
+                restoredAny = true;
+            }
+        }
+
+        return restoredAny;
+    } catch (err) {
+        console.warn("[SensorHistoryModal] Failed to restore sensor buffers from sessionStorage:", err);
+        return false;
+    }
+}
+
 function seedFromLatestOnce() {
     if (isInitialSeeded) return;
     const latest = window.latestSensorReading;
@@ -105,14 +165,19 @@ function seedFromLatestOnce() {
     isInitialSeeded = true;
 
     const time = latest.measuredAt?.toDate ? latest.measuredAt.toDate() : new Date();
+    let seededAny = false;
     for (const [param, config] of Object.entries(SENSOR_CONFIG)) {
         const raw = latest[config.liveKey];
         if (raw != null && Number.isFinite(Number(raw))) {
             const buf = sensorBuffers[param];
             if (buf && buf.length === 0) {
                 buf.push({ time, value: Number(raw) });
+                seededAny = true;
             }
         }
+    }
+    if (seededAny) {
+        saveBuffersToSession();
     }
 }
 
@@ -322,8 +387,17 @@ function closeModal() {
 }
 
 export function initSensorHistoryModal() {
-    // Initial guarded seed if latest reading is already globally available
-    seedFromLatestOnce();
+    const overlay = document.getElementById("sensorHistoryModal");
+    if (!overlay) return;
+
+    // Rehydrate buffers from sessionStorage before any user interaction or live tick
+    const restored = restoreBuffersFromSession();
+    if (restored) {
+        isInitialSeeded = true;
+    } else {
+        // Fallback: seed from latest reading if no valid session data existed
+        seedFromLatestOnce();
+    }
 
     document.querySelectorAll(".sensor-card[data-sensor]").forEach(card => {
         if (!SENSOR_CONFIG[card.dataset.sensor]) return;
@@ -343,7 +417,6 @@ export function initSensorHistoryModal() {
         });
     });
 
-    const overlay = document.getElementById("sensorHistoryModal");
     if (overlay) {
         overlay.addEventListener("click", e => {
             if (e.target === overlay) closeModal();
@@ -379,7 +452,10 @@ export function initSensorHistoryModal() {
             }
         }
 
-        // 2. If modal is open, re-render chart from buffer (single source of truth)
+        // 2. Persist updated buffers to sessionStorage (once per tick for all params)
+        saveBuffersToSession();
+
+        // 3. If modal is open, re-render chart from buffer (single source of truth)
         const modalOverlay = document.getElementById("sensorHistoryModal");
         if (!modalOverlay || !modalOverlay.classList.contains("active")) return;
         updateLiveChart();
