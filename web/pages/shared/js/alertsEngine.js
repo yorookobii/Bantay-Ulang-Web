@@ -9,7 +9,7 @@ import {
     updateDoc,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { loadThresholds, getRanges, refreshThresholds } from "./thresholds.js";
+import { loadThresholds, getRanges, refreshThresholds, computeSeverity } from "./thresholds.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 
 /*
@@ -59,27 +59,6 @@ export const SUGGESTIONS = {
         low:  "Magsagawa ng bahagyang palit ng tubig (partial water exchange) nang dahan-dahan upang maiwasan ang biglaang pagbabago na nakaka-stress sa ulang. Suriin ang pinagmumulan ng tubig at iwasan ang runoff mula sa fertilizer o pesticide. Regular na subaybayan ang TDS."
     }
 };
-
-// Severity is based on how far outside the safe boundary the value is,
-// expressed as a ratio of the reference width (range width for two-sided bounds,
-// or the bound value itself for one-sided bounds like DO and turbidity).
-function computeSeverity(value, min, max) {
-    const hasMin = min !== null && min !== undefined;
-    const hasMax = max !== null && max !== undefined;
-    const rangeRef = (hasMin && hasMax) ? (max - min) : (hasMin ? min : max);
-
-    let ratio = 0;
-    if (hasMin && value < min) {
-        ratio = (min - value) / rangeRef;
-    } else if (hasMax && value > max) {
-        ratio = (value - max) / rangeRef;
-    }
-
-    if (ratio > 0.5)  return "critical";
-    if (ratio > 0.25) return "high";
-    if (ratio > 0.1)  return "medium";
-    return "low";
-}
 
 function buildMessage(param, value, isHigh) {
     const { label, unit, safeRangeStr } = getRanges()[param];

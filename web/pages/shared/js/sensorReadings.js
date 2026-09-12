@@ -1,7 +1,7 @@
 import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { loadThresholds, getRanges } from "./thresholds.js";
+import { loadThresholds, getRanges, computeSeverity } from "./thresholds.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading, formatWaterLevelText } from "./aquaponicsReading.js";
 
 /*
@@ -21,7 +21,7 @@ const SENSOR_MAP = [
     { key: "dissolvedOxygen", selector: '[data-sensor="do"]',           unit: " mg/L", decimals: 1 },
     { key: "waterTemp",       selector: '[data-sensor="temp"]',         unit: "°C",    decimals: 1 },
     { key: "tds",             selector: '[data-sensor="tds"]',          unit: " ppm",  decimals: 0 },
-    { key: "salinity",        selector: '[data-sensor="salinity"]',     unit: " ppt",  decimals: 0 },
+    { key: "salinity",        selector: '[data-sensor="salinity"]',     unit: " ppt",  decimals: 2 },
     { key: "turbidity",       selector: '[data-sensor="turbidity"]',    unit: " NTU",  decimals: 1 }
 ];
 
@@ -40,21 +40,29 @@ function getSensorStatus(key, value) {
     const belowMin = hasMin && v < min;
     const aboveMax = hasMax && v > max;
 
-    // Out of range — always critical, however slight the overshoot.
-    if (belowMin || aboveMax) return "critical";
+    // 1. Out of range — map severity to card status:
+    //    low / medium -> "warning" (amber)
+    //    high / critical -> "critical" (red)
+    if (belowMin || aboveMax) {
+        const severity = computeSeverity(v, min, max);
+        return (severity === "critical" || severity === "high") ? "critical" : "warning";
+    }
 
-    // In range — flag the near-edge 10% band on either side as a warning.
+    // 2. In range — flag the near-edge 10% band as a warning.
+    //    The near-MIN 10% warning is skipped when min <= 0 (being near zero when zero is the floor is safe).
     if (hasMin && hasMax) {
         const edgeBand = (max - min) * 0.10;
-        if (v <= min + edgeBand || v >= max - edgeBand) return "warning";
+        // near-MAX always applies:
+        if (v >= max - edgeBand) return "warning";
+        // near-MIN only if the floor is meaningfully above zero:
+        if (min > 0 && v <= min + edgeBand) return "warning";
     } else if (hasMin) {
-        // One-sided min (e.g. DO > 5): near-edge = within 10% above the floor.
-        if (v <= min * 1.10) return "warning";
+        if (min > 0 && v <= min * 1.10) return "warning";
     } else {
-        // One-sided max (e.g. turbidity < 25): near-edge = within 10% below the ceiling.
         if (v >= max * 0.90) return "warning";
     }
 
+    // 3. In range comfortable -> "normal" (optimal green)
     return "normal";
 }
 

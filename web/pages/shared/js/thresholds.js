@@ -129,4 +129,34 @@ export function getRanges() {
     return cachedRanges || DEFAULT_RANGES;
 }
 
+/**
+ * computeSeverity(value, min, max)
+ *
+ * Evaluates how far outside the safe boundary a value is, expressed
+ * as a ratio of the reference width (range width for two-sided bounds,
+ * or the bound value itself for one-sided bounds like DO and turbidity).
+ *   ratio <= 0.10: "low"
+ *   0.10 < ratio <= 0.25: "medium"
+ *   0.25 < ratio <= 0.50: "high"
+ *   ratio > 0.50: "critical"
+ */
+export function computeSeverity(value, min, max) {
+    const hasMin = min !== null && min !== undefined;
+    const hasMax = max !== null && max !== undefined;
+    const rangeRef = (hasMin && hasMax) ? (max - min) : (hasMin ? min : max);
+
+    let ratio = 0;
+    if (hasMin && value < min) {
+        ratio = (min - value) / rangeRef;
+    } else if (hasMax && value > max) {
+        ratio = (value - max) / rangeRef;
+    }
+
+    if (ratio > 0.5)  return "critical";
+    if (ratio > 0.25) return "high";
+    if (ratio > 0.1)  return "medium";
+    return "low";
+}
+
 export { DEFAULT_RANGES };
+
