@@ -78,8 +78,8 @@ function formatLogTime(value, fallback = "Just now") {
 
 // ── System Hardware Status (Aquaponics/Ulang data freshness) ──────────────────
 
-const HW_ONLINE_THRESHOLD_MS = 60 * 1000;   // <60s = Online (~4 missed cycles at ~15s/tick)
-const HW_STALE_THRESHOLD_MS  = 300 * 1000;  // 60s–300s = Stale; >300s (5m) = Offline
+const HW_ONLINE_THRESHOLD_MS = 90 * 1000;   // <90s = Online (~6 missed cycles at ~15s/tick)
+const HW_STALE_THRESHOLD_MS  = 300 * 1000;  // 90s–300s = Stale; >300s (5m) = Offline
 const HW_CHECK_INTERVAL_MS   = 15 * 1000;   // Periodic age re-check interval
 
 let latestHardwareMeasuredAt = null; // Date | null
