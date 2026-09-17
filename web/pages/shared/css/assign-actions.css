@@ -3,6 +3,7 @@
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 72px;
     --topbar-height: 72px;
+    --color-active-emerald: #10b981;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f4f6; }
@@ -330,7 +331,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .topbar .notification-dropdown.show { display: block; }
 .topbar .notification-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #666; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .topbar .admin-profile { display: flex; align-items: center; gap: 12px; padding: 8px 15px; background: #f5f5f5; border-radius: 6px; cursor: pointer; }
-.topbar .admin-avatar { width: 40px; height: 40px; border-radius: 50%; background: #ddd; border: 2px solid #3498db; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; color: #374151; }
+.topbar .admin-avatar { width: 40px; height: 40px; border-radius: 50%; background: #ddd; border: 2px solid var(--color-active-emerald); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; color: #374151; }
 .topbar .admin-info { text-align: right; }
 .topbar .admin-name { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 2px; }
 .topbar .admin-role { font-size: 12px; color: #7f8c8d; }
