@@ -82,8 +82,57 @@ const HW_ONLINE_THRESHOLD_MS = 90 * 1000;   // <90s = Online (~6 missed cycles a
 const HW_STALE_THRESHOLD_MS  = 300 * 1000;  // 90s–300s = Stale; >300s (5m) = Offline
 const HW_CHECK_INTERVAL_MS   = 15 * 1000;   // Periodic age re-check interval
 
+// Aquaponics/Ulang has no measuredAt field yet (firmware doesn't write one), so
+// freshness falls back to diffing a signature of its statistics.* values across
+// snapshots. Persisted in localStorage (not sessionStorage) so a genuinely
+// offline system stays Offline across a hard refresh or tab close/reopen —
+// this is what actually reproduced the "resets to Online on navigation" bug.
+const HW_FRESHNESS_STORAGE_KEY = "bantay_hw_status_freshness";
+
 let latestHardwareMeasuredAt = null; // Date | null
 let hardwareTimer = null;
+let hwLastChangeAt  = null; // ms epoch | null — last time the signature actually changed
+let hwLastSignature = null; // string | null — last-seen statistics signature
+
+function loadHwFreshnessFromStorage() {
+    try {
+        const raw = localStorage.getItem(HW_FRESHNESS_STORAGE_KEY);
+        if (!raw) return;
+
+        const parsed = JSON.parse(raw);
+        const lastChangeAt = Number(parsed?.lastChangeAt);
+        const lastSignature = parsed?.lastSignature;
+
+        if (!Number.isFinite(lastChangeAt) || typeof lastSignature !== "string") return;
+
+        hwLastChangeAt = lastChangeAt;
+        hwLastSignature = lastSignature;
+    } catch (err) {
+        console.warn("[dashboard] Failed to restore hardware freshness from localStorage:", err);
+    }
+}
+
+function saveHwFreshnessToStorage() {
+    try {
+        localStorage.setItem(HW_FRESHNESS_STORAGE_KEY, JSON.stringify({
+            lastChangeAt: hwLastChangeAt,
+            lastSignature: hwLastSignature
+        }));
+    } catch (err) {
+        console.warn("[dashboard] Failed to persist hardware freshness to localStorage:", err);
+    }
+}
+
+// Signature of the six statistics.* values normalizeAquaponicsReading extracts.
+// Lets a cold-load onSnapshot re-serving the same old doc be told apart from a
+// genuine new write. Only used while measuredAt is absent — self-obsoletes
+// once firmware starts writing it (see the branch in initHardwareStatusMonitor).
+function buildHwSignature(data) {
+    return JSON.stringify([
+        data.phLevel, data.waterTemp, data.dissolvedOxygen,
+        data.tds, data.salinity, data.turbidity, data.waterLevel
+    ]);
+}
 
 function formatUpdatedAgo(ageMs) {
     if (ageMs == null || !Number.isFinite(ageMs)) {
@@ -232,6 +281,8 @@ function initHardwareStatusMonitor() {
         hardwareTimer = null;
     }
 
+    loadHwFreshnessFromStorage();
+
     // Periodic timer to re-evaluate age even when no new readings arrive (e.g. hardware freeze/disconnect)
     hardwareTimer = setInterval(() => {
         renderHardwareStatus(latestHardwareMeasuredAt);
@@ -252,9 +303,30 @@ function initHardwareStatusMonitor() {
 
             const data = normalizeAquaponicsReading(snapshot.data());
             window.latestSensorReading = data;
-            // Prioritize explicit measuredAt from document; fallback to snapshot arrival time if missing
+
+            // Prioritize explicit measuredAt from the document once firmware writes
+            // it — authoritative, no signature diffing needed.
             const parsedMeasuredAt = toDateValue(data.measuredAt);
-            latestHardwareMeasuredAt = parsedMeasuredAt || new Date();
+            if (parsedMeasuredAt) {
+                latestHardwareMeasuredAt = parsedMeasuredAt;
+            } else {
+                const signature = buildHwSignature(data);
+                if (hwLastChangeAt == null || hwLastSignature == null) {
+                    // First ever load, or storage was cleared — seed now instead of
+                    // falling through to new Date(null)/epoch. Self-corrects to
+                    // Offline within the stale threshold if actually down.
+                    hwLastChangeAt = Date.now();
+                    hwLastSignature = signature;
+                    saveHwFreshnessToStorage();
+                } else if (signature !== hwLastSignature) {
+                    hwLastChangeAt = Date.now();
+                    hwLastSignature = signature;
+                    saveHwFreshnessToStorage();
+                }
+                // else: same data as last seen (cold-load re-serve or genuinely idle) —
+                // keep the persisted lastChangeAt so age reflects the real last change.
+                latestHardwareMeasuredAt = new Date(hwLastChangeAt);
+            }
             renderHardwareStatus(latestHardwareMeasuredAt);
         },
         (error) => {
