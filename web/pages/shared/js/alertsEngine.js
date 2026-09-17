@@ -378,7 +378,16 @@ export async function reevaluateActiveAlerts() {
     // ago on this same page, not a pre-save cached result.
     await refreshThresholds();
 
-    const readingSnap = await getDoc(AQUAPONICS_REF);
+    // Guards all three callers (dashboard.js, notificationsShared.js,
+    // settings.js) in one place - a denied/failed read skips this
+    // reconciliation pass instead of throwing uncaught into the caller.
+    let readingSnap;
+    try {
+        readingSnap = await getDoc(AQUAPONICS_REF);
+    } catch (err) {
+        console.warn("alertsEngine: could not read Aquaponics/Ulang, skipping this reconciliation pass:", err);
+        return;
+    }
     if (!readingSnap.exists()) return;
     const data = normalizeAquaponicsReading(readingSnap.data());
 

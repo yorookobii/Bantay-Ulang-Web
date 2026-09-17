@@ -880,7 +880,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         // (catchUpCache inside refreshEnvTrendsChart) — show the overlay for
         // that call only, not on every later dropdown change.
         if (envLoadingEl) envLoadingEl.classList.remove('chart-hidden');
-        await refreshEnvTrends();
+        try {
+            await refreshEnvTrends();
+        } catch (err) {
+            console.warn('dashboard: env trends refresh failed:', err);
+        }
         if (envLoadingEl) envLoadingEl.classList.add('chart-hidden');
     }
 });

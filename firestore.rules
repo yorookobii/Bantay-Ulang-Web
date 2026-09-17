@@ -128,6 +128,38 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // Aquaponics  (single live doc Aquaponics/Ulang, ESP32-updated in place
+    // ~every 15s - mirrors sensor_readings. Write clause is INFERRED by
+    // analogy to sensor_readings' documented unauthenticated ESP32 writes
+    // (see sensor_readings above) - not confirmed for this doc specifically.
+    // This collection had no rule at all before - fell through to the
+    // default deny below, which is what broke the dashboard cards that read
+    // it (Hardware Status, and the alerts-reconciliation read in
+    // alertsEngine.js).
+    // -------------------------------------------------------------------------
+    match /Aquaponics/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // readings  (collection group; actual path is
+    //   HistoryLogs/Ulang/years/{Y}/{M}/{D}/readings/{docId} - written by
+    //   the external ESP32 ingestion pipeline. Write clause is UNCONFIRMED -
+    //   no writer code exists in this repo. Collection-group match applies
+    //   to ANY subcollection literally named "readings" anywhere in the
+    //   database - confirmed no other collection in this codebase uses that
+    //   name, but revisit this rule if that ever changes. Also had no rule
+    //   before - fed the Environmental Trends chart's permission-denied.
+    // -------------------------------------------------------------------------
+    match /{path=**}/readings/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if true;
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
     // logs  (Flutter: filter by createdBy / assignedTo)
     // -------------------------------------------------------------------------
     match /logs/{docId} {
