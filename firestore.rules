@@ -128,15 +128,12 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // logs  (Flutter: filter by createdBy / assignedTo)
+    // logs  (all authenticated users read all logs; creator name is hidden
+    // at the UI layer for non-owned logs, not redacted here - see logs.js /
+    // dashboard.js / logs.dart. Names remain in the raw documents.)
     // -------------------------------------------------------------------------
     match /logs/{docId} {
-      // Admins see all logs; other users see only logs they created or are
-      // assigned to (Flutter assignedTo filter preserved).
-      allow read: if isAdmin() ||
-                    (isAuthenticated() &&
-                     (resource.data.createdBy == request.auth.uid ||
-                      resource.data.assignedTo == request.auth.uid));
+      allow read: if isAuthenticated();
 
       // Any authenticated user can create a log they own.
       allow create: if isAuthenticated() &&

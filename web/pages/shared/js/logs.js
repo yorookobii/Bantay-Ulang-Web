@@ -1,4 +1,4 @@
-import { db } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import {
     collection,
     getDocs,
@@ -6,9 +6,13 @@ import {
     query,
     limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initSidebar } from "./sidebar.js";
 
 const LOGS_LIMIT = 100;
+
+// Set by onAuthStateChanged before the first loadLogs() call - see init().
+let currentUid = null;
 
 // ── Field helpers (copied from dashboard.js; not exported there) ──────────────
 
@@ -50,16 +54,23 @@ function formatLogDateTime(value) {
 // ── Normalize + render ──────────────────────────────────────────────────────
 
 // Mirrors dashboard.js applyRecentLogsSnapshot field mapping.
+// Display-level only: creator name is blanked here for logs the viewer
+// doesn't own, but the raw document (createdBy/createdByName/createdByEmail)
+// is still readable by any authenticated client - this is not redaction.
 function normalizeLog(doc) {
     const data = doc.data();
     const rawTime = data.createdAt || data.timestamp || data.loggedAt || data.date;
     const loggedAt = toDateValue(rawTime);
+    const createdBy = data.createdBy;
+    const isOwnLog = !createdBy || createdBy === currentUid;
 
     return {
         sortValue: loggedAt ? loggedAt.getTime() : 0,
         timeText: formatLogDateTime(rawTime),
         type: getTextField(data, ["status", "type", "level"], "").toLowerCase(),
-        actor: getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System"),
+        actor: isOwnLog
+            ? getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System")
+            : "Ibang User",
         title: getTextField(data, ["action", "title", "event", "name"], doc.id),
         description: getTextField(data, ["details", "description", "message"], "No details provided.")
     };
@@ -134,7 +145,13 @@ async function loadLogs() {
 
 function init() {
     initSidebar();
-    loadLogs();
+    // Wait for auth to resolve before the first fetch/render so currentUid
+    // is set before normalizeLog() runs - avoids a name flash or wrongly
+    // blanking the viewer's own logs on first paint.
+    onAuthStateChanged(auth, (user) => {
+        currentUid = user?.uid || null;
+        loadLogs();
+    });
 }
 
 if (document.readyState === "loading") {

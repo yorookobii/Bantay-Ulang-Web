@@ -10,6 +10,16 @@ import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 const LOGIN_PAGE = "../security/admin-tech-login.html";
 
+// Recent-logs widget: currentUid must be known before applyRecentLogsSnapshot()
+// runs, so it can tell the viewer's own logs from others' (see authReady below).
+let currentUid = null;
+let resolveAuthReady;
+const authReady = new Promise((resolve) => { resolveAuthReady = resolve; });
+onAuthStateChanged(auth, (user) => {
+    currentUid = user?.uid || null;
+    resolveAuthReady();
+});
+
 function clearSavedAuthSession() {
     try {
         localStorage.removeItem(AUTH_SESSION_KEY);
@@ -479,16 +489,22 @@ function applyRecentLogsSnapshot(snapshot) {
         return;
     }
 
+    // Display-level only: creator name is blanked here for logs the viewer
+    // doesn't own, but the raw document is still readable - not redaction.
     const normalizedLogs = logDocs
         .map((doc, index) => {
             const data = doc.data();
             const loggedAt = toDateValue(data.createdAt || data.timestamp || data.loggedAt || data.date);
+            const createdBy = data.createdBy;
+            const isOwnLog = !createdBy || createdBy === currentUid;
 
             return {
                 sortValue: loggedAt ? loggedAt.getTime() : index,
                 title: getTextField(data, ["action", "title", "event", "name"], doc.id),
                 timeText: getTextField(data, ["timeText", "time"], formatLogTime(loggedAt)),
-                actor: getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System"),
+                actor: isOwnLog
+                    ? getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System")
+                    : "Ibang User",
                 description: getTextField(data, ["details", "description", "message"], "No details provided."),
                 type: getTextField(data, ["status", "type", "level"], "").toLowerCase()
             };
@@ -849,6 +865,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadTopAlert();
     loadMortalityStat();
     loadTotalYieldExpected();
+    await authReady;
     await loadData();
 
     var envCtx = document.getElementById('envTrendsChart');
