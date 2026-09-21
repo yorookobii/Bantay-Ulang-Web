@@ -163,14 +163,16 @@ const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 
 function generateRecommendations(sensor) {
     const recs = [];
+    let judgedCount = 0;
     for (const rule of RULES) {
         const val = sensor[rule.key];
         if (val == null) continue;
+        judgedCount++;
         const result = rule.check(val);
         if (result) recs.push(result);
     }
     recs.sort((a, b) => IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact]);
-    return recs;
+    return { recs, judgedCount };
 }
 
 // ── Build a single recommendation card element ────────────────────────────
@@ -191,10 +193,31 @@ function buildCard(rec) {
 }
 
 // ── Render cards into #rec-cards-container ────────────────────────────────
-function renderRecommendations(recs) {
+function renderRecommendations({ recs, judgedCount }) {
     const container = document.getElementById('rec-cards-container');
     if (!container) return;
     container.innerHTML = '';
+
+    if (judgedCount === 0) {
+        // Nothing to check, not "checked and safe" — distinct from All Clear
+        // below so absent sensor data can never render as a false all-clear.
+        // Tier 2 (flagged follow-up, not implemented here): this still can't
+        // tell fresh-and-empty apart from stale-but-numeric data held in the
+        // Aquaponics/Ulang doc from a hardware disconnect — that needs the
+        // same freshness/measuredAt mechanism dashboard.js uses.
+        const card = document.createElement('div');
+        card.className = 'rec-card rec-card-no-data';
+        card.innerHTML = `
+            <div class="rec-card-head">
+                <span class="rec-impact-neutral">No Data</span>
+                <span class="rec-category">SYSTEM STATUS</span>
+            </div>
+            <h3 class="rec-card-title">Cannot Evaluate Parameters</h3>
+            <p class="rec-card-desc">No live sensor data is being received.</p>
+        `;
+        container.appendChild(card);
+        return;
+    }
 
     if (recs.length === 0) {
         const card = document.createElement('div');

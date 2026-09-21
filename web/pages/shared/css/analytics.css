@@ -461,6 +461,23 @@
     border-radius: 6px;
 }
 
+.rec-card-no-data {
+    grid-column: 1 / -1;
+    border-color: #d1d5db;
+    background: #f9fafb;
+}
+
+.rec-impact-neutral {
+    display: inline-block;
+    background: #e5e7eb;
+    color: #4b5563;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
 @media (max-width: 1024px) {
     .recommendation-layout {
         grid-template-columns: 1fr;
