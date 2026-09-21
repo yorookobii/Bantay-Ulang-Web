@@ -7,6 +7,7 @@
         <title>Real-Time Monitoring - Bantay Ulang Bulacan</title>
         <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/real-time-monitoring.css">
+        <link rel="stylesheet" href="css/environmental-trends.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
         <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
@@ -195,6 +196,48 @@
                         </div>
                     </div>
                 </section>
+
+                <section class="water-sensors-section">
+                    <div class="water-sensors-header">
+                        <div class="water-sensors-icon">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <h2 class="water-sensors-title">Environmental Trends</h2>
+                            <p class="water-sensors-subtitle">Historical trends across your selected time range</p>
+                        </div>
+                    </div>
+
+                    <div class="chart-card et-chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Environmental Trends</div>
+                                <div class="chart-subtitle">Bucket-averaged history of key metrics</div>
+                            </div>
+                            <div class="chart-header-controls">
+                                <select class="chart-dropdown" id="envTrendsParamDropdown" aria-label="Select water parameter">
+                                    <option value="ph">pH</option>
+                                    <option value="dissolvedOxygen">Dissolved Oxygen (mg/L)</option>
+                                    <option value="waterTemp">Temperature (°C)</option>
+                                    <option value="salinity">Salinity (ppt)</option>
+                                    <option value="turbidity">Turbidity (NTU)</option>
+                                    <option value="tds">TDS (ppm)</option>
+                                </select>
+                                <select class="chart-dropdown" id="envTrendsRangeDropdown" aria-label="Time range">
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-wrap et-chart-wrap">
+                            <canvas id="envTrendsChart"></canvas>
+                            <div id="envTrendsLoading" class="chart-loading-overlay chart-hidden">
+                                <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading historical data…
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
 
@@ -244,6 +287,75 @@
             } else {
                 receiveSensorData();
             }
+        </script>
+        <script type="module">
+            // Env-trends init, copied from environmental-trends.js:38-72 (decision
+            // A: accepted third copy alongside dashboard.js:850-886; not refactored
+            // into a shared helper this pass).
+            import {
+                collection,
+                query,
+                orderBy,
+                limit,
+                getDocs
+            } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+            import { db } from "./js/firebase.js";
+            import { loadThresholds } from "./js/thresholds.js";
+            import { initEnvTrendsChart, refreshEnvTrendsChart } from "./js/envTrendsChart.js";
+
+            function toDateValue(value) {
+                if (!value) return null;
+                if (value instanceof Date) return value;
+                if (typeof value.toDate === "function") return value.toDate();
+                if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+
+                const parsed = new Date(value);
+                return Number.isNaN(parsed.getTime()) ? null : parsed;
+            }
+
+            async function loadCycleStartMs() {
+                try {
+                    const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
+                    if (snap.empty) return null;
+
+                    const cycleStart = toDateValue(snap.docs[0].data().cycleStart);
+                    return cycleStart ? cycleStart.getTime() : null;
+                } catch (err) {
+                    console.warn("real-time-monitoring: unable to load growth_indicators for cycleStart:", err);
+                    return null;
+                }
+            }
+
+            (async () => {
+                const canvas = document.getElementById("envTrendsChart");
+                const loadingEl = document.getElementById("envTrendsLoading");
+                const paramDropdown = document.getElementById("envTrendsParamDropdown");
+                const rangeDropdown = document.getElementById("envTrendsRangeDropdown");
+                if (!canvas) return;
+
+                const chart = initEnvTrendsChart(canvas);
+
+                let cycleStartMs = null;
+                try {
+                    const loaded = await Promise.all([loadCycleStartMs(), loadThresholds()]);
+                    cycleStartMs = loaded[0];
+                } catch (err) {
+                    console.warn("real-time-monitoring: init (cycleStart/thresholds) failed:", err);
+                }
+
+                const refresh = () => {
+                    const paramKey = paramDropdown ? paramDropdown.value : "ph";
+                    const rangeKey = rangeDropdown ? rangeDropdown.value : "24h";
+                    return refreshEnvTrendsChart(chart, paramKey, rangeKey, cycleStartMs);
+                };
+
+                if (paramDropdown) paramDropdown.addEventListener("change", refresh);
+                if (rangeDropdown) rangeDropdown.addEventListener("change", refresh);
+
+                if (loadingEl) loadingEl.classList.remove("chart-hidden");
+                await refresh();
+                if (loadingEl) loadingEl.classList.add("chart-hidden");
+            })();
         </script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';
