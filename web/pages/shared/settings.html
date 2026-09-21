@@ -185,9 +185,9 @@
                     <div class="card-icon growth"><i class="fa-solid fa-chart-line"></i></div>
                     <h2 class="card-title">Growth Parameters – Expected Yield</h2>
                 </div>
-                <p class="threshold_section_desc">These values feed the RF yield prediction once the cycle reaches 3 months.</p>
+                <p class="threshold_section_desc">Cycle start and initial stock feed the RF yield prediction once the cycle reaches 3 months.</p>
                 <form id="growth-form" class="threshold_form">
-                    <div class="threshold_row cols-3">
+                    <div class="threshold_row">
                         <div class="threshold_param">
                             <label for="gi_cycleStart">Cycle Start Date</label>
                             <span class="unit">start of current cycle</span>
@@ -197,11 +197,6 @@
                             <label for="gi_initialStock">Initial Stock</label>
                             <span class="unit">pieces stocked</span>
                             <input type="number" id="gi_initialStock" name="gi_initialStock" min="0" step="1" placeholder="e.g. 10000" required>
-                        </div>
-                        <div class="threshold_param">
-                            <label for="gi_costPerKg">Production Cost per kg (₱)</label>
-                            <span class="unit">Estimate — feed, labor, overhead</span>
-                            <input type="number" id="gi_costPerKg" name="gi_costPerKg" min="0" step="1" placeholder="e.g. 250 (estimate)">
                         </div>
                     </div>
                     <div class="threshold_actions">

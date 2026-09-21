@@ -19,11 +19,8 @@ import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.
 //  Income range = Yield × (150 | 300 | 450)
 //  Revenue prices based on BFAR National Consolidated Price Monitoring Report 2025;
 //  provincial-adjusted for Hagonoy, Bulacan (non-NCR).
-//  Profit (est) = incomeAvg − (Yield × costPerKg); costPerKg is a user-set
-//  placeholder from growth_indicators, so profit/cost are always estimates.
 //  wqScore is carried through only for the separate Efficiency Score display
 //  (analyticsRecommendations.js / analytics.js) — it no longer affects yield.
-const DEFAULT_COST_PER_KG = 250;
 const INCOME_MIN_RATE = 150;
 const INCOME_AVG_RATE = 300;
 const INCOME_MAX_RATE = 450;
@@ -32,7 +29,6 @@ const RF_GATE_DAYS = 90;
 
 function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock) || 0;
-    const costPerKg     = Number(growthData.costPerKg) > 0 ? Number(growthData.costPerKg) : DEFAULT_COST_PER_KG;
 
     // Panelist requirement: no yield prediction until the cycle has run for
     // RF_GATE_DAYS. Folded directly into eligibility so a stale
@@ -60,8 +56,6 @@ function calcYield(growthData, wqScore) {
     const incomeMin     = adjustedYield != null ? adjustedYield * INCOME_MIN_RATE : null;
     const incomeAvg     = adjustedYield != null ? adjustedYield * INCOME_AVG_RATE : null;
     const incomeMax     = adjustedYield != null ? adjustedYield * INCOME_MAX_RATE : null;
-    const estimatedCost = adjustedYield != null ? adjustedYield * costPerKg : null;
-    const netProfit      = (incomeAvg != null && estimatedCost != null) ? incomeAvg - estimatedCost : null;
 
     return {
         initialStock,
@@ -69,12 +63,9 @@ function calcYield(growthData, wqScore) {
         eligible,
         weeksRemaining,
         adjustedYield,
-        costPerKg,
         incomeMin,
         incomeAvg,
         incomeMax,
-        estimatedCost,
-        netProfit,
         rfAvailable,
         rfMode: rfAvailable ? (growthData.rfMode ?? null) : null,
         rfNote: rfAvailable ? (growthData.rfNote ?? "") : "",
@@ -148,9 +139,6 @@ function updateUI(result, cycleData, sensorData) {
         setEl("yp-income-min", "₱--");
         setEl("yp-income-avg", "₱--");
         setEl("yp-income-max", "₱--");
-        setEl("yp-estimated-cost", "₱--");
-        setEl("yp-net-profit", "₱--");
-        setEl("yp-cost-per-kg-rate", "--");
 
         setEl("predictedYieldValue", "Pending");
         setEl("predictedYieldConfidence", pendingMsg);
@@ -176,9 +164,6 @@ function updateUI(result, cycleData, sensorData) {
         setEl("yp-income-min", fmtPeso(result.incomeMin));
         setEl("yp-income-avg", fmtPeso(result.incomeAvg));
         setEl("yp-income-max", fmtPeso(result.incomeMax));
-        setEl("yp-estimated-cost", fmtPeso(result.estimatedCost));
-        setEl("yp-net-profit", fmtPeso(result.netProfit));
-        setEl("yp-cost-per-kg-rate", "at ₱" + fmt(result.costPerKg, 0) + " / kg (estimated)");
 
         setEl("predictedYieldValue", fmt(result.adjustedYield, 1) + " kg");
         setEl("predictedYieldConfidence", RF_MODE_LABELS[result.rfMode] || "RF Prediction");
@@ -202,9 +187,6 @@ function updateUI(result, cycleData, sensorData) {
         setEl("yp-income-min", "₱--");
         setEl("yp-income-avg", "₱--");
         setEl("yp-income-max", "₱--");
-        setEl("yp-estimated-cost", "₱--");
-        setEl("yp-net-profit", "₱--");
-        setEl("yp-cost-per-kg-rate", "--");
 
         setEl("predictedYieldValue", "--");
         setEl("predictedYieldConfidence", "--");

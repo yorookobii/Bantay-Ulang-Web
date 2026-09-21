@@ -122,15 +122,13 @@ if (form) {
 
 // ── Growth Parameters ─────────────────────────────────────────────────────────
 
-const DEFAULT_COST_PER_KG = 250;
 // Ulang grow-out period — matches yieldPrediction.js's harvest-date computation
 // so web and Flutter (which reads stored cycleEnd) agree.
 const GROWOUT_DAYS = 150;
 
-const GROWTH_PARAM_IDS = ['gi_initialStock', 'gi_costPerKg'];
+const GROWTH_PARAM_IDS = ['gi_initialStock'];
 const GROWTH_FIELD_MAP = {
     gi_initialStock: 'initialStock',
-    gi_costPerKg:    'costPerKg',
 };
 let growthDocRef = null;
 let loadedCycleStart = null;
@@ -170,8 +168,6 @@ async function loadGrowthParams() {
 
 async function saveGrowthParams() {
     const initialStock = parseFloat(document.getElementById('gi_initialStock')?.value) || 0;
-    const costPerKgRaw = document.getElementById('gi_costPerKg')?.value;
-    const costPerKg    = costPerKgRaw !== '' && costPerKgRaw != null ? parseFloat(costPerKgRaw) : DEFAULT_COST_PER_KG;
 
     const cycleStartVal = document.getElementById('gi_cycleStart')?.value;
     const cycleStart     = cycleStartVal ? new Date(cycleStartVal + 'T00:00:00') : null;
@@ -180,7 +176,7 @@ async function saveGrowthParams() {
     // manually-entered value). Flutter reads this stored field directly.
     const cycleEnd = cycleStart ? new Date(cycleStart.getTime() + GROWOUT_DAYS * 24 * 60 * 60 * 1000) : null;
 
-    const payload = { initialStock, costPerKg, cycleStart, cycleEnd, timestamp: serverTimestamp() };
+    const payload = { initialStock, cycleStart, cycleEnd, timestamp: serverTimestamp() };
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });
