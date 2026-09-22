@@ -248,6 +248,34 @@ body {
     font-style: italic;
 }
 
+.sidebar .sidebar-logout-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: #bdc3c7;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sidebar .sidebar-logout-btn:hover {
+    background-color: #34495e;
+    color: #ecf0f1;
+}
+
+.sidebar .sidebar-logout-btn i {
+    margin-right: 12px;
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
 /* ── Fixed Topbar ────────────────────────────────────────── */
 .topbar {
     position: fixed;
@@ -599,7 +627,8 @@ body {
     .sidebar.collapsed .logo-text,
     .sidebar.collapsed .sidebar-menu span,
     .sidebar.collapsed .menu-badge,
-    .sidebar.collapsed .user-info {
+    .sidebar.collapsed .user-info,
+    .sidebar.collapsed .sidebar-logout-btn span {
         display: none;
     }
     .sidebar.collapsed .logo-row {
@@ -622,6 +651,13 @@ body {
     }
     .sidebar.collapsed .user-profile {
         justify-content: center;
+    }
+    .sidebar.collapsed .sidebar-logout-btn {
+        justify-content: center;
+        padding: 15px;
+    }
+    .sidebar.collapsed .sidebar-logout-btn i {
+        margin-right: 0;
     }
     .app.sidebar-collapsed .topbar {
         left: var(--sidebar-collapsed-width);

@@ -29,7 +29,7 @@ function clearSession() {
     } catch (_) {}
 }
 
-async function doLogout() {
+export async function doLogout() {
     try { await signOut(auth); } catch (e) { console.error('Logout error:', e); }
     clearSession();
     window.location.href = LOGIN_URL;
@@ -229,6 +229,9 @@ export function initDropdown({ handleToggle = true } = {}) {
             notifDropdown?.classList.remove('show');
         });
     }
+
+    const sidebarLogout = document.getElementById('sidebar-logout-btn');
+    if (sidebarLogout) sidebarLogout.addEventListener('click', doLogout);
 
     document.querySelectorAll('.profile-menu-item').forEach(item => {
         const text = item.textContent.trim();
