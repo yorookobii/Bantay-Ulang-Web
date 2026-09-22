@@ -70,94 +70,13 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════════
-   TOP BAR
-   ══════════════════════════════════════════════════════════ */
-.top-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 80;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 28px;
-    height: 62px;
-    /*
-       Halved from 0.28 → 0.14 so the bar doesn't create a visibly
-       dark rectangular band when combined with the photo-veil below it.
-    */
-    background: rgba(5, 18, 20, 0.14);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Logo + wordmark grouped together on the left side of the top bar */
-.brand-identity {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.brand-icon {
-    flex-shrink: 0;
-    width: 48px;
-    height: 48px;
-    border-radius: 13px;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    padding: 6px;
-    object-fit: contain;
-}
-
-.wordmark {
-    font-family: 'Nunito', sans-serif;
-    font-size: 18px;
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: -0.015em;
-}
-
-.status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.09);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    color: rgba(255, 255, 255, 0.80);
-    white-space: nowrap;
-}
-
-.status-dot {
-    flex-shrink: 0;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--status-green);
-    box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25);
-    animation: dot-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes dot-pulse {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); }
-    50%       { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0.06); }
-}
-
-/* ══════════════════════════════════════════════════════════
    WELCOME HERO
-   Occupies the space between top bar and initial card peek.
+   Occupies the space between viewport top and initial card peek.
    Purely decorative — aria-hidden="true" in markup.
    ══════════════════════════════════════════════════════════ */
 .welcome-hero {
     position: fixed;
-    top: 62px;       /* flush below top bar */
+    top: 0;
     left: 0;
     right: 0;
     bottom: 116px;   /* flush above the initial card peek */
@@ -490,25 +409,6 @@ body {
    ══════════════════════════════════════════════════════════ */
 
 @media (max-width: 600px) {
-    .top-bar {
-        padding: 0 16px;
-        height: 56px;
-    }
-
-    .wordmark {
-        font-size: 16px;
-    }
-
-    .status-pill {
-        font-size: 9px;
-        padding: 5px 10px;
-        gap: 6px;
-    }
-
-    .welcome-hero {
-        top: 56px;
-    }
-
     /* Tighter horizontal margin on mobile, maintain all-rounded corners */
     .login-sheet {
         width: calc(100% - 24px);
@@ -522,20 +422,8 @@ body {
     }
 }
 
-/* Collapse pill text on very narrow phones */
-@media (max-width: 380px) {
-    .pill-text {
-        display: none;
-    }
-
-    .status-pill {
-        padding: 6px 10px;
-    }
-}
-
 /* ── Reduced motion ─────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-    .status-dot,
     .scroll-cue i {
         animation: none;
     }
