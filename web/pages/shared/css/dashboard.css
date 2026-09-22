@@ -372,7 +372,7 @@
 /* ── Metrics Grid ────────────────────────────────────────── */
 .metrics-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
     margin-bottom: 24px;
 }
@@ -380,7 +380,7 @@
 .metric-card {
     background: var(--color-cloud-white, #fff);
     border-radius: var(--radius-lg, 12px);
-    padding: 20px;
+    padding: 16px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     position: relative;
     border: 1px solid var(--color-border-gray, #e5e7eb);
@@ -427,9 +427,10 @@
 .metric-card .card-icon.status.status--offline { background: var(--color-critical-red-bg, #fee2e2);  color: var(--color-critical-red, #dc2626); }
 .metric-card .card-icon.population { background: var(--color-info-blue-bg, #dbeafe); color: var(--color-info-blue, #2563eb); }
 .metric-card .card-icon.alerts { background: var(--color-warning-amber-bg, #fef3c7); color: var(--color-warning-amber, #d97706); }
+.metric-card .card-icon.mortality { background: var(--color-warning-amber-bg, #fef3c7); color: var(--color-warning-amber, #d97706); }
 
 .metric-card .card-title {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-slate, #6b7280);
     font-weight: 500;
 }
@@ -454,10 +455,17 @@
 .metric-card .card-trend.negative { color: var(--color-critical-red, #dc2626); }
 .metric-card .card-trend.action { color: var(--color-success-green, #059669); }
 
+.metric-card .card-subtext {
+    font-size: 11px;
+    color: var(--color-slate, #6b7280);
+    font-weight: 500;
+    line-height: 1.4;
+}
+
 /* ── Charts Grid ─────────────────────────────────────────── */
 .charts-row {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    grid-template-columns: 1fr;
     gap: 20px;
 }
 

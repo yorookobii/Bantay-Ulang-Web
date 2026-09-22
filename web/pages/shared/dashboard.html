@@ -132,6 +132,15 @@
                             <i class="fa-solid fa-arrow-up"></i> Action required
                         </div>
                     </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
+                        <div class="card-header">
+                            <div class="card-icon mortality"><i class="fa-solid fa-heart-pulse"></i></div>
+                            <span class="card-title">Current Mortality</span>
+                        </div>
+                        <div class="card-value" id="mortalityRateValue">--%</div>
+                        <div class="card-subtext" id="mortalitySurvivingCount">-- confirmed alive of -- stocked</div>
+                    </div>
                 </div>
 
                 <!-- Charts Row -->
@@ -164,18 +173,6 @@
                             <div id="envTrendsLoading" class="chart-loading-overlay chart-hidden">
                                 <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading historical data…
                             </div>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <div>
-                                <div class="chart-title">Current Mortality</div>
-                                <div class="chart-subtitle">Based on logged deaths this cycle</div>
-                            </div>
-                        </div>
-                        <div class="mortality-stat">
-                            <div class="mortality-stat-value" id="mortalityRateValue">--%</div>
-                            <div class="mortality-stat-count" id="mortalitySurvivingCount">-- confirmed alive of -- stocked</div>
                         </div>
                     </div>
                 </div>
