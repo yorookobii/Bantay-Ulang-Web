@@ -252,7 +252,7 @@ body {
     z-index: 50;
     background: #ffffff;
     border-radius: 24px;   /* all four corners */
-    max-height: 88vh;
+    max-height: calc(100vh - 48px);
     overflow-y: auto;
     box-shadow:
         0 24px 80px rgba(0, 0, 0, 0.36),
@@ -273,7 +273,7 @@ body {
 .sheet-inner {
     max-width: 480px;
     margin: 0 auto;
-    padding: 22px 36px 52px;
+    padding: 18px 36px 28px;
     color: var(--ink);
 }
 
@@ -292,13 +292,13 @@ body {
     font-weight: 500;
     color: var(--ink-muted);
     line-height: 1.55;
-    margin-bottom: 28px;
+    margin-bottom: 18px;
 }
 
 /* ── Auth form ──────────────────────────────────────────── */
 .auth-form {
     display: grid;
-    gap: 18px;
+    gap: 14px;
 }
 
 .field label {
@@ -324,7 +324,7 @@ body {
     font-family: 'Nunito', sans-serif;
     font-size: 16px;
     color: var(--ink);
-    min-height: 52px;
+    min-height: 48px;
     transition:
         border-color 0.18s ease,
         box-shadow   0.18s ease,
@@ -386,7 +386,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    min-height: 44px;
+    min-height: 40px;
     font-family: 'Nunito', sans-serif;
     font-size: 16px;
     font-weight: 600;
