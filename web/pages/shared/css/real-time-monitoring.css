@@ -74,6 +74,13 @@
     color: var(--color-critical-red, #dc2626);
 }
 
+/* No-data state: neutral grey, matches analytics.css .rec-impact-neutral —
+   must not read as "safe" (green) or "problem" (amber/red). */
+.sensor-card .sensor-icon-wrap.no-data {
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
 .sensor-card .sensor-status {
     font-size: 11px;
     font-weight: 700;
@@ -95,6 +102,11 @@
 .sensor-card .sensor-status.critical {
     background: var(--color-critical-red-bg, #fee2e2);
     color: #991b1b;
+}
+
+.sensor-card .sensor-status.no-data {
+    background: #e5e7eb;
+    color: #4b5563;
 }
 
 .sensor-card .sensor-name {

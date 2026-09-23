@@ -25,12 +25,24 @@ const SENSOR_MAP = [
     { key: "turbidity",       selector: '[data-sensor="turbidity"]',    unit: " NTU",  decimals: 1 }
 ];
 
-const STATUS_CSS   = { normal: "optimal",  warning: "warning",  critical: "critical" };
-const STATUS_LABEL = { normal: "OPTIMAL",  warning: "WARNING",  critical: "CRITICAL" };
+const STATUS_CSS   = { normal: "optimal",  warning: "warning",  critical: "critical",  "no-data": "no-data" };
+const STATUS_LABEL = { normal: "OPTIMAL",  warning: "WARNING",  critical: "CRITICAL",  "no-data": "NO DATA" };
 
+// Tier 1 (this fix): a null/non-finite value is "no data received," not
+// "in range" — must not render as the same green OPTIMAL as a real in-range
+// reading (mirrors the Analytics rec-card-no-data fix). Tier 2 (not done
+// here): this still can't tell a genuinely-null value apart from a
+// stale-but-numeric last value frozen in the Aquaponics/Ulang doc after the
+// ESP32 goes offline — that needs the same freshness/measuredAt mechanism
+// dashboard.js uses for the hardware-status tile.
 function getSensorStatus(key, value) {
     const range = getRanges()[key];
-    if (!range || value == null || !Number.isFinite(Number(value))) return "normal";
+    // !range is left mapped to "normal": every SENSOR_MAP key has a
+    // DEFAULT_RANGES entry (thresholds.js), so getRanges()[key] is never
+    // actually missing in practice — this is an unreachable defensive guard,
+    // not a real no-data path, so conflating it with "no-data" isn't needed.
+    if (!range) return "normal";
+    if (value == null || !Number.isFinite(Number(value))) return "no-data";
     const v = Number(value);
     const { min, max } = range;
     const hasMin = min != null;
@@ -72,7 +84,7 @@ function formatValue(value, decimals, unit) {
     return (decimals === 0 ? Math.round(n) : n.toFixed(decimals)) + unit;
 }
 
-const VALUE_COLOR = { optimal: "#2563eb", warning: "#d97706", critical: "#dc2626" };
+const VALUE_COLOR = { optimal: "#2563eb", warning: "#d97706", critical: "#dc2626", "no-data": "#4b5563" };
 
 function applyCardStatus(card, status) {
     const statusEl = card.querySelector(".sensor-status");
@@ -81,7 +93,7 @@ function applyCardStatus(card, status) {
     const css      = STATUS_CSS[status]   || "optimal";
     const label    = STATUS_LABEL[status] || "OPTIMAL";
 
-    ["optimal", "warning", "critical"].forEach(c => {
+    ["optimal", "warning", "critical", "no-data"].forEach(c => {
         if (statusEl) statusEl.classList.toggle(c, c === css);
         if (iconWrap) iconWrap.classList.toggle(c, c === css);
     });
@@ -113,7 +125,7 @@ function applyWaterLevelCard(sensorGrid, waterLevel, timeStr) {
     if (valueEl)   valueEl.textContent = formatWaterLevelText(waterLevel);
     if (updatedEl) updatedEl.textContent = "Updated: " + timeStr;
 
-    const status = waterLevel == null ? "normal" : waterLevel ? "normal" : "critical";
+    const status = waterLevel == null ? "no-data" : waterLevel ? "normal" : "critical";
     applyCardStatus(card, status);
 }
 
