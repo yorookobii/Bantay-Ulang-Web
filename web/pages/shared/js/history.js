@@ -53,18 +53,24 @@ function isBreached(param, value) {
     return false;
 }
 
-// Any-breach-wins: a row is out-of-range if ANY param breaches its threshold.
+// Precedence: out-of-range > no-data (all params missing) > incomplete (some
+// missing) > normal. Missing values must never read as "Normal" — docs without
+// a statistics map (firmware wrote no sensor data) normalize to all-null.
 // Params with no configured threshold (e.g. tds if unset in Settings) simply
 // can't breach — isBreached() returns false for them via the !range guard.
 function computeRowStatus(reading) {
-    return STATUS_PARAMS.some(param => isBreached(param, reading[param])) ? "out-of-range" : "normal";
+    if (STATUS_PARAMS.some(param => isBreached(param, reading[param]))) return "out-of-range";
+    const missing = STATUS_PARAMS.filter(param => !Number.isFinite(reading[param])).length;
+    if (missing === STATUS_PARAMS.length) return "no-data";
+    if (missing > 0) return "incomplete";
+    return "normal";
 }
 
-const STATUS_LABEL     = { normal: "Normal", "out-of-range": "Out of Range" };
+const STATUS_LABEL     = { normal: "Normal", "out-of-range": "Out of Range", "no-data": "No Data", incomplete: "Incomplete" };
 // Reuses the existing critical (red) palette for out-of-range rows/badges —
 // avoids a CSS-only diff for what both display as "the bad bucket" now that
-// warning/critical have collapsed into one.
-const STATUS_CSS_CLASS = { normal: "normal", "out-of-range": "critical" };
+// warning/critical have collapsed into one. No-data and incomplete share grey.
+const STATUS_CSS_CLASS = { normal: "normal", "out-of-range": "critical", "no-data": "no-data", incomplete: "no-data" };
 
 // ─── growth_indicators cycleStart (one-shot, mirrors dashboard.js/sensorHistoryModal.js) ──
 
