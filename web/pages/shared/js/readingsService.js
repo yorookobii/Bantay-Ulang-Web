@@ -55,15 +55,21 @@ async function reconcileCycleStart(currentCycleStartMs) {
  *      cacheStore.saveReadings() and advances lastSync to the newest
  *      reading's measuredAtMs.
  *
- * Returns the array of newly fetched readings (ascending by measuredAtMs,
- * possibly empty) — callers combine this with a cache read for the final
- * result, falling back to this array directly if the cache is unavailable.
+ * Returns { newReadings, syncError }: newReadings is ascending by measuredAtMs
+ * (possibly empty) and callers combine it with a cache read for the final
+ * result. A failed fetch yields newReadings [] plus the error in syncError, so
+ * callers can tell "nothing new" apart from "couldn't reach Firestore".
  */
 async function syncCache(currentCycleStartMs) {
     await reconcileCycleStart(currentCycleStartMs);
 
     const lastSync = await cacheStore.getLastSync();
-    const newReadings = await fetchNewReadings(lastSync);
+    let newReadings;
+    try {
+        newReadings = await fetchNewReadings(lastSync);
+    } catch (syncError) {
+        return { newReadings: [], syncError };
+    }
 
     if (newReadings.length > 0) {
         await cacheStore.saveReadings(newReadings);
@@ -71,7 +77,7 @@ async function syncCache(currentCycleStartMs) {
         await cacheStore.setLastSync(newest);
     }
 
-    return newReadings;
+    return { newReadings, syncError: null };
 }
 
 /**
@@ -92,7 +98,7 @@ async function syncCache(currentCycleStartMs) {
  * data at all (empty cache + nothing new to fetch).
  */
 export async function getReadings(currentCycleStartMs) {
-    const newReadings = await syncCache(currentCycleStartMs);
+    const { newReadings } = await syncCache(currentCycleStartMs);
 
     const cached = await cacheStore.getReadings();
     if (cached.length > 0) return cached;
@@ -101,7 +107,7 @@ export async function getReadings(currentCycleStartMs) {
 }
 
 /**
- * getReadingsInRange(cycleStartMs, sinceMs, untilMs)
+ * getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs)
  *
  * Same sync behavior as getReadings(), but returns only the readings whose
  * measuredAtMs falls within [sinceMs, untilMs] — intended for the history
@@ -111,18 +117,27 @@ export async function getReadings(currentCycleStartMs) {
  * Falls back to filtering the freshly fetched readings (from this sync) by
  * the same range if the cache is unavailable, matching getReadings()'s
  * degradation behavior.
+ *
+ * Returns { rows, syncError }: rows may be cached data even when syncError is
+ * set, so callers can show stale rows with a warning instead of an empty table.
  */
-export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
-    const newReadings = await syncCache(cycleStartMs);
+export async function getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs) {
+    const { newReadings, syncError } = await syncCache(cycleStartMs);
 
     const ranged = await cacheStore.getReadings(sinceMs, untilMs);
-    if (ranged.length > 0) return ranged;
+    if (ranged.length > 0) return { rows: ranged, syncError };
 
-    return newReadings.filter((reading) => {
+    const rows = newReadings.filter((reading) => {
         if (sinceMs != null && reading.measuredAtMs < sinceMs) return false;
         if (untilMs != null && reading.measuredAtMs > untilMs) return false;
         return true;
     });
+    return { rows, syncError };
+}
+
+// Rows-only wrapper for callers that don't surface sync failures (charts, sparklines).
+export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
+    return (await getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs)).rows;
 }
 
 /**
@@ -144,7 +159,7 @@ export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
 export async function catchUpCache(cycleStartMs, { maxIterations = 150, timeBudgetMs = 10000 } = {}) {
     const deadline = Date.now() + timeBudgetMs;
     for (let i = 0; i < maxIterations && Date.now() < deadline; i++) {
-        const page = await syncCache(cycleStartMs);
-        if (page.length < DEFAULT_FETCH_LIMIT) break; // exhausted — no more pages to fetch
+        const { newReadings: page, syncError } = await syncCache(cycleStartMs);
+        if (syncError || page.length < DEFAULT_FETCH_LIMIT) break; // failed or exhausted — stop paging
     }
 }

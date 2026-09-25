@@ -7,7 +7,7 @@ import {
     startAfter,
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getReadingsInRange } from "./readingsService.js";
+import { getReadingsInRangeWithStatus } from "./readingsService.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { normalizeStatus } from "./taskStatus.js";
@@ -199,6 +199,13 @@ function updatePageInfo(pageIndex, count, total) {
 
 // ─── Data loading ─────────────────────────────────────────────────────────────
 
+// Maps a Firestore error code to a user-facing next step.
+function syncErrorHint(err) {
+    if (err?.code === "permission-denied") return "Check that you're logged in.";
+    if (err?.code === "resource-exhausted") return "Daily read limit reached; try again later.";
+    return "Check your connection and try again.";
+}
+
 async function loadSensorReadings() {
     const tbody     = document.getElementById("sensorHistoryTbody");
     const loadingEl = document.getElementById("sensorHistoryLoading");
@@ -215,9 +222,12 @@ async function loadSensorReadings() {
         const { sinceMs, untilMs } = resolveEffectiveRange();
         effectiveRangeLabel = formatRangeLabel(sinceMs, untilMs);
 
-        const readings = await getReadingsInRange(cycleStartMs, sinceMs, untilMs);
+        const { rows: readings, syncError } = await getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs);
 
-        // getReadingsInRange returns ascending; reverse for newest-first, matching
+        // A failed sync with no cached rows is an error, not an empty farm.
+        if (syncError && !readings.length) throw syncError;
+
+        // Rows come back ascending; reverse for newest-first, matching
         // the old orderBy("timestamp","desc") behavior.
         filteredRows = readings
             .slice()
@@ -226,11 +236,17 @@ async function loadSensorReadings() {
             .filter(row => statusFilter === "all" || row.status === statusFilter);
 
         if (loadingEl) loadingEl.style.display = "none";
+        if (syncError && errorEl) {
+            errorEl.textContent = "Showing cached readings; couldn't refresh from the server. " + syncErrorHint(syncError);
+            errorEl.classList.add("sr-error--warning");
+            errorEl.style.display = "block";
+        }
         renderPage(0);
     } catch (err) {
         if (loadingEl) loadingEl.style.display = "none";
         if (errorEl) {
-            errorEl.textContent = "Error loading data: " + (err.message || err);
+            errorEl.textContent = "Couldn't load readings. " + syncErrorHint(err);
+            errorEl.classList.remove("sr-error--warning");
             errorEl.style.display = "block";
         }
         console.error("sensor readings history error:", err);

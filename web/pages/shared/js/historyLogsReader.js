@@ -92,7 +92,8 @@ export function normalizeHistoryReading(docData) {
  * sinceMs = the last returned reading's measuredAtMs to page through.
  *
  * Requires a Firestore composite index — see the module-level flag below.
- * Returns [] (and logs the error) if the query fails, e.g. index missing.
+ * Logs and rethrows if the query fails (permission, quota, missing index,
+ * offline) so callers can tell a failure apart from "no new readings".
  */
 export async function fetchNewReadings(sinceMs) {
     const effectiveSinceMs = sinceMs ?? 0;
@@ -112,6 +113,6 @@ export async function fetchNewReadings(sinceMs) {
             .filter((reading) => reading.measuredAtMs != null);
     } catch (error) {
         console.error("historyLogsReader: fetchNewReadings failed.", error);
-        return [];
+        throw error;
     }
 }
