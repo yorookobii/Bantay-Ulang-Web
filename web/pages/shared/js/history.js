@@ -173,7 +173,7 @@ function buildRow(row) {
         <td data-label="pH Level">${fmt(reading.ph, 1)}</td>
         <td data-label="Water Temp (°C)">${fmt(reading.waterTemp, 1)}</td>
         <td data-label="DO (mg/L)">${fmt(reading.dissolvedOxygen, 1)}</td>
-        <td data-label="Salinity (ppt)">${fmt(reading.salinity, 0)}</td>
+        <td data-label="Salinity (ppt)">${fmt(reading.salinity, 2)}</td>
         <td data-label="Turbidity (NTU)">${fmt(reading.turbidity, 1)}</td>
         <td data-label="TDS (ppm)">${fmt(reading.tds, 0)}</td>
         <td data-label="Status"><span class="sr-status sr-status--${cssStatus}">${STATUS_LABEL[status] || capitalize(status)}</span></td>
