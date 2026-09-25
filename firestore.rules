@@ -25,8 +25,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // settings  (e.g. settings/thresholds — read by alertsEngine, sensorReadings,
-    // analyticsRecommendations, yieldPrediction, sensorHistoryModal via thresholds.js)
+    // settings
     // -------------------------------------------------------------------------
     match /settings/{docId} {
       allow read:  if isAuthenticated();
@@ -40,7 +39,7 @@ service cloud.firestore {
       // Authenticated users (web + Flutter) can read.
       allow read: if isAuthenticated();
 
-      // ESP32 writes without auth — no authentication required for create.
+      // ESP32/Arduino writes without auth.
       allow create: if true;
 
       // Only admins can update or delete sensor readings.
@@ -51,14 +50,10 @@ service cloud.firestore {
     // alerts
     // -------------------------------------------------------------------------
     match /alerts/{docId} {
-      // Authenticated users can read alerts.
       allow read: if isAuthenticated();
 
-      // ESP32 / alertsEngine (unauthenticated server logic) can create and
-      // auto-resolve (update) alerts.
       allow create, update: if true;
 
-      // Only admins can delete alert documents.
       allow delete: if isAdmin();
     }
 
@@ -70,11 +65,6 @@ service cloud.firestore {
 
       allow create, delete: if isAdmin();
 
-      // Admins can update any field via the web Settings page. Non-admin
-      // authenticated users (the Flutter farmer app's growth-indicator
-      // recompute in logs.dart) may only touch the three derived fields
-      // it recalculates. initialStock, cycleStart, and every other field
-      // remain admin-only.
       allow update: if isAdmin() ||
                        (isAuthenticated() &&
                         request.resource.data.diff(resource.data).affectedKeys()
@@ -122,59 +112,73 @@ service cloud.firestore {
 
     // -------------------------------------------------------------------------
     // feeding_schedules
+    // Arduino R4 needs unauthenticated READ access so it can retrieve:
+    // enabled, feedTime, amount, feedType
+    // Writes remain authenticated only.
     // -------------------------------------------------------------------------
     match /feeding_schedules/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     // -------------------------------------------------------------------------
-    // Aquaponics  (single live doc Aquaponics/Ulang, ESP32-updated in place
-    // ~every 15s - mirrors sensor_readings. Write clause is INFERRED by
-    // analogy to sensor_readings' documented unauthenticated ESP32 writes
-    // (see sensor_readings above) - not confirmed for this doc specifically.
-    // This collection had no rule at all before - fell through to the
-    // default deny below, which is what broke the dashboard cards that read
-    // it (Hardware Status, and the alerts-reconciliation read in
-    // alertsEngine.js).
+    // Aquaponics
+    // Single live doc: Aquaponics/Ulang
     // -------------------------------------------------------------------------
     match /Aquaponics/{docId} {
       allow read: if isAuthenticated();
+
+      // Arduino can create/update live sensor data.
       allow create, update: if true;
+
       allow delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
-    // readings  (collection group; actual path is
-    //   HistoryLogs/Ulang/years/{Y}/{M}/{D}/readings/{docId} - written by
-    //   the external ESP32 ingestion pipeline. Write clause is UNCONFIRMED -
-    //   no writer code exists in this repo. Collection-group match applies
-    //   to ANY subcollection literally named "readings" anywhere in the
-    //   database - confirmed no other collection in this codebase uses that
-    //   name, but revisit this rule if that ever changes. Also had no rule
-    //   before - fed the Environmental Trends chart's permission-denied.
+    // readings
+    // Actual path example:
+    // HistoryLogs/Ulang/years/{Y}/{M}/{D}/readings/{docId}
     // -------------------------------------------------------------------------
     match /{path=**}/readings/{docId} {
       allow read: if isAuthenticated();
-      allow create: if true;
+
+      // Arduino can CREATE a new reading or UPDATE an existing document
+      // when the same document ID is encountered.
+      allow create, update: if true;
+
       allow delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
-    // logs  (Flutter: filter by createdBy / assignedTo)
+    // ActionLogs
+    //
+    // Arduino path example:
+    // ActionLogs/Ulang/years/action_2026/action_09/action_24/
+    // actions/action_0002
+    //
+    // This rule was missing before, causing HTTP 403 PERMISSION_DENIED.
+    // -------------------------------------------------------------------------
+    match /ActionLogs/{actionDocument=**} {
+      allow read: if isAuthenticated();
+
+      // Arduino can create/update device-generated action logs.
+      allow create, update: if true;
+
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // logs
     // -------------------------------------------------------------------------
     match /logs/{docId} {
-      // Admins see all logs; other users see only logs they created or are
-      // assigned to (Flutter assignedTo filter preserved).
       allow read: if isAdmin() ||
                     (isAuthenticated() &&
                      (resource.data.createdBy == request.auth.uid ||
                       resource.data.assignedTo == request.auth.uid));
 
-      // Any authenticated user can create a log they own.
       allow create: if isAuthenticated() &&
                        request.resource.data.createdBy == request.auth.uid;
 
-      // Admins or the log creator can update; only admins can delete.
       allow update: if isAdmin() ||
                        (isAuthenticated() &&
                         resource.data.createdBy == request.auth.uid);
@@ -183,28 +187,23 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // tasks  (Flutter: filter by createdBy / assignedTo)
+    // tasks
     // -------------------------------------------------------------------------
     match /tasks/{docId} {
-      // Admins see all tasks; other users see tasks they created, are assigned
-      // to, or that were auto-generated by the alerts engine (createdBy == 'system').
       allow read: if isAdmin() ||
                     (isAuthenticated() &&
                      (resource.data.createdBy == request.auth.uid ||
                       resource.data.assignedTo == request.auth.uid ||
                       resource.data.createdBy == 'system'));
 
-      // Authenticated users can create a task they own, OR the alerts engine
-      // can create a system-generated task where createdBy is 'system'.
       allow create: if isAuthenticated() &&
                        (request.resource.data.createdBy == request.auth.uid ||
                         request.resource.data.createdBy == 'system');
 
-      // Admins or the task creator can update; system tasks (createdBy == 'system')
-      // can be updated by any authenticated user (e.g. to claim or complete them).
       allow update: if isAdmin() ||
                        (isAuthenticated() &&
                         (resource.data.createdBy == request.auth.uid ||
+                         resource.data.assignedTo == request.auth.uid ||
                          resource.data.createdBy == 'system'));
 
       allow delete: if isAdmin();
