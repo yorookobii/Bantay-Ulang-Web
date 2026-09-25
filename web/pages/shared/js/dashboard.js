@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { collection, doc, getDocs, getDoc, addDoc, updateDoc, serverTimestamp, limit, orderBy, query, where, Timestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDocs, getDoc, updateDoc, runTransaction, serverTimestamp, limit, orderBy, query, where, Timestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
@@ -90,6 +90,9 @@ const HW_CHECK_INTERVAL_MS   = 15 * 1000;   // Periodic age re-check interval
 const HW_FRESHNESS_STORAGE_KEY = "bantay_hw_status_freshness";
 
 let latestHardwareMeasuredAt = null; // Date | null
+// Firmware measuredAt only; null while unknown (no snapshot yet, listener error, or
+// signature fallback), when no stable per-outage ID exists, so alerts are skipped.
+let hwAlertMeasuredAt = null; // Date | null
 let hardwareTimer = null;
 let hwLastChangeAt  = null; // ms epoch | null — last time the signature actually changed
 let hwLastSignature = null; // string | null — last-seen statistics signature
@@ -208,68 +211,69 @@ function renderHardwareStatus(measuredAtDate) {
         }
     }
 
-    // Full alert lifecycle for hardware_offline
-    if (state === "offline") {
-        createHardwareOfflineAlert();
-    } else if (state === "online") {
-        resolveHardwareOfflineAlert();
-    }
+    // Alert lifecycle only runs on an authoritative measuredAt; unknown is not offline.
+    if (hwAlertMeasuredAt) syncHardwareOfflineAlert(state, hwAlertMeasuredAt);
 }
 
-let isCreatingHwAlert = false;
+const HW_DEVICE_ID = "ESP32-001";
+const ensuredHwAlertIds = new Set(); // per-tab memo so each outage doc is transacted once
 let isResolvingHwAlert = false;
 
-async function findActiveHardwareAlert() {
-    try {
-        const snap = await getDocs(query(collection(db, "alerts"), where("status", "==", "active")));
-        return snap.docs.find(d => d.data().type === "hardware_offline") || null;
-    } catch (err) {
-        console.warn("[dashboard] Failed to query active hardware alert:", err);
-        return null;
+function syncHardwareOfflineAlert(state, measuredAtDate) {
+    if (state === "offline") {
+        ensureHardwareOfflineAlert(measuredAtDate);
+    } else if (state === "online") {
+        resolveHardwareOfflineAlerts();
     }
 }
 
-async function createHardwareOfflineAlert() {
-    if (isCreatingHwAlert) return;
-    isCreatingHwAlert = true;
-    try {
-        const existing = await findActiveHardwareAlert();
-        if (existing) return; // Dedup: active hardware_offline alert already exists
+// One doc per outage: every client sees the same last measuredAt, so they all derive
+// the same ID and the create-if-missing transaction is idempotent across tabs/admins.
+async function ensureHardwareOfflineAlert(measuredAtDate) {
+    const alertId = `hardware_offline_${HW_DEVICE_ID}_${measuredAtDate.getTime()}`;
+    if (ensuredHwAlertIds.has(alertId)) return;
+    ensuredHwAlertIds.add(alertId);
 
-        await addDoc(collection(db, "alerts"), {
-            type:         "hardware_offline",
-            parameter:    "hardware",
-            currentValue: "Offline",
-            safeRange:    "Online",
-            message:      "Hardware offline — no sensor data received for >5 minutes.",
-            severity:     "critical",
-            status:       "active",
-            createdAt:    serverTimestamp(),
-            deviceId:     "ESP32-001"
+    try {
+        const created = await runTransaction(db, async (tx) => {
+            const ref = doc(db, "alerts", alertId);
+            if ((await tx.get(ref)).exists()) return false;
+            tx.set(ref, {
+                type:         "hardware_offline",
+                parameter:    "hardware",
+                currentValue: "Offline",
+                safeRange:    "Online",
+                message:      "Hardware offline — no sensor data received for >5 minutes.",
+                severity:     "critical",
+                status:       "active",
+                createdAt:    serverTimestamp(),
+                lastSeenAt:   Timestamp.fromDate(measuredAtDate),
+                deviceId:     HW_DEVICE_ID
+            });
+            return true;
         });
-        console.log("[dashboard] Hardware offline alert created.");
+        if (created) console.log("[dashboard] Hardware offline alert created:", alertId);
     } catch (err) {
+        ensuredHwAlertIds.delete(alertId); // allow a retry on the next tick
         console.error("[dashboard] Failed to create hardware offline alert:", err);
-    } finally {
-        isCreatingHwAlert = false;
     }
 }
 
-async function resolveHardwareOfflineAlert() {
+// Resolves every active hardware_offline doc, including legacy auto-ID duplicates.
+async function resolveHardwareOfflineAlerts() {
     if (isResolvingHwAlert) return;
     isResolvingHwAlert = true;
     try {
-        const activeAlert = await findActiveHardwareAlert();
-        if (activeAlert) {
-            await updateDoc(activeAlert.ref, {
-                status:       "resolved",
-                resolvedAt:   serverTimestamp(),
-                currentValue: "Online"
-            });
-            console.log("[dashboard] Hardware offline alert auto-resolved.");
-        }
+        const snap = await getDocs(query(collection(db, "alerts"), where("status", "==", "active")));
+        const hwAlerts = snap.docs.filter(d => d.data().type === "hardware_offline");
+        await Promise.all(hwAlerts.map(d => updateDoc(d.ref, {
+            status:       "resolved",
+            resolvedAt:   serverTimestamp(),
+            currentValue: "Online"
+        })));
+        if (hwAlerts.length) console.log(`[dashboard] Resolved ${hwAlerts.length} hardware offline alert(s).`);
     } catch (err) {
-        console.error("[dashboard] Failed to resolve hardware alert:", err);
+        console.error("[dashboard] Failed to resolve hardware alerts:", err);
     } finally {
         isResolvingHwAlert = false;
     }
@@ -297,6 +301,7 @@ function initHardwareStatusMonitor() {
         (snapshot) => {
             if (!snapshot.exists()) {
                 latestHardwareMeasuredAt = null;
+                hwAlertMeasuredAt = null;
                 renderHardwareStatus(null);
                 return;
             }
@@ -307,6 +312,9 @@ function initHardwareStatusMonitor() {
             // Prioritize explicit measuredAt from the document once firmware writes
             // it — authoritative, no signature diffing needed.
             const parsedMeasuredAt = toDateValue(data.measuredAt);
+            // Without measuredAt the fallback freshness is per-browser localStorage, so clients
+            // would derive different outage IDs; skip create/resolve rather than risk duplicates.
+            hwAlertMeasuredAt = parsedMeasuredAt;
             if (parsedMeasuredAt) {
                 latestHardwareMeasuredAt = parsedMeasuredAt;
             } else {
@@ -332,6 +340,7 @@ function initHardwareStatusMonitor() {
         (error) => {
             console.warn("[dashboard] Aquaponics/Ulang hardware listener error:", error);
             latestHardwareMeasuredAt = null;
+            hwAlertMeasuredAt = null;
             renderHardwareStatus(null);
         }
     );
