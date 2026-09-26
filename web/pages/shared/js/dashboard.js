@@ -548,27 +548,16 @@ async function loadMortalityStat() {
         var container = document.querySelector('.topbar');
         if (!container) return;
         var notifDropdown = container.querySelector('.notification-dropdown');
-        var profileDropdown =   container.querySelector('.profile-dropdown');
         var notifBtn = container.querySelector('.notification-icon');
-        var profileBtn = container.querySelector('.admin-profile');
         if (notifBtn && notifDropdown) {
             notifBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 notifDropdown.classList.toggle('show');
-                if (profileDropdown) profileDropdown.classList.remove('show');
-            });
-        }
-        if (profileBtn && profileDropdown) {
-            profileBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                profileDropdown.classList.toggle('show');
-                if (notifDropdown) notifDropdown.classList.remove('show');
             });
         }
         document.addEventListener('click', function(e) {
             if (container.contains(e.target)) return;
             if (notifDropdown) notifDropdown.classList.remove('show');
-            if (profileDropdown) profileDropdown.classList.remove('show');
         });
 
         var sidebar = document.getElementById('sidebar');

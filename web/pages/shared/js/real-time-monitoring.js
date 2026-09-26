@@ -3,16 +3,10 @@
                     var container = document.querySelector('.topbar');
                     if (!container) return;
                     var notifDropdown = container.querySelector('.notification-dropdown');
-                    var profileDropdown = container.querySelector('.profile-dropdown');
                     var notifBtn = container.querySelector('.notification-icon');
-                    var profileBtn = container.querySelector('.admin-profile');
-                    function toggleDropdown(btn, dropdown, otherBtn, otherDropdown) {
+                    function toggleDropdown(btn, dropdown) {
                         var open = dropdown.classList.toggle('show');
                         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                        if (open && otherDropdown) {
-                            otherDropdown.classList.remove('show');
-                            if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
-                        }
                     }
                     function activateOnKey(el, handler) {
                         el.addEventListener('keydown', function(e) {
@@ -25,27 +19,15 @@
                     if (notifBtn && notifDropdown) {
                         var onNotifToggle = function(e) {
                             e.stopPropagation();
-                            toggleDropdown(notifBtn, notifDropdown, profileBtn, profileDropdown);
+                            toggleDropdown(notifBtn, notifDropdown);
                         };
                         notifBtn.addEventListener('click', onNotifToggle);
                         activateOnKey(notifBtn, onNotifToggle);
                     }
-                    if (profileBtn && profileDropdown) {
-                        var onProfileToggle = function(e) {
-                            e.stopPropagation();
-                            toggleDropdown(profileBtn, profileDropdown, notifBtn, notifDropdown);
-                        };
-                        profileBtn.addEventListener('click', onProfileToggle);
-                        activateOnKey(profileBtn, onProfileToggle);
-                    }
                     document.addEventListener('click', function(e) {
                         if (container.contains(e.target)) return;
                         if (notifDropdown) { notifDropdown.classList.remove('show'); if (notifBtn) notifBtn.setAttribute('aria-expanded', 'false'); }
-                        if (profileDropdown) { profileDropdown.classList.remove('show'); if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false'); }
                     });
-                    // Logout is handled by dropdownActions.js's initDropdown() (real
-                    // Firebase sign-out); this page used to also bind a fake
-                    // alert()-only handler here, which fired alongside the real one.
 
                     var sidebar = document.getElementById('sidebar');
                     var overlay = document.getElementById('sidebarOverlay');

@@ -462,31 +462,15 @@ function setupTopbarSidebar() {
     if (!topbar) return;
 
     const notifDropdown   = topbar.querySelector(".notification-dropdown");
-    const profileDropdown = topbar.querySelector(".profile-dropdown");
     const notifBtn        = topbar.querySelector(".notification-icon");
-    const profileBtn      = topbar.querySelector(".admin-profile");
 
     notifBtn?.addEventListener("click", e => {
         e.stopPropagation();
         notifDropdown?.classList.toggle("show");
-        profileDropdown?.classList.remove("show");
-    });
-    profileBtn?.addEventListener("click", e => {
-        e.stopPropagation();
-        profileDropdown?.classList.toggle("show");
-        notifDropdown?.classList.remove("show");
     });
     document.addEventListener("click", e => {
         if (topbar.contains(e.target)) return;
         notifDropdown?.classList.remove("show");
-        profileDropdown?.classList.remove("show");
-    });
-
-    // Logout
-    topbar.querySelectorAll(".profile-menu-item").forEach(item => {
-        if (item.textContent.includes("Logout")) {
-            item.addEventListener("click", () => alert("Logging out…"));
-        }
     });
 
     const sidebar  = document.getElementById("sidebar");

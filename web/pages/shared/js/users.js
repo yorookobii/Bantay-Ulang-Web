@@ -1,5 +1,5 @@
 import { db, auth } from './firebase.js';
-import { signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
     collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -7,22 +7,7 @@ import { initSidebar } from './sidebar.js';
 
 // ── Global functions for onclick attrs in HTML ────────────────────────────
 window.toggleNotification = function () {
-    const nd = document.getElementById('notificationDropdown');
-    const pd = document.getElementById('profileDropdown');
-    nd?.classList.toggle('show');
-    pd?.classList.remove('show');
-};
-
-window.toggleProfile = function () {
-    const pd = document.getElementById('profileDropdown');
-    const nd = document.getElementById('notificationDropdown');
-    pd?.classList.toggle('show');
-    nd?.classList.remove('show');
-};
-
-window.logout = async function () {
-    try { await signOut(auth); } catch (_) {}
-    window.location.href = '../security/admin-tech-login.html';
+    document.getElementById('notificationDropdown')?.classList.toggle('show');
 };
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
@@ -49,11 +34,8 @@ initSidebar();
 // ── Close dropdowns when clicking outside ─────────────────────────────────
 document.addEventListener('click', (e) => {
     const nc = document.querySelector('.notification-container');
-    const ap = document.querySelector('.admin-profile');
     if (nc && !nc.contains(e.target))
         document.getElementById('notificationDropdown')?.classList.remove('show');
-    if (ap && !ap.contains(e.target) && !e.target.closest('.profile-dropdown'))
-        document.getElementById('profileDropdown')?.classList.remove('show');
 });
 
 // ── Toast notification ────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ function buildMenu(profileUrl, settingsUrl) {
 
 /**
  * initProfileMenu({ profileUrl, settingsUrl, onChangePassword, onLogout })
- * No-op on pages that still use the old .admin-profile chip.
+ * No-op on pages without a .pm-trigger chip.
  */
 export function initProfileMenu({ profileUrl, settingsUrl, onChangePassword, onLogout }) {
     const trigger = document.querySelector('.pm-trigger');
@@ -47,6 +47,7 @@ export function initProfileMenu({ profileUrl, settingsUrl, onChangePassword, onL
 
     function open(focusIndex = 0) {
         document.getElementById('notificationDropdown')?.classList.remove('show');
+        document.querySelector('.notification-icon[aria-expanded]')?.setAttribute('aria-expanded', 'false');
         trigger.setAttribute('aria-expanded', 'true');
         menu.dataset.open = '';
         const list = items();

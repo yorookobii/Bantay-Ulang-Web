@@ -205,9 +205,9 @@ async function populateNotifications() {
 /**
  * initDropdown({ handleToggle })
  *
- * handleToggle (default true): wire the admin-profile click and outside-click
- * to open/close the dropdown.  Pass false on pages like dashboard.html that
- * already handle the toggle in their own JS.
+ * handleToggle (default true): wire the bell click and outside-click to
+ * open/close the notification dropdown.  Pass false on pages like
+ * dashboard.html that already handle the bell in their own JS.
  */
 export function initDropdown({ handleToggle = true } = {}) {
     buildModal();
@@ -227,52 +227,18 @@ export function initDropdown({ handleToggle = true } = {}) {
     if (handleToggle) {
         const notifIcon      = document.querySelector('.notification-icon');
         const notifDropdown  = document.getElementById('notificationDropdown');
-        const adminProfile   = document.querySelector('.admin-profile');
-        const profileDropdown = document.getElementById('profileDropdown');
 
-        if (adminProfile && profileDropdown) {
-            adminProfile.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const open = profileDropdown.classList.toggle('show');
-                if (notifDropdown && open) notifDropdown.classList.remove('show');
-            });
-        }
         if (notifIcon && notifDropdown) {
             notifIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const open = notifDropdown.classList.toggle('show');
-                if (profileDropdown && open) profileDropdown.classList.remove('show');
+                notifDropdown.classList.toggle('show');
             });
         }
         document.addEventListener('click', () => {
-            profileDropdown?.classList.remove('show');
             notifDropdown?.classList.remove('show');
         });
     }
 
     const sidebarLogout = document.getElementById('sidebar-logout-btn');
     if (sidebarLogout) sidebarLogout.addEventListener('click', doLogout);
-
-    document.querySelectorAll('.profile-menu-item').forEach(item => {
-        const text = item.textContent.trim();
-        let handler = null;
-        if (text.includes('My Profile')) {
-            handler = () => { window.location.href = PROFILE_URL; };
-        } else if (text.includes('Settings')) {
-            handler = () => { window.location.href = SETTINGS_URL; };
-        } else if (text.includes('Change Password')) {
-            handler = openModal;
-        } else if (text.includes('Logout')) {
-            item.removeAttribute('onclick');
-            handler = doLogout;
-        }
-        if (!handler) return;
-        item.addEventListener('click', handler);
-        item.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                e.preventDefault();
-                handler(e);
-            }
-        });
-    });
 }

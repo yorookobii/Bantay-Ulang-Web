@@ -12,7 +12,7 @@ const isMobile = () => window.innerWidth <= MOBILE_MAX;
 const NO_COLLAPSE = [
     'a', 'button', 'input', 'select', 'textarea', 'label',
     '[role="button"]', '[contenteditable]', 'canvas', 'svg',
-    '.dropdown', '.notification-dropdown', '.profile-dropdown',
+    '.dropdown', '.notification-dropdown',
     '[data-no-collapse]'
 ].join(',');
 
