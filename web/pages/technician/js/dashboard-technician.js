@@ -1,57 +1,16 @@
 import { auth, db } from "../../../assets/js/firebase-init.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initSidebar } from "../../shared/js/sidebar.js";
 import { normalizeStatus } from "../../shared/js/taskStatus.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
-const LOGIN_PAGE = "../security/admin-tech-login.html";
-
-function clearSavedAuthSession() {
-    try {
-        localStorage.removeItem(AUTH_SESSION_KEY);
-        sessionStorage.removeItem(AUTH_SESSION_KEY);
-    } catch (error) {
-        console.warn("Unable to clear saved auth session.", error);
-    }
-}
-
 function getSessionProfileId() {
     try {
         const raw = localStorage.getItem(AUTH_SESSION_KEY) || sessionStorage.getItem(AUTH_SESSION_KEY);
         if (raw) return JSON.parse(raw)?.profileId || null;
     } catch (_) {}
     return null;
-}
-
-async function handleLogout(logoutElement, profileDropdown) {
-    const originalLabel = logoutElement ? logoutElement.textContent : "Logout";
-
-    if (logoutElement) {
-        logoutElement.style.pointerEvents = "none";
-        logoutElement.style.opacity = "0.6";
-        logoutElement.textContent = "Signing out...";
-    }
-
-    if (profileDropdown) {
-        profileDropdown.classList.remove("show");
-    }
-
-    try {
-        await signOut(auth);
-        clearSavedAuthSession();
-        window.location.href = LOGIN_PAGE;
-    } catch (error) {
-        console.error("Logout failed:", error);
-
-        if (logoutElement) {
-            logoutElement.textContent = originalLabel;
-            logoutElement.style.pointerEvents = "";
-            logoutElement.style.opacity = "";
-        }
-
-        window.alert("Unable to log out right now. Please try again.");
-    }
 }
 
 function getTaskField(task, keys, fallback = "") {
@@ -304,15 +263,6 @@ function initTechnicianTasks() {
             if (container.contains(e.target)) return;
             if (notifDropdown) notifDropdown.classList.remove("show");
             if (profileDropdown) profileDropdown.classList.remove("show");
-        });
-
-        var menuItems = container.querySelectorAll(".profile-menu-item");
-        menuItems.forEach(function(item) {
-            if (item.textContent.indexOf("Logout") !== -1) {
-                item.addEventListener("click", function() {
-                    handleLogout(item, profileDropdown);
-                });
-            }
         });
 
         var sidebar = document.getElementById("sidebar");

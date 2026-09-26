@@ -21,16 +21,24 @@ const SETTINGS_URL = `${BASE}settings.html`;
 const REALTIME_URL = `${BASE}real-time-monitoring.html`;
 const LOGIN_URL    = '../security/admin-tech-login.html';
 const SESSION_KEY  = 'bantay-ulang-auth-user';
+const USER_CACHE_KEY = 'bantay-ulang-user-cache';
 
 function clearSession() {
     try {
         localStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(USER_CACHE_KEY);
     } catch (_) {}
 }
 
 export async function doLogout() {
-    try { await signOut(auth); } catch (e) { console.error('Logout error:', e); }
+    try {
+        await signOut(auth);
+    } catch (e) {
+        console.error('Logout error:', e);
+        window.alert("Couldn't sign out. Please try again.");
+        return;
+    }
     clearSession();
     window.location.href = LOGIN_URL;
 }
@@ -243,7 +251,6 @@ export function initDropdown({ handleToggle = true } = {}) {
         } else if (text.includes('Change Password')) {
             handler = openModal;
         } else if (text.includes('Logout')) {
-            if (item.id === 'logoutMenuItem') return; // already handled by dashboard.js
             item.removeAttribute('onclick');
             handler = doLogout;
         }

@@ -1,49 +1,11 @@
 import { auth, db } from "./firebase.js";
 import { collection, doc, getDocs, getDoc, updateDoc, runTransaction, serverTimestamp, limit, orderBy, query, where, Timestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { reevaluateActiveAlerts } from "./alertsEngine.js";
 import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
-
-const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
-const LOGIN_PAGE = "../security/admin-tech-login.html";
-
-function clearSavedAuthSession() {
-    try {
-        localStorage.removeItem(AUTH_SESSION_KEY);
-        sessionStorage.removeItem(AUTH_SESSION_KEY);
-    } catch (error) {
-        console.warn("Unable to clear saved auth session.", error);
-    }
-}
-
-async function handleLogout(logoutElement, profileDropdown) {
-    if (logoutElement) {
-        logoutElement.style.pointerEvents = "none";
-        logoutElement.style.opacity = "0.6";
-        logoutElement.textContent = "Signing out...";
-    }
-
-    if (profileDropdown) {
-        profileDropdown.classList.remove("show");
-    }
-
-    try {
-        await signOut(auth);
-        clearSavedAuthSession();
-        window.location.href = LOGIN_PAGE;
-    } catch (error) {
-        console.error("Logout failed:", error);
-        if (logoutElement) {
-            logoutElement.textContent = "🚪 Logout";
-            logoutElement.style.pointerEvents = "";
-            logoutElement.style.opacity = "";
-        }
-        window.alert("Unable to log out right now. Please try again.");
-    }
-}
 
 function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
@@ -608,12 +570,6 @@ async function loadMortalityStat() {
             if (notifDropdown) notifDropdown.classList.remove('show');
             if (profileDropdown) profileDropdown.classList.remove('show');
         });
-        var logoutMenuItem = document.getElementById('logoutMenuItem');
-        if (logoutMenuItem) {
-            logoutMenuItem.addEventListener('click', function() {
-                handleLogout(logoutMenuItem, profileDropdown);
-            });
-        }
 
         var sidebar = document.getElementById('sidebar');
         var overlay = document.getElementById('sidebarOverlay');
