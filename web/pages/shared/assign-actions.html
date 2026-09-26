@@ -6,6 +6,7 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <title>Assign Tasks - Bantay Ulang Bulacan</title>
         <link rel="stylesheet" href="css/assign-actions.css">
+        <link rel="stylesheet" href="css/profileMenu.css">
         <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
     <body>
@@ -50,21 +51,17 @@
                             <div class="notification-item"><i class="fa-solid fa-user"></i> New user registration</div>
                         </div>
                     </div>
-                    <div style="position: relative;">
-                        <div class="admin-profile">
-                            <div class="admin-avatar"><span>A</span></div>
-                            <div class="admin-info">
-                                <div class="admin-name"></div>
-                                <div class="admin-role">Admin</div>
-                            </div>
-                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;"></i>
-                        </div>
-                        <div class="profile-dropdown" id="profileDropdown">
-                            <div class="profile-menu-item">👤 My Profile</div>
-                            <div class="profile-menu-item">⚙️ Settings</div>
-                            <div class="profile-menu-item">🔐 Change Password</div>
-                            <div class="profile-menu-item">🚪 Logout</div>
-                        </div>
+                    <div class="pm-wrap">
+                        <button type="button" class="pm-trigger" aria-haspopup="menu" aria-expanded="false">
+                            <span class="pm-text">
+                                <span class="pm-name"></span>
+                                <span class="pm-role"></span>
+                            </span>
+                            <span class="pm-avatar"><span></span></span>
+                            <svg class="pm-indicator" viewBox="0 0 10 26" aria-hidden="true" focusable="false">
+                                <path d="M2 2 C 9 8, 9 18, 2 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </header>

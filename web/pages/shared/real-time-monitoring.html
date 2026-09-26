@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/real-time-monitoring.css">
         <link rel="stylesheet" href="css/environmental-trends.css">
+        <link rel="stylesheet" href="css/profileMenu.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
         <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
@@ -60,21 +61,17 @@
                             <div class="notification-item"><i class="fa-solid fa-sync-alt" aria-hidden="true"></i> System update available</div>
                         </div>
                     </div>
-                    <div style="position: relative;">
-                        <div class="admin-profile" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
-                            <div class="admin-avatar"><span>A</span></div>
-                            <div class="admin-info">
-                                <div class="admin-name"></div>
-                                <div class="admin-role"></div>
-                            </div>
-                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #6b7280;" aria-hidden="true"></i>
-                        </div>
-                        <div class="profile-dropdown" id="profileDropdown" role="menu">
-                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-user" aria-hidden="true"></i> My Profile</div>
-                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</div>
-                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-lock" aria-hidden="true"></i> Change Password</div>
-                            <div class="profile-menu-item" role="menuitem" tabindex="0"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Logout</div>
-                        </div>
+                    <div class="pm-wrap">
+                        <button type="button" class="pm-trigger" aria-haspopup="menu" aria-expanded="false">
+                            <span class="pm-text">
+                                <span class="pm-name"></span>
+                                <span class="pm-role"></span>
+                            </span>
+                            <span class="pm-avatar"><span></span></span>
+                            <svg class="pm-indicator" viewBox="0 0 10 26" aria-hidden="true" focusable="false">
+                                <path d="M2 2 C 9 8, 9 18, 2 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </header>
