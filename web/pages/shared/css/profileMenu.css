@@ -1,0 +1,256 @@
+/* Topbar profile menu (pm-*): chip trigger, bending-line indicator and dropdown panel. */
+
+.pm-wrap {
+    position: relative;
+    margin-right: 10px;
+}
+
+/* Trigger chip */
+.pm-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 8px 6px 14px;
+    background: var(--color-cloud-white, #fff);
+    border: 1px solid var(--color-border-gray, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    font: inherit;
+    color: inherit;
+    text-align: right;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pm-trigger:hover,
+.pm-trigger[aria-expanded="true"] {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    box-shadow: var(--shadow-card, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+.pm-trigger:focus-visible {
+    outline: 2px solid var(--color-info-blue, #2563eb);
+    outline-offset: 2px;
+}
+
+.pm-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.pm-name {
+    max-width: 180px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-ink, #111827);
+}
+
+.pm-text .pm-role {
+    font-size: 12px;
+    color: var(--color-slate, #6b7280);
+    text-transform: capitalize;
+}
+
+/* Avatar with brand gradient ring */
+.pm-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    padding: 2px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #34d399, var(--color-active-emerald, #10b981) 45%, #2c4356);
+}
+
+.pm-avatar > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border: 2px solid var(--color-cloud-white, #fff);
+    border-radius: 50%;
+    background: var(--color-deep-navy, #15212e);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* Generic person glyph until the initial is painted. */
+.pm-avatar > span:empty::before {
+    content: "\f007";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Bending-line indicator on the chip's right edge */
+.pm-indicator {
+    position: absolute;
+    top: 50%;
+    right: -11px;
+    width: 10px;
+    height: 26px;
+    color: var(--color-slate, #6b7280);
+    opacity: 0.6;
+    transform: translateY(-50%);
+    transition: opacity 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.pm-trigger:hover .pm-indicator {
+    opacity: 1;
+}
+
+.pm-trigger[aria-expanded="true"] .pm-indicator {
+    opacity: 1;
+    color: var(--color-active-emerald, #10b981);
+    transform: translateY(-50%) scale(1.15);
+}
+
+/* Menu panel */
+.pm-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 1000;
+    width: 256px;
+    max-width: calc(100vw - 16px);
+    box-sizing: border-box;
+    padding: 6px;
+    background: var(--color-cloud-white, #fff);
+    border: 1px solid var(--color-border-gray, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: 0 12px 32px rgba(17, 24, 39, 0.12), 0 2px 6px rgba(17, 24, 39, 0.06);
+    transform-origin: top right;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px) scale(0.95);
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0s linear 0.16s;
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .pm-menu {
+        background: rgba(255, 255, 255, 0.86);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+    }
+}
+
+.pm-menu[data-open] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0s;
+}
+
+.pm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 10px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md, 8px);
+    font: inherit;
+    font-size: 14px;
+    color: var(--color-ink, #111827);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.pm-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--color-slate, #6b7280);
+}
+
+.pm-item:hover,
+.pm-item:focus-visible {
+    background: var(--color-mist-gray, #f3f4f6);
+    border-color: var(--color-border-gray, #e5e7eb);
+    outline: none;
+}
+
+.pm-item:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-info-blue, #2563eb);
+}
+
+.pm-badge {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill, 20px);
+    background: rgba(21, 33, 46, 0.08);
+    color: var(--color-deep-navy, #15212e);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.pm-badge:empty {
+    display: none;
+}
+
+.pm-sep {
+    height: 1px;
+    margin: 6px 4px;
+    background: linear-gradient(90deg, transparent, var(--color-border-gray, #e5e7eb), transparent);
+}
+
+.pm-logout {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.pm-logout i {
+    color: #b91c1c;
+}
+
+.pm-logout:hover,
+.pm-logout:focus-visible {
+    background: var(--color-critical-red-bg, #fee2e2);
+    border-color: #fecaca;
+}
+
+@media (max-width: 480px) {
+    /* Visually hidden, still the button's accessible name. */
+    .pm-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+    .pm-trigger {
+        padding: 4px;
+        gap: 0;
+    }
+    .pm-avatar {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pm-trigger,
+    .pm-indicator,
+    .pm-menu,
+    .pm-menu[data-open],
+    .pm-item {
+        transition: none;
+    }
+    .pm-menu {
+        transform: none;
+    }
+}

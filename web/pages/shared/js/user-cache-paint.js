@@ -8,17 +8,17 @@
         var c = JSON.parse(localStorage.getItem('bantay-ulang-user-cache'));
         if (!c) return;
         if (c.fullName) {
-            document.querySelectorAll('.user-name, .admin-name').forEach(function (el) {
+            document.querySelectorAll('.user-name, .admin-name, .pm-name').forEach(function (el) {
                 el.textContent = c.fullName;
             });
         }
         if (c.role) {
-            document.querySelectorAll('.user-role, .admin-role').forEach(function (el) {
+            document.querySelectorAll('.user-role, .admin-role, .pm-role').forEach(function (el) {
                 el.textContent = c.role;
             });
         }
         if (c.initial) {
-            document.querySelectorAll('.user-avatar > span, .admin-avatar > span').forEach(function (el) {
+            document.querySelectorAll('.user-avatar > span, .admin-avatar > span, .pm-avatar > span').forEach(function (el) {
                 el.textContent = c.initial;
             });
         }

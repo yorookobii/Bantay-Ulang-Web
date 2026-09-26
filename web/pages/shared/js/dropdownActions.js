@@ -13,6 +13,7 @@ import {
     formatRelativeTime,
     updateBadge
 } from './notificationsShared.js';
+import { initProfileMenu } from './profileMenu.js';
 
 const isOnTechnicianPage = window.location.pathname.includes('/technician/');
 const BASE = isOnTechnicianPage ? '../shared/' : './';
@@ -211,6 +212,17 @@ async function populateNotifications() {
 export function initDropdown({ handleToggle = true } = {}) {
     buildModal();
     populateNotifications();
+
+    try {
+        initProfileMenu({
+            profileUrl: PROFILE_URL,
+            settingsUrl: SETTINGS_URL,
+            onChangePassword: openModal,
+            onLogout: doLogout
+        });
+    } catch (err) {
+        console.error('Profile menu init failed:', err);
+    }
 
     if (handleToggle) {
         const notifIcon      = document.querySelector('.notification-icon');

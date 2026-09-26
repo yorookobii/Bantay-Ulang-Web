@@ -14,17 +14,17 @@ function paintCachedProfile() {
     if (!cached) return;
 
     if (cached.fullName) {
-        document.querySelectorAll('.user-name, .admin-name').forEach(el => {
+        document.querySelectorAll('.user-name, .admin-name, .pm-name').forEach(el => {
             el.textContent = cached.fullName;
         });
     }
     if (cached.role) {
-        document.querySelectorAll('.user-role, .admin-role').forEach(el => {
+        document.querySelectorAll('.user-role, .admin-role, .pm-role').forEach(el => {
             el.textContent = cached.role;
         });
     }
     if (cached.initial) {
-        document.querySelectorAll('.user-avatar > span, .admin-avatar > span').forEach(el => {
+        document.querySelectorAll('.user-avatar > span, .admin-avatar > span, .pm-avatar > span').forEach(el => {
             el.textContent = cached.initial;
         });
     }
@@ -42,13 +42,13 @@ export function loadUserProfile() {
             const role = data.role || 'User';
             const initial = fullName.charAt(0).toUpperCase();
 
-            document.querySelectorAll('.user-name, .admin-name').forEach(el => {
+            document.querySelectorAll('.user-name, .admin-name, .pm-name').forEach(el => {
                 el.textContent = fullName;
             });
-            document.querySelectorAll('.user-role, .admin-role').forEach(el => {
+            document.querySelectorAll('.user-role, .admin-role, .pm-role').forEach(el => {
                 el.textContent = role;
             });
-            document.querySelectorAll('.user-avatar > span, .admin-avatar > span').forEach(el => {
+            document.querySelectorAll('.user-avatar > span, .admin-avatar > span, .pm-avatar > span').forEach(el => {
                 el.textContent = initial;
             });
 
