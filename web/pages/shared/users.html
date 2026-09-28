@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-role="admin">
 
 <head>
+    <script src="js/role-guard-head.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/shell.css">
     <link rel="stylesheet" href="css/users.css">
@@ -109,6 +110,10 @@
 
     <script type="module" src="js/users.js"></script>
     <script type="module" src="../../assets/js/firebase-init.js"></script>
+    <script type="module">
+        import { requireRole } from './js/roleGuard.js';
+        requireRole('admin');
+    </script>
     <script type="module">
         import { loadUserProfile } from './js/userProfile.js';
         loadUserProfile();

@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-role="admin">
     <head>
         <meta charset="UTF-8">
+        <script src="js/role-guard-head.js"></script>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <title>Automation — Bantay Ulang</title>
@@ -278,6 +279,10 @@
                     btn.disabled = false;
                 }
             });
+        </script>
+        <script type="module">
+            import { requireRole } from './js/roleGuard.js';
+            requireRole('admin');
         </script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';
