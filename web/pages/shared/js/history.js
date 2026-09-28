@@ -8,10 +8,11 @@ import {
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getReadingsInRangeWithStatus } from "./readingsService.js";
-import { loadThresholds, getRanges } from "./thresholds.js";
+import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { isSuspect } from "./plausibility.js";
+import { computeRowStatus } from "./readingStatus.js";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
@@ -22,54 +23,6 @@ let dateToVal = "";
 let currentPage = 0;
 let filteredRows = [];      // {reading, status} pairs — the full status-filtered result for the current query
 let effectiveRangeLabel = "";
-
-// ─── Status computation ─────────────────────────────────────────────────────
-// HistoryLogs readings carry no stored status field (unlike the old sensor_readings
-// docs) — status is computed client-side against thresholds.js. Binary only:
-// within range = normal, any breach = out-of-range. No warning/critical split —
-// there's no literature-backed ratio threshold to invent one.
-//
-// Reading field name -> thresholds.js key. Most match directly; "ph" is the one
-// mismatch (thresholds.js still uses the legacy "phLevel" key). waterLevel is
-// intentionally excluded: it's boolean, not a min/max-checkable numeric param
-// (same reasoning as dropping its column/chart in Parts 5-6).
-const THRESHOLD_KEY = {
-    ph:              "phLevel",
-    waterTemp:       "waterTemp",
-    dissolvedOxygen: "dissolvedOxygen",
-    salinity:        "salinity",
-    turbidity:       "turbidity",
-    tds:             "tds"
-};
-const STATUS_PARAMS = Object.keys(THRESHOLD_KEY);
-
-function isBreached(param, value) {
-    if (typeof value !== "number" || !Number.isFinite(value)) return false;
-    // A physically impossible value is a sensor fault, not a water condition.
-    if (isSuspect(param, value)) return false;
-    const range = getRanges()[THRESHOLD_KEY[param]];
-    if (!range) return false;
-    const hasMin = range.min !== null && range.min !== undefined;
-    const hasMax = range.max !== null && range.max !== undefined;
-    if (hasMin && value < range.min) return true;
-    if (hasMax && value > range.max) return true;
-    return false;
-}
-
-// Precedence: out-of-range > suspect (physically impossible value, see
-// plausibility.js) > no-data (all params missing) > incomplete (some
-// missing) > normal. Missing values must never read as "Normal" — docs without
-// a statistics map (firmware wrote no sensor data) normalize to all-null.
-// Params with no configured threshold (e.g. tds if unset in Settings) simply
-// can't breach — isBreached() returns false for them via the !range guard.
-function computeRowStatus(reading) {
-    if (STATUS_PARAMS.some(param => isBreached(param, reading[param]))) return "out-of-range";
-    if (STATUS_PARAMS.some(param => isSuspect(param, reading[param]))) return "suspect";
-    const missing = STATUS_PARAMS.filter(param => !Number.isFinite(reading[param])).length;
-    if (missing === STATUS_PARAMS.length) return "no-data";
-    if (missing > 0) return "incomplete";
-    return "normal";
-}
 
 const STATUS_LABEL     = { normal: "Normal", "out-of-range": "Out of Range", suspect: "Suspect", "no-data": "No Data", incomplete: "Incomplete" };
 // Reuses the existing critical (red) palette for out-of-range rows/badges —

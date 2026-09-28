@@ -7,31 +7,9 @@ import {
     limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initSidebar } from "./sidebar.js";
+import { toDateValue, normalizeLogData } from "./logEntry.js";
 
 const LOGS_LIMIT = 100;
-
-// ── Field helpers (copied from dashboard.js; not exported there) ──────────────
-
-function getTextField(data, keys, fallback = "") {
-    for (const key of keys) {
-        const value = data?.[key];
-        if (value !== undefined && value !== null && String(value).trim() !== "") {
-            return String(value);
-        }
-    }
-
-    return fallback;
-}
-
-function toDateValue(value) {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    if (typeof value.toDate === "function") return value.toDate();
-    if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
-
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
 
 // Date + time (unlike dashboard's time-only formatLogTime): this page spans weeks.
 function formatLogDateTime(value) {
@@ -49,19 +27,12 @@ function formatLogDateTime(value) {
 
 // ── Normalize + render ──────────────────────────────────────────────────────
 
-// Mirrors dashboard.js applyRecentLogsSnapshot field mapping.
 function normalizeLog(doc) {
-    const data = doc.data();
-    const rawTime = data.createdAt || data.timestamp || data.loggedAt || data.date;
-    const loggedAt = toDateValue(rawTime);
-
+    const entry = normalizeLogData(doc.data(), doc.id);
     return {
-        sortValue: loggedAt ? loggedAt.getTime() : 0,
-        timeText: formatLogDateTime(rawTime),
-        type: getTextField(data, ["status", "type", "level"], "").toLowerCase(),
-        actor: getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System"),
-        title: getTextField(data, ["action", "title", "event", "name"], doc.id),
-        description: getTextField(data, ["details", "description", "message"], "No details provided.")
+        ...entry,
+        sortValue: entry.loggedAt ? entry.loggedAt.getTime() : 0,
+        timeText: formatLogDateTime(entry.loggedAt)
     };
 }
 
