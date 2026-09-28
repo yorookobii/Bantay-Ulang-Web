@@ -216,25 +216,63 @@
             </main>
         </div>
 
-        <!-- Report modal: table report -->
+        <!-- Report modal: range, sections and format; wired by js/reportModal.js -->
         <div class="report-modal-overlay" id="reportModalOverlay" aria-hidden="true">
-            <div class="report-modal report-modal--wide" id="reportModal" role="dialog" aria-labelledby="reportModalTitle" aria-modal="true">
+            <div class="report-modal report-modal--wide" id="reportModal" role="dialog" aria-labelledby="reportModalTitle" aria-describedby="reportModalDesc" aria-modal="true">
                 <div class="report-modal-header">
-                    <h2 id="reportModalTitle">Admin Overview Report</h2>
+                    <h2 id="reportModalTitle">Generate Report</h2>
                     <button type="button" class="report-modal-close" id="reportModalClose" aria-label="Close">
-                        <i class="fa-solid fa-xmark"></i>
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="report-modal-body">
-                    <div class="report-meta" id="reportMeta"></div>
-                    <div id="reportTableContainer"></div>
+                <form class="report-modal-body" id="reportForm" novalidate>
+                    <p id="reportModalDesc">Download farm data for a date range as CSV files you can open in Excel.</p>
+
+                    <fieldset class="report-fieldset" id="reportControls">
+                        <legend>Date range</legend>
+                        <div class="report-choice-row">
+                            <label class="report-choice"><input type="radio" name="reportRange" value="7d" checked> Last 7 days</label>
+                            <label class="report-choice"><input type="radio" name="reportRange" value="30d"> Last 30 days</label>
+                            <label class="report-choice"><input type="radio" name="reportRange" value="cycle"> This cycle</label>
+                            <label class="report-choice"><input type="radio" name="reportRange" value="custom"> Custom</label>
+                        </div>
+                        <div class="report-custom-range" id="reportCustomRange" hidden>
+                            <label for="reportFrom">From</label>
+                            <input type="date" id="reportFrom">
+                            <label for="reportTo">To</label>
+                            <input type="date" id="reportTo">
+                        </div>
+                        <p class="report-estimate" id="reportEstimate" aria-live="polite"></p>
+                    </fieldset>
+
+                    <fieldset class="report-fieldset" id="reportSections">
+                        <legend>Sections</legend>
+                        <div class="report-choice-grid">
+                            <label class="report-choice"><input type="checkbox" name="reportSection" value="waterQuality" checked> Water quality readings</label>
+                            <label class="report-choice"><input type="checkbox" name="reportSection" value="alerts" checked> Alerts</label>
+                            <label class="report-choice"><input type="checkbox" name="reportSection" value="mortalityGrowth"> Mortality and growth</label>
+                            <label class="report-choice"><input type="checkbox" name="reportSection" value="yield"> Yield prediction</label>
+                            <label class="report-choice"><input type="checkbox" name="reportSection" value="tasks"> Tasks</label>
+                            <label class="report-choice"><input type="checkbox" name="reportSection" value="logs"> Activity logs</label>
+                        </div>
+                    </fieldset>
+
+                    <p class="report-format">Format: <strong>CSV</strong>, one file per section plus a report-info file. Your browser may ask once to allow multiple downloads.</p>
+
+                    <div class="report-error" id="reportError" role="alert" hidden></div>
+                    <p class="report-status" id="reportStatus" aria-live="polite"></p>
+                    <div class="report-warnings" id="reportWarnings" hidden>
+                        <h3>Notes about this report</h3>
+                        <ul id="reportWarningList"></ul>
+                    </div>
+
                     <div class="report-modal-actions">
                         <button type="button" class="btn-cancel" id="reportModalCancel">Close</button>
-                        <button type="button" class="btn-print-pdf" id="reportPrintPdf">
-                            <i class="fa-solid fa-file-pdf"></i> Print / Save as PDF
+                        <button type="submit" class="btn-generate" id="reportGenerate">
+                            <i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i> Generate
                         </button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
 

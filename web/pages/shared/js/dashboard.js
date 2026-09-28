@@ -6,6 +6,7 @@ import { initSidebar } from "./sidebar.js";
 import { reevaluateActiveAlerts } from "./alertsEngine.js";
 import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
+import { initReportModal } from "./reportModal.js";
 
 function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
@@ -580,45 +581,8 @@ async function loadMortalityStat() {
         /* Sidebar collapse/toggle, persistence and click-to-collapse. */
         initSidebar();
 
-        /* Generate Report modal – placeholder until the real report module lands */
-        var reportOverlay = document.getElementById('reportModalOverlay');
-        var reportModal = document.getElementById('reportModal');
-        var reportTableContainer = document.getElementById('reportTableContainer');
-        var generateReportBtn = document.getElementById('generateReportBtn');
-        var reportModalClose = document.getElementById('reportModalClose');
-        var reportModalCancel = document.getElementById('reportModalCancel');
-        var reportPrintPdf = document.getElementById('reportPrintPdf');
-
-        // Nothing to print yet, so the print button stays hidden.
-        if (reportPrintPdf) reportPrintPdf.style.display = 'none';
-
-        function renderReportPlaceholder() {
-            if (reportTableContainer) {
-                reportTableContainer.innerHTML = '<p>Report generation is being rebuilt to use live farm data. CSV and PDF export will be available here soon.</p>';
-            }
-        }
-
-        function openReportModal() {
-            renderReportPlaceholder();
-            if (reportOverlay) {
-                reportOverlay.classList.add('show');
-                reportOverlay.setAttribute('aria-hidden', 'false');
-            }
-        }
-        function closeReportModal() {
-            if (reportOverlay) {
-                reportOverlay.classList.remove('show');
-                reportOverlay.setAttribute('aria-hidden', 'true');
-            }
-        }
-
-        if (generateReportBtn) generateReportBtn.addEventListener('click', openReportModal);
-        if (reportModalClose) reportModalClose.addEventListener('click', closeReportModal);
-        if (reportModalCancel) reportModalCancel.addEventListener('click', closeReportModal);
-        if (reportOverlay) reportOverlay.addEventListener('click', function(e) {
-            if (e.target === reportOverlay) closeReportModal();
-        });
-        if (reportModal) reportModal.addEventListener('click', function(e) { e.stopPropagation(); });
+        /* Generate Report modal: range, sections, CSV downloads (reportModal.js). */
+        initReportModal();
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
