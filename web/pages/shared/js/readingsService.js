@@ -49,8 +49,10 @@ async function reconcileCycleStart(currentCycleStartMs) {
  * sequence shared by both exported functions:
  *   1. reconcileCycleStart() (see above).
  *   2. Reads cacheStore.getLastSync() and fetches only readings newer than
- *      that via historyLogsReader.fetchNewReadings() (fetches from the
- *      beginning if lastSync is null — see historyLogsReader.js).
+ *      that via historyLogsReader.fetchNewReadings(). If lastSync is null
+ *      (cold cache), fetches from currentCycleStartMs instead, so earlier
+ *      cycles are never downloaded; with no cycleStart either, fetches from
+ *      the beginning (see historyLogsReader.js).
  *   3. If any new readings came back, persists them via
  *      cacheStore.saveReadings() and advances lastSync to the newest
  *      reading's measuredAtMs.
@@ -64,9 +66,11 @@ async function syncCache(currentCycleStartMs) {
     await reconcileCycleStart(currentCycleStartMs);
 
     const lastSync = await cacheStore.getLastSync();
+    // fetchNewReadings is exclusive (>), so step back 1ms to keep a reading stamped exactly at cycleStart.
+    const floorMs = lastSync ?? (currentCycleStartMs != null ? currentCycleStartMs - 1 : null);
     let newReadings;
     try {
-        newReadings = await fetchNewReadings(lastSync);
+        newReadings = await fetchNewReadings(floorMs);
     } catch (syncError) {
         return { newReadings: [], syncError };
     }
