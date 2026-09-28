@@ -16,12 +16,47 @@ service cloud.firestore {
     // users
     // -------------------------------------------------------------------------
     match /users/{userId} {
-      // Any authenticated user can read user documents.
-      // Needed so the web admin login can fetch any user doc to verify their role.
+      function isSelf() {
+        return isAuthenticated() && request.auth.uid == userId;
+      }
+
+      // Self-signup: a pending, unverified farm user with a fixed field set only.
+      function isValidSelfCreate() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['email', 'fullName', 'role', 'status', 'emailVerified', 'createdAt'])
+          && d.role == 'user'
+          && d.status == 'pending'
+          && d.emailVerified == false
+          && d.email is string && d.email.lower() == request.auth.token.email
+          && d.fullName is string && d.fullName.size() > 0 && d.fullName.size() <= 80
+          && d.createdAt == request.time;
+      }
+
+      // Self edit: profile fields only, or emailVerified false -> true on its own.
+      // No token check: signup.dart:300 writes emailVerified after user.reload(), which does
+      // not refresh the ID token. Tighten to request.auth.token.email_verified once the app
+      // calls getIdToken(true) before that write. Admin approval (status) is the real gate.
+      function isValidSelfUpdate() {
+        let d = request.resource.data;
+        let keys = d.diff(resource.data).affectedKeys();
+        return (keys.hasOnly(['fullName', 'address'])
+                 && (!('fullName' in keys) || (d.fullName is string && d.fullName.size() > 0 && d.fullName.size() <= 80))
+                 && (!('address' in keys) || (d.address is string && d.address.size() <= 200)))
+          || (keys.hasOnly(['emailVerified'])
+                 && resource.data.get('emailVerified', false) == false
+                 && d.emailVerified == true);
+      }
+
+      // Any authenticated user can read user documents (web login role check, assignee lookups).
       allow read: if isAuthenticated();
 
-      // Users can write their own document; admins can write any user document.
-      allow write: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
+      allow create: if isAdmin() || (isSelf() && isValidSelfCreate());
+
+      // Admins manage other users but can't change their own role/status (single-admin lockout guard).
+      allow update: if (isAdmin() && !(isSelf() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])))
+                    || (isSelf() && isValidSelfUpdate());
+
+      allow delete: if isAdmin() && !isSelf();
     }
 
     // -------------------------------------------------------------------------
