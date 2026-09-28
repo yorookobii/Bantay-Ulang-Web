@@ -27,7 +27,7 @@ const INCOME_MAX_RATE = 450;
 // Panelist requirement: yield prediction only after 3 months of real cultivation data
 const RF_GATE_DAYS = 90;
 
-function calcYield(growthData, wqScore) {
+export function calcYield(growthData, wqScore) {
     const initialStock = Number(growthData.initialStock) || 0;
 
     // Panelist requirement: no yield prediction until the cycle has run for

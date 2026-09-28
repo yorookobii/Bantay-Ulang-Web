@@ -30,7 +30,7 @@ async function loadCycleStart() {
 // weekNumber matches the Flutter app's own bucketing (logs.dart _weekNumberFor):
 // week 1 = [cycleStart, cycleStart+7d), etc. mortality_records already stores
 // this per-doc, so we just sum deathCount per weekNumber rather than recompute it.
-async function loadDeathsByWeek(cycleStart) {
+export async function loadDeathsByWeek(cycleStart) {
     const q = query(
         collection(db, "mortality_records"),
         where("createdAt", ">=", Timestamp.fromDate(cycleStart)),

@@ -30,7 +30,7 @@ async function loadCycleStart() {
 // ulang_growth_records has no precomputed weekNumber (unlike mortality_records) —
 // derive it from createdAt the same way Flutter's _weekNumberFor does:
 // week 1 = [cycleStart, cycleStart+7d), etc.
-async function loadWeightsByWeek(cycleStart) {
+export async function loadWeightsByWeek(cycleStart) {
     const q = query(
         collection(db, "ulang_growth_records"),
         where("createdAt", ">=", Timestamp.fromDate(cycleStart)),

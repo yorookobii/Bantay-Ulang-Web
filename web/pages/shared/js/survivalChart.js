@@ -2,12 +2,11 @@ import { db } from "./firebase.js";
 import {
     collection,
     query,
-    where,
     orderBy,
     limit,
-    getDocs,
-    Timestamp
+    getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { loadDeathsByWeek } from "./mortalityChart.js";
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -29,26 +28,6 @@ async function loadCycle() {
     const initialStock = Number(d.initialStock);
     if (!cycleStart || !Number.isFinite(initialStock) || initialStock <= 0) return null;
     return { cycleStart, initialStock };
-}
-
-// Same per-doc weekNumber bucketing as mortalityChart.js (matches the Flutter
-// app's logs.dart _weekNumberFor) — deaths summed per week, not recomputed.
-async function loadDeathsByWeek(cycleStart) {
-    const q = query(
-        collection(db, "mortality_records"),
-        where("createdAt", ">=", Timestamp.fromDate(cycleStart)),
-        orderBy("createdAt", "asc")
-    );
-    const snap = await getDocs(q);
-
-    const deathsByWeek = {};
-    snap.docs.forEach(docSnap => {
-        const d = docSnap.data();
-        const week = Number(d.weekNumber);
-        if (!Number.isFinite(week) || week < 1) return;
-        deathsByWeek[week] = (deathsByWeek[week] || 0) + (Number(d.deathCount) || 0);
-    });
-    return deathsByWeek;
 }
 
 function showEmpty(canvas, emptyEl) {
