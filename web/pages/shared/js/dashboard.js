@@ -219,6 +219,31 @@ async function ensureHardwareOfflineAlert(measuredAtDate) {
     } catch (err) {
         ensuredHwAlertIds.delete(alertId); // allow a retry on the next tick
         console.error("[dashboard] Failed to create hardware offline alert:", err);
+        return;
+    }
+    // Runs even when another tab created the doc, so alerts left active by an unobserved recovery self-heal.
+    await resolveSupersededHardwareAlerts(measuredAtDate);
+}
+
+// A newer outage's measuredAt proves data arrived after any older outage, so only the newest active outage doc stays active.
+async function resolveSupersededHardwareAlerts(measuredAtDate) {
+    try {
+        const snap = await getDocs(query(collection(db, "alerts"), where("status", "==", "active")));
+        const hwDocs = snap.docs.filter(d => d.data().type === "hardware_offline");
+        // Legacy auto-ID docs have no lastSeenAt and are older by definition.
+        const lastSeenMs = d => toDateValue(d.data().lastSeenAt)?.getTime() ?? -Infinity;
+        // Includes docs newer than this tab's view, so a lagging tab resolves its own just-created doc instead.
+        const newestMs = Math.max(measuredAtDate.getTime(), ...hwDocs.map(lastSeenMs));
+        const older = hwDocs.filter(d => lastSeenMs(d) < newestMs);
+        await Promise.all(older.map(d => updateDoc(d.ref, {
+            status:         "resolved",
+            resolvedAt:     serverTimestamp(),
+            currentValue:   "Online",
+            resolutionNote: "Replaced by a newer outage: the hardware recovered in between, but the exact recovery time is unknown (resolvedAt is when this was detected)."
+        })));
+        if (older.length) console.log(`[dashboard] Resolved ${older.length} superseded hardware offline alert(s).`);
+    } catch (err) {
+        console.error("[dashboard] Failed to resolve superseded hardware alerts:", err);
     }
 }
 
