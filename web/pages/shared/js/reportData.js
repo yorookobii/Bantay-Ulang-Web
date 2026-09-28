@@ -465,6 +465,8 @@ export async function gatherReport({ sinceMs, untilMs, sections, onProgress = nu
         cycle: cycleStartMs == null ? null : {
             startMs: cycleStartMs,
             endMs: toMs(growth.cycleEnd),
+            // True once the stored cycleEnd has passed, so callers show "Cycle ended <date>" instead of a day number.
+            ended: toMs(growth.cycleEnd) != null && now > toMs(growth.cycleEnd),
             day: Math.floor((now - cycleStartMs) / DAY_MS) + 1,
             initialStock: Number.isFinite(Number(growth.initialStock)) ? Number(growth.initialStock) : null
         },
@@ -486,7 +488,7 @@ export async function gatherReport({ sinceMs, untilMs, sections, onProgress = nu
         } catch (err) {
             console.error(`[reportData] ${key} failed:`, err);
             result[key] = null;
-            warnings.push({ code: "section-failed", section: key, message: `The ${key} section couldn't be loaded (${err.code || err.message}).` });
+            warnings.push({ code: "section-failed", section: key, error: err.code || null, message: `The ${key} section couldn't be loaded (${err.code || err.message}).` });
         }
     }
 
