@@ -11,6 +11,7 @@ import { getReadingsInRangeWithStatus } from "./readingsService.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { normalizeStatus } from "./taskStatus.js";
+import { isSuspect } from "./plausibility.js";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
@@ -44,6 +45,8 @@ const STATUS_PARAMS = Object.keys(THRESHOLD_KEY);
 
 function isBreached(param, value) {
     if (typeof value !== "number" || !Number.isFinite(value)) return false;
+    // A physically impossible value is a sensor fault, not a water condition.
+    if (isSuspect(param, value)) return false;
     const range = getRanges()[THRESHOLD_KEY[param]];
     if (!range) return false;
     const hasMin = range.min !== null && range.min !== undefined;
@@ -53,24 +56,27 @@ function isBreached(param, value) {
     return false;
 }
 
-// Precedence: out-of-range > no-data (all params missing) > incomplete (some
+// Precedence: out-of-range > suspect (physically impossible value, see
+// plausibility.js) > no-data (all params missing) > incomplete (some
 // missing) > normal. Missing values must never read as "Normal" — docs without
 // a statistics map (firmware wrote no sensor data) normalize to all-null.
 // Params with no configured threshold (e.g. tds if unset in Settings) simply
 // can't breach — isBreached() returns false for them via the !range guard.
 function computeRowStatus(reading) {
     if (STATUS_PARAMS.some(param => isBreached(param, reading[param]))) return "out-of-range";
+    if (STATUS_PARAMS.some(param => isSuspect(param, reading[param]))) return "suspect";
     const missing = STATUS_PARAMS.filter(param => !Number.isFinite(reading[param])).length;
     if (missing === STATUS_PARAMS.length) return "no-data";
     if (missing > 0) return "incomplete";
     return "normal";
 }
 
-const STATUS_LABEL     = { normal: "Normal", "out-of-range": "Out of Range", "no-data": "No Data", incomplete: "Incomplete" };
+const STATUS_LABEL     = { normal: "Normal", "out-of-range": "Out of Range", suspect: "Suspect", "no-data": "No Data", incomplete: "Incomplete" };
 // Reuses the existing critical (red) palette for out-of-range rows/badges —
 // avoids a CSS-only diff for what both display as "the bad bucket" now that
 // warning/critical have collapsed into one. No-data and incomplete share grey.
-const STATUS_CSS_CLASS = { normal: "normal", "out-of-range": "critical", "no-data": "no-data", incomplete: "no-data" };
+// Suspect reuses the otherwise idle warning (amber) palette.
+const STATUS_CSS_CLASS = { normal: "normal", "out-of-range": "critical", suspect: "warning", "no-data": "no-data", incomplete: "no-data" };
 
 // ─── growth_indicators cycleStart (one-shot, mirrors dashboard.js/sensorHistoryModal.js) ──
 
@@ -155,6 +161,13 @@ function escHtml(str) {
         .replace(/"/g, "&quot;");
 }
 
+// Suspect values render empty, with the raw value kept in the tooltip.
+function valueCell(label, reading, param, dec) {
+    const raw = reading[param];
+    if (isSuspect(param, raw)) return `<td data-label="${label}" title="Suspect sensor value: ${escHtml(raw)}">—</td>`;
+    return `<td data-label="${label}">${fmt(raw, dec)}</td>`;
+}
+
 function buildRow(row) {
     const tr = document.createElement("tr");
     const { reading, status } = row;
@@ -170,12 +183,12 @@ function buildRow(row) {
 
     tr.innerHTML = `
         <td data-label="Timestamp">${tsStr}</td>
-        <td data-label="pH Level">${fmt(reading.ph, 1)}</td>
-        <td data-label="Water Temp (°C)">${fmt(reading.waterTemp, 1)}</td>
-        <td data-label="DO (mg/L)">${fmt(reading.dissolvedOxygen, 1)}</td>
-        <td data-label="Salinity (ppt)">${fmt(reading.salinity, 2)}</td>
-        <td data-label="Turbidity (NTU)">${fmt(reading.turbidity, 1)}</td>
-        <td data-label="TDS (ppm)">${fmt(reading.tds, 0)}</td>
+        ${valueCell("pH Level", reading, "ph", 1)}
+        ${valueCell("Water Temp (°C)", reading, "waterTemp", 1)}
+        ${valueCell("DO (mg/L)", reading, "dissolvedOxygen", 1)}
+        ${valueCell("Salinity (ppt)", reading, "salinity", 2)}
+        ${valueCell("Turbidity (NTU)", reading, "turbidity", 1)}
+        ${valueCell("TDS (ppm)", reading, "tds", 0)}
         <td data-label="Status"><span class="sr-status sr-status--${cssStatus}">${STATUS_LABEL[status] || capitalize(status)}</span></td>
     `;
     return tr;
