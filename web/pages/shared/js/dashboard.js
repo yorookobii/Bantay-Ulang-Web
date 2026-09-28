@@ -580,59 +580,26 @@ async function loadMortalityStat() {
         /* Sidebar collapse/toggle, persistence and click-to-collapse. */
         initSidebar();
 
-        /* Generate Report modal – useful data in tables */
+        /* Generate Report modal – placeholder until the real report module lands */
         var reportOverlay = document.getElementById('reportModalOverlay');
         var reportModal = document.getElementById('reportModal');
         var reportTableContainer = document.getElementById('reportTableContainer');
-        var reportMetaEl = document.getElementById('reportMeta');
         var generateReportBtn = document.getElementById('generateReportBtn');
         var reportModalClose = document.getElementById('reportModalClose');
         var reportModalCancel = document.getElementById('reportModalCancel');
         var reportPrintPdf = document.getElementById('reportPrintPdf');
 
-        function buildReportTable() {
-            var dateStr = new Date().toLocaleDateString('en-PH', {
-                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-            if (reportMetaEl) reportMetaEl.textContent = 'Bantay Ulang Bulacan — Generated ' + dateStr;
+        // Nothing to print yet, so the print button stays hidden.
+        if (reportPrintPdf) reportPrintPdf.style.display = 'none';
 
-            var html = '';
-
-            html += '<div class="report-table-wrap">';
-            html += '<div class="report-section-title">Key metrics</div>';
-            html += '<table class="report-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
-            html += '<tr><td>Total Yield Expected</td><td>55 kg</td></tr>';
-            html += '<tr><td>Average Mortality Rate (Throughout the Week)</td><td>3.4%</td></tr>';
-            html += '<tr><td>Estimated Harvest Date</td><td>Mar 15, 2026</td></tr>';
-            html += '<tr><td>Mortality Risk</td><td>Low</td></tr>';
-            html += '</tbody></table></div>';
-
-            html += '<div class="report-table-wrap">';
-            html += '<div class="report-section-title">Logged Water Parameters Data</div>';
-            html += '<table class="report-table"><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Logged At</th></tr></thead><tbody>';
-            html += '<tr><td>pH</td><td>7.2</td><td>—</td><td>Today, 10:30 AM</td></tr>';
-            html += '<tr><td>Temperature</td><td>28</td><td>°C</td><td>Today, 10:30 AM</td></tr>';
-            html += '<tr><td>Dissolved Oxygen</td><td>6.5</td><td>mg/L</td><td>Today, 10:30 AM</td></tr>';
-            html += '<tr><td>Salinity</td><td>15</td><td>ppt</td><td>Today, 10:30 AM</td></tr>';
-            html += '<tr><td>Nitrate</td><td>2.1</td><td>mg/L</td><td>Today, 09:00 AM</td></tr>';
-            html += '<tr><td>Ammonia</td><td>0.25</td><td>mg/L</td><td>Today, 09:00 AM</td></tr>';
-            html += '</tbody></table></div>';
-
-            html += '<div class="report-table-wrap">';
-            html += '<div class="report-section-title">Logged Plant Sensors Data</div>';
-            html += '<table class="report-table"><thead><tr><th>Sensor / Metric</th><th>Value</th><th>Unit</th><th>Logged At</th></tr></thead><tbody>';
-            html += '<tr><td>Nitrogen Level</td><td>88</td><td>%</td><td>Today, 08:45 AM</td></tr>';
-            html += '<tr><td>Plant Height (Section A)</td><td>42</td><td>cm</td><td>Today, 08:45 AM</td></tr>';
-            html += '<tr><td>Leaf Condition Index</td><td>Good</td><td>—</td><td>Today, 08:45 AM</td></tr>';
-            html += '<tr><td>Growth Stage</td><td>Vegetative</td><td>—</td><td>Today, 08:45 AM</td></tr>';
-            html += '<tr><td>Water Filtration Contribution</td><td>92</td><td>%</td><td>Yesterday, 4:00 PM</td></tr>';
-            html += '</tbody></table></div>';
-
-            if (reportTableContainer) reportTableContainer.innerHTML = html;
+        function renderReportPlaceholder() {
+            if (reportTableContainer) {
+                reportTableContainer.innerHTML = '<p>Report generation is being rebuilt to use live farm data. CSV and PDF export will be available here soon.</p>';
+            }
         }
 
         function openReportModal() {
-            buildReportTable();
+            renderReportPlaceholder();
             if (reportOverlay) {
                 reportOverlay.classList.add('show');
                 reportOverlay.setAttribute('aria-hidden', 'false');
@@ -652,7 +619,6 @@ async function loadMortalityStat() {
             if (e.target === reportOverlay) closeReportModal();
         });
         if (reportModal) reportModal.addEventListener('click', function(e) { e.stopPropagation(); });
-        if (reportPrintPdf) reportPrintPdf.addEventListener('click', function() { window.print(); });
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

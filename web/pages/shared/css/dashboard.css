@@ -761,28 +761,6 @@
     margin-bottom: 20px;
 }
 
-.report-options {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.report-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    color: #374151;
-    cursor: pointer;
-}
-
-.report-option input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--color-working-teal, #0d9488);
-}
-
 .report-modal-actions {
     display: flex;
     gap: 12px;
