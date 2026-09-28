@@ -159,11 +159,17 @@ export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
  * while syncCache is making real progress. Call this BEFORE getReadingsInRange()
  * when the caller needs the cache fully caught up rather than whatever one
  * page happens to return.
+ *
+ * Resolves true once caught up, false if a sync failed or the budget/cap ran out.
  */
-export async function catchUpCache(cycleStartMs, { maxIterations = 150, timeBudgetMs = 10000 } = {}) {
+export async function catchUpCache(cycleStartMs, { maxIterations = 150, timeBudgetMs = 10000, onPage = null } = {}) {
     const deadline = Date.now() + timeBudgetMs;
     for (let i = 0; i < maxIterations && Date.now() < deadline; i++) {
         const { newReadings: page, syncError } = await syncCache(cycleStartMs);
-        if (syncError || page.length < DEFAULT_FETCH_LIMIT) break; // failed or exhausted — stop paging
+        // Optional progress hook (e.g. the report modal's "Syncing readings" count).
+        if (onPage) onPage(page.length);
+        if (syncError) return false;
+        if (page.length < DEFAULT_FETCH_LIMIT) return true; // exhausted — cache is current
     }
+    return false;
 }
