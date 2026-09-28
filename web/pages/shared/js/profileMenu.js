@@ -8,14 +8,16 @@ function buildMenu(profileUrl, settingsUrl) {
     menu.id = MENU_ID;
     menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-label', 'Account');
+    // Settings is omitted when settingsUrl is null (technicians).
+    const settingsItem = settingsUrl ? `
+        <a class="pm-item" role="menuitem" tabindex="-1" href="${settingsUrl}">
+            <i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span>
+        </a>` : '';
     menu.innerHTML = `
         <a class="pm-item" role="menuitem" tabindex="-1" href="${profileUrl}">
             <i class="fa-solid fa-user" aria-hidden="true"></i><span>My Profile</span>
             <span class="pm-badge pm-role"></span>
-        </a>
-        <a class="pm-item" role="menuitem" tabindex="-1" href="${settingsUrl}">
-            <i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span>
-        </a>
+        </a>${settingsItem}
         <button type="button" class="pm-item" role="menuitem" tabindex="-1" data-pm="password">
             <i class="fa-solid fa-lock" aria-hidden="true"></i><span>Change Password</span>
         </button>

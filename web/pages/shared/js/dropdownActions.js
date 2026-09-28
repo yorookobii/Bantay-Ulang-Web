@@ -16,10 +16,10 @@ import {
 import { initProfileMenu } from './profileMenu.js';
 
 const isOnTechnicianPage = window.location.pathname.includes('/technician/');
-const BASE = isOnTechnicianPage ? '../shared/' : './';
-const PROFILE_URL  = `${BASE}profile.html`;
-const SETTINGS_URL = `${BASE}settings.html`;
-const REALTIME_URL = `${BASE}real-time-monitoring.html`;
+// Technicians stay inside technician/ pages and have no Settings they can save.
+const PROFILE_URL  = isOnTechnicianPage ? 'profile-technician.html' : 'profile.html';
+const SETTINGS_URL = isOnTechnicianPage ? null : 'settings.html';
+const REALTIME_URL = isOnTechnicianPage ? 'dashboard-technician.html' : 'real-time-monitoring.html';
 const LOGIN_URL    = '../security/admin-tech-login.html';
 const SESSION_KEY  = 'bantay-ulang-auth-user';
 const USER_CACHE_KEY = 'bantay-ulang-user-cache';
