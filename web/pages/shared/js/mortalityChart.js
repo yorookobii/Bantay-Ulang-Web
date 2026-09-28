@@ -27,25 +27,41 @@ async function loadCycleStart() {
     return toDateValue(snap.docs[0].data().cycleStart);
 }
 
-// weekNumber matches the Flutter app's own bucketing (logs.dart _weekNumberFor):
-// week 1 = [cycleStart, cycleStart+7d), etc. mortality_records already stores
-// this per-doc, so we just sum deathCount per weekNumber rather than recompute it.
-export async function loadDeathsByWeek(cycleStart) {
+// Every mortality_records doc since cycleStart as { week, deaths, createdAtMs }; week may be NaN or < 1 when not recorded.
+export async function loadMortalityRecords(cycleStart) {
     const q = query(
         collection(db, "mortality_records"),
         where("createdAt", ">=", Timestamp.fromDate(cycleStart)),
         orderBy("createdAt", "asc")
     );
     const snap = await getDocs(q);
-
-    const deathsByWeek = {};
-    snap.docs.forEach(docSnap => {
+    return snap.docs.map(docSnap => {
         const d = docSnap.data();
-        const week = Number(d.weekNumber);
-        if (!Number.isFinite(week) || week < 1) return;
-        deathsByWeek[week] = (deathsByWeek[week] || 0) + (Number(d.deathCount) || 0);
+        return {
+            week: Number(d.weekNumber),
+            deaths: Number(d.deathCount) || 0,
+            createdAtMs: toDateValue(d.createdAt)?.getTime() ?? null
+        };
     });
-    return deathsByWeek;
+}
+
+// weekNumber matches the Flutter app's own bucketing (logs.dart _weekNumberFor):
+// week 1 = [cycleStart, cycleStart+7d), etc. mortality_records already stores
+// this per-doc, so we just sum deathCount per weekNumber rather than recompute it.
+// Records without a valid weekNumber go to `unrecorded` instead of a week.
+export function bucketDeathsByWeek(records) {
+    const byWeek = {};
+    let unrecorded = 0;
+    records.forEach(({ week, deaths }) => {
+        if (!Number.isFinite(week) || week < 1) { unrecorded += deaths; return; }
+        byWeek[week] = (byWeek[week] || 0) + deaths;
+    });
+    return { byWeek, unrecorded };
+}
+
+// Charts only plot valid weeks, so this keeps its original { week: deaths } shape.
+export async function loadDeathsByWeek(cycleStart) {
+    return bucketDeathsByWeek(await loadMortalityRecords(cycleStart)).byWeek;
 }
 
 function showEmpty(canvas, emptyEl) {

@@ -5,6 +5,7 @@ import {
     where,
     orderBy,
     limit,
+    startAfter,
     getDocs,
     Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -113,6 +114,48 @@ export async function fetchNewReadings(sinceMs) {
             .filter((reading) => reading.measuredAtMs != null);
     } catch (error) {
         console.error("historyLogsReader: fetchNewReadings failed.", error);
+        throw error;
+    }
+}
+
+/**
+ * fetchReadingsInRange(sinceMs, untilMs, { maxDocs, onPage })
+ *
+ * Read-only ranged fetch for one-off consumers (the report) that must not
+ * touch the cache: measuredAt within [sinceMs, untilMs], ascending, paged by
+ * DEFAULT_FETCH_LIMIT. Uses the same collection-group measuredAt index as
+ * fetchNewReadings(). Stops after maxDocs docs and reports truncated: true.
+ * Rethrows query failures like fetchNewReadings().
+ */
+export async function fetchReadingsInRange(sinceMs, untilMs, { maxDocs = Infinity, onPage = null } = {}) {
+    const readings = [];
+    let cursor = null;
+    let docsRead = 0;
+
+    try {
+        while (docsRead < maxDocs) {
+            const pageSize = Math.min(DEFAULT_FETCH_LIMIT, maxDocs - docsRead);
+            const clauses = [
+                where("measuredAt", ">=", Timestamp.fromMillis(sinceMs)),
+                where("measuredAt", "<=", Timestamp.fromMillis(untilMs)),
+                orderBy("measuredAt", "asc"),
+                limit(pageSize)
+            ];
+            if (cursor) clauses.push(startAfter(cursor));
+            const snapshot = await getDocs(query(collectionGroup(db, READINGS_COLLECTION_GROUP), ...clauses));
+
+            docsRead += snapshot.size;
+            snapshot.docs.forEach((doc) => {
+                const reading = normalizeHistoryReading(doc.data());
+                if (reading.measuredAtMs != null) readings.push(reading);
+            });
+            if (onPage) onPage(snapshot.size);
+            if (snapshot.size < pageSize) return { readings, docsRead, truncated: false };
+            cursor = snapshot.docs[snapshot.size - 1];
+        }
+        return { readings, docsRead, truncated: true };
+    } catch (error) {
+        console.error("historyLogsReader: fetchReadingsInRange failed.", error);
         throw error;
     }
 }
