@@ -181,7 +181,7 @@ export function buildReportInfoRows(report, files) {
             ["coverage_actual_readings", meta.coverage.actual],
             ["coverage_pct", round(meta.coverage.pct, 1)],
             ["suspect_readings", meta.coverage.suspect],
-            ["no_data_readings", meta.coverage.noData]
+            ["no_data_readings_skipped", meta.coverage.noDataSkipped]
         );
     }
     const totals = sections.mortalityGrowth?.cycleTotals;

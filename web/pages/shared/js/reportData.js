@@ -22,6 +22,7 @@ import { loadMortalityRecords, bucketDeathsByWeek } from "./mortalityChart.js";
 import { loadWeightsByWeek } from "./avgWeightChart.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { normalizeLogData, getTextField, toDateValue, LOG_ACTOR_KEYS } from "./logEntry.js";
+import { groupAlerts, flagWeights, buildSummary } from "./reportCleanup.js";
 
 // Report data layer: gathers every section from existing read paths, no UI.
 
@@ -172,13 +173,12 @@ function buildDaily(rows) {
         if (!byDay.has(date)) {
             const params = {};
             STATUS_PARAMS.forEach(p => { params[p] = emptyStats(); });
-            byDay.set(date, { date, readings: 0, suspect: 0, outOfRange: 0, noData: 0, waterLevelUnsafe: 0, params });
+            byDay.set(date, { date, readings: 0, suspect: 0, outOfRange: 0, waterLevelUnsafe: 0, params });
         }
         const day = byDay.get(date);
         day.readings += 1;
         if (row.suspectFields.length) day.suspect += 1;
         if (row.status === "out-of-range") day.outOfRange += 1;
-        if (row.status === "no-data") day.noData += 1;
         if (row.waterLevel === false) day.waterLevelUnsafe += 1;
         STATUS_PARAMS.forEach(p => addStat(day.params[p], row[p]));
     }
@@ -239,10 +239,12 @@ async function gatherWaterQuality({ sinceMs, untilMs, cycleStartMs, now, onProgr
     }
     meta.sync = { state, docsRead, lastSyncMs: await cacheStore.getLastSync(), error };
 
-    const rows = raw.map(reading => {
+    // Readings with no sensor values at all are skipped from the rows and only counted.
+    const allRows = raw.map(reading => {
         const { reading: clean, suspect } = sanitizeReading(reading);
         return { ...clean, status: computeRowStatus(reading), suspectFields: suspect };
     });
+    const rows = allRows.filter(r => r.status !== "no-data");
 
     // Expected readings only count time inside the cycle and not in the future.
     const expected = windowUntilMs > windowSinceMs ? Math.floor((windowUntilMs - windowSinceMs) / READING_INTERVAL_MS) : 0;
@@ -252,7 +254,7 @@ async function gatherWaterQuality({ sinceMs, untilMs, cycleStartMs, now, onProgr
         actual: rows.length,
         pct,
         suspect: rows.filter(r => r.suspectFields.length).length,
-        noData: rows.filter(r => r.status === "no-data").length
+        noDataSkipped: allRows.length - rows.length
     };
     if (pct !== null && pct < LOW_COVERAGE_PCT) {
         warnings.push({ code: "partial-coverage", message: `Only ${pct.toFixed(1)}% of expected sensor readings exist in this range (${rows.length.toLocaleString("en-PH")} of ${expected.toLocaleString("en-PH")}); gaps mean the sensor was offline or not logging.` });
@@ -280,7 +282,7 @@ function normalizeAlert(snap) {
 }
 
 // Active alerts read directly (fetchActiveAlerts would run reevaluateActiveAlerts, which writes); resolved ones by resolvedAt.
-async function gatherAlerts({ sinceMs, untilMs, warnings }) {
+async function gatherAlerts({ sinceMs, untilMs, meta, warnings }) {
     const [activeSnap, resolvedSnap] = await Promise.all([
         getDocs(query(collection(db, "alerts"), where("status", "==", "active"))),
         getDocs(query(
@@ -295,13 +297,18 @@ async function gatherAlerts({ sinceMs, untilMs, warnings }) {
         warnings.push({ code: "alerts-truncated", message: `Only the ${ALERT_LIMIT} most recently resolved alerts are included.` });
     }
     // Active alerts opened after the range ended don't belong to it.
-    const active = activeSnap.docs.map(normalizeAlert).filter(a => a.createdAtMs == null || a.createdAtMs <= untilMs);
-    const resolved = resolvedSnap.docs.map(normalizeAlert);
+    const activeSnaps = activeSnap.docs.filter(snap => { const ms = toMs(snap.data().createdAt); return ms == null || ms <= untilMs; });
+    // Duplicates marked by hand (excludeFromReports === true) are dropped and only counted.
+    const isExcluded = snap => snap.data().excludeFromReports === true;
+    meta.excluded = { duplicateAlerts: [...activeSnaps, ...resolvedSnap.docs].filter(isExcluded).length };
+    const keep = snaps => snaps.filter(snap => !isExcluded(snap)).map(normalizeAlert);
+    const active = keep(activeSnaps);
+    const resolved = keep(resolvedSnap.docs);
     const byNewest = (a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0);
-    return { active: active.sort(byNewest), resolved };
+    return { groups: groupAlerts([...active, ...resolved]), active: active.sort(byNewest), resolved };
 }
 
-async function gatherMortalityGrowth({ sinceMs, untilMs, growth, warnings }) {
+async function gatherMortalityGrowth({ sinceMs, untilMs, growth, now, warnings }) {
     const cycleStart = toDateValue(growth?.cycleStart);
     if (!cycleStart) {
         warnings.push({ code: "no-cycle", message: "No cycle start date is set in Settings, so mortality and growth can't be reported." });
@@ -310,18 +317,22 @@ async function gatherMortalityGrowth({ sinceMs, untilMs, growth, warnings }) {
     const [records, weightsByWeek] = await Promise.all([loadMortalityRecords(cycleStart), loadWeightsByWeek(cycleStart)]);
     const { byWeek: deathsByWeek } = bucketDeathsByWeek(records);
 
-    const lastWeek = Math.max(0, ...Object.keys(deathsByWeek).map(Number), ...Object.keys(weightsByWeek).map(Number));
+    // Flags use every week of the cycle so the median isn't skewed by a short range.
+    const weightFlags = flagWeights(Object.entries(weightsByWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })));
+
+    // Every week from the range start to its end (capped at the current week), including weeks with no records.
+    const weekOf = (ms) => Math.floor((ms - cycleStart.getTime()) / WEEK_MS) + 1;
     const weeks = [];
-    for (let week = 1; week <= lastWeek; week++) {
+    for (let week = Math.max(1, weekOf(sinceMs)); week <= weekOf(Math.min(untilMs, now)); week++) {
         const startMs = cycleStart.getTime() + (week - 1) * WEEK_MS;
-        const endMs = startMs + WEEK_MS;
-        if (endMs <= sinceMs || startMs > untilMs) continue;
         const w = weightsByWeek[week];
         weeks.push({
-            week, startMs, endMs,
+            week, startMs, endMs: startMs + WEEK_MS,
             deaths: deathsByWeek[week] || 0,
             avgWeightG: w ? w.sum / w.count : null,
-            weightSamples: w ? w.count : 0
+            weightSamples: w ? w.count : 0,
+            weightCheck: weightFlags[week] ? "Check entry" : null,
+            weightCheckReason: weightFlags[week] || null
         });
     }
 
@@ -330,7 +341,7 @@ async function gatherMortalityGrowth({ sinceMs, untilMs, growth, warnings }) {
         .filter(r => (!Number.isFinite(r.week) || r.week < 1) && inRange(r.createdAtMs, sinceMs, untilMs))
         .reduce((sum, r) => sum + r.deaths, 0);
     if (unrecordedInRange > 0) {
-        weeks.push({ week: null, label: "Week not recorded", startMs: null, endMs: null, deaths: unrecordedInRange, avgWeightG: null, weightSamples: 0 });
+        weeks.push({ week: null, label: "Week not recorded", startMs: null, endMs: null, deaths: unrecordedInRange, avgWeightG: null, weightSamples: 0, weightCheck: null, weightCheckReason: null });
     }
 
     // Cycle-to-date totals count every record, matching the dashboard card (dashboard.js loadMortalityStat), with its survival clamp.
@@ -434,7 +445,7 @@ const GATHERERS = {
 
 /**
  * gatherReport({ sinceMs, untilMs, sections, onProgress })
- * Returns { meta, sections, warnings }. A failing section becomes null plus a
+ * Returns { meta, sections, summary, warnings }. A failing section becomes null plus a
  * "section-failed" warning so the rest of the report still renders.
  */
 export async function gatherReport({ sinceMs, untilMs, sections, onProgress = null }) {
@@ -472,6 +483,7 @@ export async function gatherReport({ sinceMs, untilMs, sections, onProgress = nu
         },
         sync: null,
         coverage: null,
+        excluded: null,
         sources: [
             "Sensor readings: HistoryLogs, 2-minute averages, from this browser's saved copy or fetched for the range.",
             "Alerts, tasks, logs, mortality and growth records: Firestore."
@@ -492,5 +504,5 @@ export async function gatherReport({ sinceMs, untilMs, sections, onProgress = nu
         }
     }
 
-    return { meta, sections: result, warnings };
+    return { meta, sections: result, summary: buildSummary(result, now), warnings };
 }

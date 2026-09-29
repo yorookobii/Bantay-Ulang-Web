@@ -8,7 +8,7 @@ import { PARAM_LABELS } from './notificationsShared.js';
 import { SUGGESTIONS } from './alertsEngine.js';
 import { getRanges, loadThresholds } from './thresholds.js';
 import { initSidebar } from './sidebar.js';
-import { normalizeStatus } from './taskStatus.js';
+import { normalizeStatus, isOverdue } from './taskStatus.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -219,21 +219,6 @@ function fmtDate(str) {
     const d = new Date(str + 'T00:00:00');
     return isNaN(d.getTime()) ? str
         : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-// Web technician writes 'completed'; the mobile app writes 'done' — both mean finished.
-const DONE_STATUSES = new Set(['done', 'completed']);
-
-// Overdue = due date is a calendar day before today AND the task isn't finished.
-// Due-today is NOT overdue (still has the whole day). Missing/invalid dueDate → not overdue.
-function isOverdue(task) {
-    if (DONE_STATUSES.has(String(task.status || '').trim().toLowerCase())) return false;
-    if (typeof task.dueDate !== 'string' || !task.dueDate) return false;
-    const due = new Date(task.dueDate + 'T00:00:00');       // local midnight of due day (same as fmtDate)
-    if (Number.isNaN(due.getTime())) return false;
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    return due < startOfToday;
 }
 
 function renderTasks(snapshot) {
