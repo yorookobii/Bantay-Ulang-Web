@@ -10,6 +10,7 @@
         <link rel="stylesheet" href="css/shell.css">
         <link rel="stylesheet" href="css/dashboard.css">
         <link rel="stylesheet" href="css/profileMenu.css">
+        <link rel="stylesheet" href="css/report-print.css">
         <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
     <body>
@@ -226,7 +227,7 @@
                     </button>
                 </div>
                 <form class="report-modal-body" id="reportForm" novalidate>
-                    <p id="reportModalDesc">Download farm data for a date range as CSV files you can open in Excel.</p>
+                    <p id="reportModalDesc">Create a printable farm report, or CSV files you can open in Excel, for a date range.</p>
 
                     <fieldset class="report-fieldset" id="reportControls">
                         <legend>Date range</legend>
@@ -257,7 +258,13 @@
                         </div>
                     </fieldset>
 
-                    <p class="report-format">Format: <strong>CSV</strong>, one file per section plus a report-info file. Your browser may ask once to allow multiple downloads.</p>
+                    <fieldset class="report-fieldset" id="reportFormat">
+                        <legend>Format</legend>
+                        <div class="report-choice-grid">
+                            <label class="report-choice"><input type="radio" name="reportFormat" value="pdf" checked> PDF (opens print dialog, choose Save as PDF)</label>
+                            <label class="report-choice"><input type="radio" name="reportFormat" value="csv"> CSV (one file per section, for Excel)</label>
+                        </div>
+                    </fieldset>
 
                     <div class="report-error" id="reportError" role="alert" hidden></div>
                     <p class="report-status" id="reportStatus" aria-live="polite"></p>

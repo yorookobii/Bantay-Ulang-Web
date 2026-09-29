@@ -9,8 +9,9 @@ import {
     SECTIONS
 } from "./reportData.js";
 import { buildReportFiles, downloadFiles } from "./reportCsv.js";
+import { printReport } from "./reportPrint.js";
 
-// Generate Report modal on the admin dashboard: range + sections -> CSV downloads.
+// Generate Report modal on the admin dashboard: range + sections -> printable PDF (default) or CSV downloads.
 
 const SECTION_LABELS = {
     waterQuality:    "Water quality readings",
@@ -56,6 +57,8 @@ function budgetText(newReads) {
 
 const pad = (n) => String(n).padStart(2, "0");
 const toDateInput = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+const selectedFormat = () => els.form.querySelector('input[name="reportFormat"]:checked')?.value || "pdf";
 
 function selectedSections() {
     return SECTIONS.filter(key => els.form.querySelector(`input[name="reportSection"][value="${key}"]`)?.checked);
@@ -111,6 +114,7 @@ function setBusy(on) {
     busy = on;
     els.controls.disabled = on;
     els.sections.disabled = on;
+    els.format.disabled = on;
     els.generate.disabled = on;
     els.form.setAttribute("aria-busy", String(on));
     els.cancel.textContent = on ? "Cancel" : "Close";
@@ -149,6 +153,7 @@ async function generate(event) {
     if (busy) return;
     const { range, error } = currentRange();
     const sections = selectedSections();
+    const format = selectedFormat();
     if (error || !sections.length) return showError(error || "Choose at least one section.");
 
     const run = ++runId;
@@ -170,6 +175,12 @@ async function generate(event) {
         }
 
         renderWarnings(report.warnings);
+        if (format === "pdf") {
+            els.status.textContent = "Opening the print dialog…";
+            await printReport(report);
+            if (!stale()) els.status.textContent = "Print dialog closed. If you chose Save as PDF, the file is in your Downloads folder.";
+            return;
+        }
         const files = buildReportFiles(report);
         els.status.textContent = `Downloading ${files.length} files…`;
         await downloadFiles(files, { shouldStop: stale });
@@ -250,6 +261,7 @@ export function initReportModal() {
         form: byId("reportForm"),
         controls: byId("reportControls"),
         sections: byId("reportSections"),
+        format: byId("reportFormat"),
         customRange: byId("reportCustomRange"),
         from: byId("reportFrom"),
         to: byId("reportTo"),
