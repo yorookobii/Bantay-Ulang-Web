@@ -1,13 +1,14 @@
 // Flags physically impossible sensor values (e.g. the -1 waterTemp) as "suspect", separate from threshold "out of range".
 
 // Inclusive physical bounds; null means unbounded on that side.
+// PROVISIONAL: salinity/turbidity/tds maxima are pending the sensor datasheets (ask the ESP32 group for the sensor models).
 export const PLAUSIBLE_BOUNDS = {
     ph:              { min: 0, max: 14 },
     waterTemp:       { min: 0, max: 50 },
     dissolvedOxygen: { min: 0, max: 20 },
-    salinity:        { min: 0, max: null },
-    turbidity:       { min: 0, max: null },
-    tds:             { min: 0, max: null }
+    salinity:        { min: 0, max: 50 },
+    turbidity:       { min: 0, max: 1000 },
+    tds:             { min: 0, max: 5000 }
 };
 
 // True only for a finite number outside its field's bounds; missing values are "no data", not suspect.
