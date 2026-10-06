@@ -53,7 +53,7 @@ export const WEIGHT_CAP_BASE_G = 5;
 export const WEIGHT_CAP_PER_WEEK_G = 5;
 export const WEIGHT_MEDIAN_FACTOR = 3;
 
-function median(values) {
+export function median(values) {
     const sorted = [...values].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;

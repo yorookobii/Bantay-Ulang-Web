@@ -22,13 +22,16 @@ import { loadMortalityRecords, bucketDeathsByWeek } from "./mortalityChart.js";
 import { loadWeightsByWeek } from "./avgWeightChart.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { normalizeLogData, getTextField, toDateValue, LOG_ACTOR_KEYS } from "./logEntry.js";
-import { groupAlerts, flagWeights, buildSummary } from "./reportCleanup.js";
+import { groupAlerts, flagWeights, buildSummary, median } from "./reportCleanup.js";
 
 // Report data layer: gathers every section from existing read paths, no UI.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
-const READING_INTERVAL_MS = 2 * 60 * 1000;   // HistoryLogs cadence (720 readings/day).
+// Densest HistoryLogs cadence seen (the 2-minute synthetic backfill), so read estimates err high.
+const READ_ESTIMATE_INTERVAL_MS = 2 * 60 * 1000;
+// Live firmware cadence, used for coverage only when a range has too few readings to measure it.
+const DEFAULT_CADENCE_MS = 5 * 60 * 1000;
 const LOW_COVERAGE_PCT = 90;
 const ALERT_LIMIT = 500;
 const PAGE_SIZE = 200;                        // tasks/logs page size
@@ -41,7 +44,7 @@ export const SECTIONS =["waterQuality", "alerts", "mortalityGrowth", "yield", "t
 export const MAX_CUSTOM_RANGE_DAYS = 31;
 export const READ_BUDGET = 20000;
 // Longest range whose readings fit the budget with nothing cached (27 days at 720/day).
-export const MAX_UNCACHED_DAYS = Math.floor(READ_BUDGET / (DAY_MS / READING_INTERVAL_MS));
+export const MAX_UNCACHED_DAYS = Math.floor(READ_BUDGET / (DAY_MS / READ_ESTIMATE_INTERVAL_MS));
 // A cache whose newest reading is this close to the range end counts as covering it.
 const CACHE_TOLERANCE_MS = 10 * 60 * 1000;
 export const MODEL_DISCLAIMER =
@@ -82,7 +85,7 @@ export async function estimateNewReads(cycleStartMs, sinceMs, untilMs, now = Dat
     ]);
     const windowSinceMs = Math.max(sinceMs, cycleStartMs ?? sinceMs);
     const windowUntilMs = Math.min(untilMs, now);
-    const rangeReads = Math.max(0, Math.ceil((windowUntilMs - windowSinceMs) / READING_INTERVAL_MS));
+    const rangeReads = Math.max(0, Math.ceil((windowUntilMs - windowSinceMs) / READ_ESTIMATE_INTERVAL_MS));
 
     const cacheAvailable = dbHandle != null;
     // Mirrors readingsService.reconcileCycleStart: a different recorded cycle clears the cache.
@@ -92,7 +95,7 @@ export async function estimateNewReads(cycleStartMs, sinceMs, untilMs, now = Dat
 
     // Cold syncs start at cycleStart, so a usable cache holds everything from the window start to lastSync.
     if (rangeReads === 0 || (usable && lastSync >= windowUntilMs - CACHE_TOLERANCE_MS)) return plan("cache", 0);
-    const catchUpReads = usable ? Math.ceil((now - lastSync) / READING_INTERVAL_MS) : Infinity;
+    const catchUpReads = usable ? Math.ceil((now - lastSync) / READ_ESTIMATE_INTERVAL_MS) : Infinity;
     return catchUpReads <= rangeReads ? plan("catch-up", catchUpReads) : plan("direct-range", rangeReads);
 }
 
@@ -193,6 +196,18 @@ function buildDaily(rows) {
 
 const fmtDateTime = (ms) => new Date(ms).toLocaleString("en-PH");
 
+// Reading interval for coverage: median firmware summary window, else median gap between readings, else 5 min.
+function readingCadence(rows) {
+    const windows = rows.map(r => r.summaryWindowSec).filter(Number.isFinite);
+    if (windows.length) return { ms: median(windows) * 1000, source: "summary-window" };
+    const gaps = [];
+    for (let i = 1; i < rows.length; i++) {
+        const gap = rows[i].measuredAtMs - rows[i - 1].measuredAtMs;
+        if (gap > 0) gaps.push(gap);
+    }
+    return gaps.length ? { ms: median(gaps), source: "observed" } : { ms: DEFAULT_CADENCE_MS, source: "default" };
+}
+
 async function gatherWaterQuality({ sinceMs, untilMs, cycleStartMs, now, onProgress, meta, warnings }) {
     const plan = await estimateNewReads(cycleStartMs, sinceMs, untilMs, now);
     const { windowSinceMs, windowUntilMs } = plan;
@@ -239,22 +254,32 @@ async function gatherWaterQuality({ sinceMs, untilMs, cycleStartMs, now, onProgr
     }
     meta.sync = { state, docsRead, lastSyncMs: await cacheStore.getLastSync(), error };
 
+    // Synthetic test readings never count toward any water-quality figure; they are only counted.
+    const syntheticExcluded = raw.filter(reading => reading.isSynthetic).length;
+    if (syntheticExcluded) {
+        warnings.push({ code: "synthetic-excluded", message: `${syntheticExcluded.toLocaleString("en-PH")} synthetic test readings excluded from every water-quality figure.` });
+    }
+
     // Readings with no sensor values at all are skipped from the rows and only counted.
-    const allRows = raw.map(reading => {
+    const allRows = raw.filter(reading => !reading.isSynthetic).map(reading => {
         const { reading: clean, suspect } = sanitizeReading(reading);
         return { ...clean, status: computeRowStatus(reading), suspectFields: suspect };
     });
     const rows = allRows.filter(r => r.status !== "no-data");
 
     // Expected readings only count time inside the cycle and not in the future.
-    const expected = windowUntilMs > windowSinceMs ? Math.floor((windowUntilMs - windowSinceMs) / READING_INTERVAL_MS) : 0;
+    const cadence = readingCadence(allRows);
+    const expected = windowUntilMs > windowSinceMs ? Math.floor((windowUntilMs - windowSinceMs) / cadence.ms) : 0;
     const pct = expected ? Math.min(100, (rows.length / expected) * 100) : null;
     meta.coverage = {
         expected,
         actual: rows.length,
         pct,
         suspect: rows.filter(r => r.suspectFields.length).length,
-        noDataSkipped: allRows.length - rows.length
+        noDataSkipped: allRows.length - rows.length,
+        syntheticExcluded,
+        cadenceMs: cadence.ms,
+        cadenceSource: cadence.source
     };
     if (pct !== null && pct < LOW_COVERAGE_PCT) {
         warnings.push({ code: "partial-coverage", message: `Only ${pct.toFixed(1)}% of expected sensor readings exist in this range (${rows.length.toLocaleString("en-PH")} of ${expected.toLocaleString("en-PH")}); gaps mean the sensor was offline or not logging.` });
@@ -368,6 +393,8 @@ function gatherYield({ growth, warnings }) {
     }
     // wqScore only feeds the separate Efficiency Score, not yield, so it isn't needed here.
     const result = calcYield(growth, null);
+    // live | synthetic | mixed, written by predict_yield.py alongside the prediction.
+    const waterSource = result.rfAvailable ? (growth.rfWaterSource ?? null) : null;
     if (!result.eligible) {
         warnings.push({
             code: "yield-locked",
@@ -379,6 +406,11 @@ function gatherYield({ growth, warnings }) {
         warnings.push({ code: "yield-processing", message: "The cycle is eligible, but the yield model hasn't produced a prediction yet." });
     } else if (result.rfMode === "test") {
         warnings.push({ code: "yield-test-mode", message: "The yield prediction was generated in test mode and does not reflect real farm data." });
+    } else if (waterSource === "synthetic" || waterSource === "mixed") {
+        warnings.push({ code: "yield-synthetic-water", message: `This cycle's yield estimate used ${waterSource === "mixed" ? "partly " : ""}synthetic water data.` });
+    } else if (!waterSource) {
+        // Until predict_yield.py writes rfWaterSource, its only water data this cycle is the synthetic backfill.
+        warnings.push({ code: "yield-synthetic-water", message: "This cycle's yield estimate used synthetic water data (Jul 13 - Aug 9 backfill)." });
     }
     return {
         eligible: result.eligible,
@@ -388,6 +420,7 @@ function gatherYield({ growth, warnings }) {
         revenueAvg: result.incomeAvg,
         revenueMax: result.incomeMax,
         rfMode: result.rfMode,
+        rfWaterSource: waterSource,
         rfNote: result.rfNote,
         rfReadingsUsed: result.rfReadingsUsed,
         rfUpdatedAtMs: toMs(result.rfUpdatedAt),
@@ -485,7 +518,7 @@ export async function gatherReport({ sinceMs, untilMs, sections, onProgress = nu
         coverage: null,
         excluded: null,
         sources: [
-            "Sensor readings: HistoryLogs, 2-minute averages, from this browser's saved copy or fetched for the range.",
+            "Sensor readings: HistoryLogs sensor summaries, from this browser's saved copy or fetched for the range.",
             "Alerts, tasks, logs, mortality and growth records: Firestore."
         ],
         disclaimer: MODEL_DISCLAIMER

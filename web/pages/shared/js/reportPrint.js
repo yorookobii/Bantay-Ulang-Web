@@ -13,6 +13,7 @@ import {
     alertTypeLabel,
     alertValueText,
     capitalize,
+    cadenceText,
     modelModeLabel,
     weekLabel,
     yesNo
@@ -211,7 +212,7 @@ function yieldBody(y, meta) {
         ["Projected yield", `${num(y.yieldKg, 1)} kg`],
         ["Estimated revenue", `${peso(y.revenueMin)} – ${peso(y.revenueMax)} (average ${peso(y.revenueAvg)})`],
         ["Estimated harvest", dateManila(y.estimatedHarvestMs) ?? MISSING],
-        ["Model", `${modelModeLabel(y.rfMode) || MISSING}${y.rfUpdatedAtMs ? `, updated ${dateTimeManila(y.rfUpdatedAtMs)}` : ""}`]
+        ["Model", `${modelModeLabel(y.rfMode, y.rfWaterSource) || MISSING}${y.rfUpdatedAtMs ? `, updated ${dateTimeManila(y.rfUpdatedAtMs)}` : ""}`]
     ]) + para("These are model estimates, not guarantees. See the disclaimer in Notes.", "rp-hint");
 }
 
@@ -249,6 +250,7 @@ function notes(report) {
     if (meta.coverage) {
         const c = meta.coverage;
         items.push(`Sensor readings with data: ${c.actual.toLocaleString("en-PH")} of ${c.expected.toLocaleString("en-PH")} expected (${pct(c.pct)}).`);
+        items.push(`Expected readings assume ${cadenceText(c)}.`);
         items.push(`Empty readings skipped (no sensor values): ${c.noDataSkipped.toLocaleString("en-PH")}.`);
         items.push(`Readings with a physically impossible (faulty) value: ${c.suspect.toLocaleString("en-PH")}. Those values are left out of every figure.`);
     }

@@ -20,8 +20,9 @@ export const READING_FIELDS = {
 
 export const STATUS_LABELS = { "normal": "Normal", "out-of-range": "Out of Range", "suspect": "Suspect", "incomplete": "Incomplete", "no-data": "No Data" };
 export const TASK_STATUS_LABELS = { "pending": "Pending", "in-progress": "In Progress", "completed": "Completed" };
-// predict_yield.py rfMode: real = live water + measured weight, hybrid = live water + assumed start weight, test = assumed optimal water.
-const MODEL_MODE_LABELS = { real: "Live data", hybrid: "Live water data, assumed weight", test: "Test mode" };
+// predict_yield.py rfMode only says where the weight came from; the water source is rfWaterSource, labelled separately.
+const MODEL_MODE_LABELS = { real: "Measured weight", hybrid: "Assumed weight", test: "Test mode" };
+const WATER_SOURCE_LABELS = { live: "live sensor water data", synthetic: "synthetic water data", mixed: "live and synthetic water data" };
 const ALERT_TYPE_LABELS = { out_of_range: "Out of Range", critical_out_of_range: "Critical Out of Range", hardware_offline: "Sensor Offline" };
 // Live alert docs use thresholds.js keys (phLevel), so both spellings are listed.
 const ALERT_PARAM_FIELD = { phLevel: "ph", ph: "ph", waterTemp: "waterTemp", dissolvedOxygen: "dissolvedOxygen", salinity: "salinity", turbidity: "turbidity", tds: "tds" };
@@ -78,7 +79,11 @@ export const readingHeader = (field) => READING_FIELDS[field].label + (READING_F
 export const alertParamLabel = (param) => READING_FIELDS[ALERT_PARAM_FIELD[param]]?.label || ALERT_PARAM_LABELS[param] || param;
 export const alertTypeLabel = (type) => ALERT_TYPE_LABELS[type] || type;
 export const capitalize = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : "");
-export const modelModeLabel = (mode) => MODEL_MODE_LABELS[mode] || capitalize(mode);
+export const modelModeLabel = (mode, waterSource) => {
+    const label = MODEL_MODE_LABELS[mode] || capitalize(mode);
+    const water = mode === "test" ? null : WATER_SOURCE_LABELS[waterSource];
+    return water ? `${label}, ${water}` : label;
+};
 
 // Last value of an alert group in its reading's units; water level is Safe/Unsafe and hardware stays as stored text.
 export function alertValueText(group) {
@@ -91,6 +96,14 @@ export function alertValueText(group) {
     }
     return value ?? null;
 }
+
+const CADENCE_SOURCE_TEXT = { "summary-window": "from the sensor's summary window", observed: "from the spacing between readings", default: "default; too few readings to measure it" };
+// "one every 5 min (from the sensor's summary window)" for the coverage note.
+export const cadenceText = (coverage) => {
+    const minutes = coverage.cadenceMs / 60000;
+    const every = minutes >= 1 ? `${round(minutes, 1)} min` : `${round(coverage.cadenceMs / 1000, 0)} s`;
+    return `one every ${every} (${CADENCE_SOURCE_TEXT[coverage.cadenceSource] || coverage.cadenceSource})`;
+};
 
 export const weekLabel = (w) => (w.week === null ? w.label : `Week ${w.week}`);
 export const weightCheckText = (w) => (w.weightCheck ? `${w.weightCheck}: ${w.weightCheckReason}` : null);
@@ -139,7 +152,7 @@ const YIELD_COLUMNS = [
     ["Revenue Low (PHP)", y => round(y.revenueMin, 0)],
     ["Revenue Average (PHP)", y => round(y.revenueAvg, 0)],
     ["Revenue High (PHP)", y => round(y.revenueMax, 0)],
-    ["Model Mode", y => modelModeLabel(y.rfMode)],
+    ["Model Mode", y => modelModeLabel(y.rfMode, y.rfWaterSource)],
     ["Model Note", y => y.rfNote],
     ["Readings Used", y => y.rfReadingsUsed],
     ["Model Updated", y => dateTimeManila(y.rfUpdatedAtMs)],
@@ -228,10 +241,12 @@ export function buildReportInfoRows(report, files) {
     if (meta.coverage) {
         rows.push(
             ["Expected Readings", meta.coverage.expected],
+            ["Expected Reading Interval", cadenceText(meta.coverage)],
             ["Readings With Data", meta.coverage.actual],
             ["Coverage (%)", round(meta.coverage.pct, 1)],
             ["Readings With Faulty Values", meta.coverage.suspect],
-            ["Empty Readings Skipped", meta.coverage.noDataSkipped]
+            ["Empty Readings Skipped", meta.coverage.noDataSkipped],
+            ["Synthetic Test Readings Excluded", meta.coverage.syntheticExcluded]
         );
     }
     if (meta.excluded) rows.push(["Duplicate Alerts Excluded", meta.excluded.duplicateAlerts]);
