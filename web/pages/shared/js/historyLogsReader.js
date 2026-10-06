@@ -18,7 +18,8 @@ import {
  * and are fetched via collectionGroup("readings") — same approach proven by
  * ml-analytics/predict_yield.py. Each doc's shape mirrors the Aquaponics/
  * Ulang live doc (see aquaponicsReading.js): statistics.*.average for the
- * numeric params, statistics.WaterLevel.latest for the boolean water level.
+ * numeric params, statistics.waterLevel.latest (older docs: WaterLevel) for
+ * the boolean water level.
  *
  * IMPORTANT — measuredAt is UNCONFIRMED for HistoryLogs docs:
  * predict_yield.py (the only other code in this repo that reads these docs)
@@ -49,6 +50,8 @@ export const DEFAULT_FETCH_LIMIT = 1000;
  * cacheStore.js's IndexedDB keyPath.
  *
  * waterLevel is true | false | null (boolean safe/unsafe state, not depth).
+ * isSynthetic is true only for docs explicitly marked isSynthetic: true.
+ * Adding a field here needs a cacheStore.js DB_VERSION bump, or cached rows keep the old shape.
  */
 export function normalizeHistoryReading(docData) {
     const stats = docData?.statistics ?? {};
@@ -64,7 +67,14 @@ export function normalizeHistoryReading(docData) {
         tds:             stats.tdsPpm?.average ?? null,
         turbidity:       stats.turbidityNTU?.average ?? null,
         salinity:        stats.salinityPpt?.average ?? null,
-        waterLevel:      stats.WaterLevel?.latest ?? null
+        // Firmware writes waterLevel (current) or WaterLevel (older docs).
+        waterLevel:      stats.waterLevel?.latest ?? stats.WaterLevel?.latest ?? null,
+        // Test-data markers (e.g. the ESP32_SYNTHETIC_BACKFILL set) and the firmware's summary window.
+        isSynthetic:      docData?.isSynthetic === true,
+        dataSource:       typeof docData?.dataSource === "string" ? docData.dataSource : null,
+        summaryWindowSec: Number.isFinite(docData?.summaryWindowSeconds) && docData.summaryWindowSeconds > 0
+            ? docData.summaryWindowSeconds
+            : null
     };
 }
 

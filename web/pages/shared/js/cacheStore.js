@@ -13,7 +13,9 @@
  */
 
 const DB_NAME = "BantayUlangCache";
-const DB_VERSION = 1;
+// v2: readings gained isSynthetic, dataSource, summaryWindowSec and the lowercase waterLevel key.
+// Each bump clears the cache, so every browser re-downloads the cycle once (~20k+ reads per browser at v2).
+const DB_VERSION = 2;
 const READINGS_STORE = "readings";
 const META_STORE = "meta";
 
@@ -42,7 +44,7 @@ export function openDB() {
 
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onupgradeneeded = () => {
+        request.onupgradeneeded = (event) => {
             const db = request.result;
             if (!db.objectStoreNames.contains(READINGS_STORE)) {
                 db.createObjectStore(READINGS_STORE, { keyPath: "measuredAtMs" });
@@ -50,9 +52,24 @@ export function openDB() {
             if (!db.objectStoreNames.contains(META_STORE)) {
                 db.createObjectStore(META_STORE, { keyPath: "key" });
             }
+            // Rows saved by an older version lack the current fields, so drop them and lastSync with them.
+            if (event.oldVersion > 0) {
+                request.transaction.objectStore(READINGS_STORE).clear();
+                request.transaction.objectStore(META_STORE).clear();
+            }
         };
 
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = () => {
+            const db = request.result;
+            // Let a newer version in another tab upgrade instead of being blocked by this one.
+            db.onversionchange = () => { db.close(); dbPromise = null; };
+            resolve(db);
+        };
+        // A tab still running the old version holds the DB open; run uncached until it closes.
+        request.onblocked = () => {
+            console.warn("cacheStore: upgrade blocked by another open tab, caching disabled for this page.");
+            resolve(null);
+        };
         request.onerror = () => {
             console.warn("cacheStore: failed to open IndexedDB, caching disabled.", request.error);
             resolve(null);

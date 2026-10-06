@@ -23,7 +23,7 @@ import { doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firesto
  *     tdsPpm:             { average: 3852 },
  *     salinityPpt:        { average: 15 },
  *     turbidityNTU:       { average: 116 },
- *     WaterLevel:         { latest: true }   // boolean: safe/unsafe, not a depth
+ *     waterLevel:         { latest: true }   // boolean: safe/unsafe, not a depth (older docs: WaterLevel)
  *   },
  *   measuredAt: <timestamp>
  * }
@@ -51,7 +51,8 @@ export function normalizeAquaponicsReading(raw) {
         tds:             stats.tdsPpm?.average ?? null,
         salinity:        stats.salinityPpt?.average ?? null,
         turbidity:       stats.turbidityNTU?.average ?? null,
-        waterLevel:      stats.WaterLevel?.latest ?? null,
+        // Firmware writes waterLevel (current) or WaterLevel (older docs).
+        waterLevel:      stats.waterLevel?.latest ?? stats.WaterLevel?.latest ?? null,
         measuredAt:      raw?.measuredAt ?? null
     };
 }
