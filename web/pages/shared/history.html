@@ -109,6 +109,14 @@
                             <option value="no-data">No Data</option>
                         </select>
                     </div>
+                    <div class="sr-filter-group">
+                        <label for="srSourceFilter">Source</label>
+                        <select id="srSourceFilter">
+                            <option value="all">All</option>
+                            <option value="sensor">Sensor only</option>
+                            <option value="synthetic">Synthetic only</option>
+                        </select>
+                    </div>
                     <div class="sr-filter-actions">
                         <button id="srApplyFilters" class="sr-btn sr-btn-primary">
                             <i class="fa-solid fa-filter"></i> Apply
@@ -121,7 +129,7 @@
 
                 <!-- Loading -->
                 <div id="sensorHistoryLoading" class="sr-loading">
-                    <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading sensor readings…
+                    <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; <span id="sensorHistoryLoadingText">Loading sensor readings…</span>
                 </div>
 
                 <!-- Error -->

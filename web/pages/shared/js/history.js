@@ -7,7 +7,7 @@ import {
     startAfter,
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getReadingsInRangeWithStatus } from "./readingsService.js";
+import { getReadingsInRangeWithStatus, catchUpCache } from "./readingsService.js";
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { normalizeStatus } from "./taskStatus.js";
@@ -16,8 +16,11 @@ import { computeRowStatus } from "./readingStatus.js";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
+const CATCH_UP_MAX_PAGES = 19; // plus the range sync's own page: at most 20,000 reads per visit, the report's READ_BUDGET
+const LOADING_TEXT = "Loading sensor readings…";
 
 let statusFilter = "all";
+let sourceFilter = "all";   // all | sensor | synthetic
 let dateFromVal = "";
 let dateToVal = "";
 let currentPage = 0;
@@ -134,8 +137,12 @@ function buildRow(row) {
           ts.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
         : "—";
 
+    const syntheticTag = reading.isSynthetic
+        ? ` <span class="sr-tag sr-tag--synthetic" title="${escHtml(reading.dataSource || "Synthetic test data")}">Synthetic</span>`
+        : "";
+
     tr.innerHTML = `
-        <td data-label="Timestamp">${tsStr}</td>
+        <td data-label="Timestamp">${tsStr}${syntheticTag}</td>
         ${valueCell("pH Level", reading, "ph", 1)}
         ${valueCell("Water Temp (°C)", reading, "waterTemp", 1)}
         ${valueCell("DO (mg/L)", reading, "dissolvedOxygen", 1)}
@@ -176,9 +183,11 @@ async function loadSensorReadings() {
     const tbody     = document.getElementById("sensorHistoryTbody");
     const loadingEl = document.getElementById("sensorHistoryLoading");
     const errorEl   = document.getElementById("sensorHistoryError");
+    const loadingTextEl = document.getElementById("sensorHistoryLoadingText");
     if (!tbody) return;
 
     tbody.innerHTML = "";
+    if (loadingTextEl) loadingTextEl.textContent = LOADING_TEXT;
     if (loadingEl) loadingEl.style.display = "flex";
     if (errorEl)   errorEl.style.display   = "none";
 
@@ -187,6 +196,16 @@ async function loadSensorReadings() {
         const cycleStartMs = await getCycleStartMs();
         const { sinceMs, untilMs } = resolveEffectiveRange();
         effectiveRangeLabel = formatRangeLabel(sinceMs, untilMs);
+
+        // A stale browser would otherwise advance only one 1,000-reading page per visit.
+        let synced = 0;
+        const caughtUp = await catchUpCache(cycleStartMs, {
+            maxIterations: CATCH_UP_MAX_PAGES,
+            onPage: (n) => {
+                synced += n;
+                if (loadingTextEl && synced) loadingTextEl.textContent = `${LOADING_TEXT} ${synced.toLocaleString("en-PH")} synced`;
+            }
+        });
 
         const { rows: readings, syncError } = await getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs);
 
@@ -199,11 +218,16 @@ async function loadSensorReadings() {
             .slice()
             .reverse()
             .map(reading => ({ reading, status: computeRowStatus(reading) }))
-            .filter(row => statusFilter === "all" || row.status === statusFilter);
+            .filter(row => statusFilter === "all" || row.status === statusFilter)
+            .filter(row => sourceFilter === "all" || row.reading.isSynthetic === (sourceFilter === "synthetic"));
 
         if (loadingEl) loadingEl.style.display = "none";
         if (syncError && errorEl) {
             errorEl.textContent = "Showing cached readings; couldn't refresh from the server. " + syncErrorHint(syncError);
+            errorEl.classList.add("sr-error--warning");
+            errorEl.style.display = "block";
+        } else if (!caughtUp && errorEl) {
+            errorEl.textContent = "Still catching up on older readings; the newest may be missing. Reload to continue.";
             errorEl.classList.add("sr-error--warning");
             errorEl.style.display = "block";
         }
@@ -466,6 +490,7 @@ function init() {
     setupTopbarSidebar();
 
     const statusSel = document.getElementById("srStatusFilter");
+    const sourceSel = document.getElementById("srSourceFilter");
     const dateFromEl = document.getElementById("srDateFrom");
     const dateToEl   = document.getElementById("srDateTo");
     const applyBtn   = document.getElementById("srApplyFilters");
@@ -475,6 +500,7 @@ function init() {
 
     applyBtn?.addEventListener("click", () => {
         statusFilter = statusSel?.value ?? "all";
+        sourceFilter = sourceSel?.value || "all";
         dateFromVal  = dateFromEl?.value ?? "";
         dateToVal    = dateToEl?.value ?? "";
         resetPagination();
@@ -483,9 +509,11 @@ function init() {
 
     resetBtn?.addEventListener("click", () => {
         statusFilter = "all";
+        sourceFilter = "all";
         dateFromVal  = "";
         dateToVal    = "";
         if (statusSel)  statusSel.value  = "all";
+        if (sourceSel)  sourceSel.value  = "all";
         if (dateFromEl) dateFromEl.value = "";
         if (dateToEl)   dateToEl.value   = "";
         resetPagination();
