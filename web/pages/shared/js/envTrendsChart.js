@@ -119,7 +119,9 @@ async function fetchEnvTrends(paramKey, rangeKey, cycleStartMs) {
     const now = Date.now();
     const cutoff = now - ENV_RANGE_CONFIG[rangeKey].ms;
     const readings = await getReadingsInRangeCaughtUp(cycleStartMs, cutoff, now);
-    return bucketReadings(readings, paramKey, rangeKey, cutoff, now);
+    // Synthetic test readings never feed the trend line; only their count is reported.
+    const live = readings.filter((reading) => !reading.isSynthetic);
+    return { points: bucketReadings(live, paramKey, rangeKey, cutoff, now), syntheticHidden: readings.length - live.length };
 }
 
 // ── Chart ────────────────────────────────────────────────────────────────────
@@ -172,7 +174,7 @@ export async function refreshEnvTrendsChart(chart, paramKey, rangeKey, cycleStar
     const config = ENV_PARAM_CONFIG[paramKey] || ENV_PARAM_CONFIG.ph;
 
     try {
-        const points = await fetchEnvTrends(paramKey, rangeKey, cycleStartMs);
+        const { points, syntheticHidden } = await fetchEnvTrends(paramKey, rangeKey, cycleStartMs);
         const labels = points.map((point) => point.label);
         const values = points.map((point) => point.value);
         const fallback = envFallbackRange(paramKey, config);
@@ -185,6 +187,12 @@ export async function refreshEnvTrendsChart(chart, paramKey, rangeKey, cycleStar
         chart.data.datasets[0].backgroundColor = config.color + "1a";
         chart.options.scales.y.min = range.min;
         chart.options.scales.y.max = range.max;
+        chart.options.plugins.subtitle = {
+            display: syntheticHidden > 0,
+            text: `${syntheticHidden.toLocaleString("en-PH")} synthetic test readings hidden`,
+            color: "#6b7280",
+            font: { size: 11 }
+        };
         chart.update();
     } catch (err) {
         console.warn("envTrendsChart: unable to load environmental trends:", err);

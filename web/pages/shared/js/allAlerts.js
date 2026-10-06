@@ -196,7 +196,8 @@ async function loadReadingsIndex() {
     const cycleStartMs = await loadCycleStartMs();
     const sinceMs = cycleStartMs ?? (Date.now() - READINGS_FALLBACK_LOOKBACK_MS);
     const readings = await getReadingsInRange(cycleStartMs, sinceMs, Date.now());
-    return buildSeriesIndex(readings);
+    // Sparklines show real pond conditions only, never synthetic test readings.
+    return buildSeriesIndex(readings.filter((r) => !r.isSynthetic));
 }
 
 function buildSeriesIndex(readings) {
