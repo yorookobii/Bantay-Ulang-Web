@@ -18,6 +18,7 @@ import { loadThresholds } from "./thresholds.js";
 import { sanitizeReading } from "./plausibility.js";
 import { computeRowStatus, STATUS_PARAMS } from "./readingStatus.js";
 import { calcYield } from "./yieldPrediction.js";
+import { yieldWaterNote } from "./yieldLabels.js";
 import { loadMortalityRecords, bucketDeathsByWeek } from "./mortalityChart.js";
 import { loadWeightsByWeek } from "./avgWeightChart.js";
 import { normalizeStatus } from "./taskStatus.js";
@@ -393,8 +394,7 @@ function gatherYield({ growth, warnings }) {
     }
     // wqScore only feeds the separate Efficiency Score, not yield, so it isn't needed here.
     const result = calcYield(growth, null);
-    // live | synthetic | mixed, written by predict_yield.py alongside the prediction.
-    const waterSource = result.rfAvailable ? (growth.rfWaterSource ?? null) : null;
+    const waterNote = yieldWaterNote(result.rfMode, result.rfWaterSource);
     if (!result.eligible) {
         warnings.push({
             code: "yield-locked",
@@ -406,11 +406,8 @@ function gatherYield({ growth, warnings }) {
         warnings.push({ code: "yield-processing", message: "The cycle is eligible, but the yield model hasn't produced a prediction yet." });
     } else if (result.rfMode === "test") {
         warnings.push({ code: "yield-test-mode", message: "The yield prediction was generated in test mode and does not reflect real farm data." });
-    } else if (waterSource === "synthetic" || waterSource === "mixed") {
-        warnings.push({ code: "yield-synthetic-water", message: `This cycle's yield estimate used ${waterSource === "mixed" ? "partly " : ""}synthetic water data.` });
-    } else if (!waterSource) {
-        // Until predict_yield.py writes rfWaterSource, its only water data this cycle is the synthetic backfill.
-        warnings.push({ code: "yield-synthetic-water", message: "This cycle's yield estimate used synthetic water data (Jul 13 - Aug 9 backfill)." });
+    } else if (waterNote) {
+        warnings.push({ code: "yield-synthetic-water", message: waterNote });
     }
     return {
         eligible: result.eligible,
@@ -420,7 +417,7 @@ function gatherYield({ growth, warnings }) {
         revenueAvg: result.incomeAvg,
         revenueMax: result.incomeMax,
         rfMode: result.rfMode,
-        rfWaterSource: waterSource,
+        rfWaterSource: result.rfWaterSource,
         rfNote: result.rfNote,
         rfReadingsUsed: result.rfReadingsUsed,
         rfUpdatedAtMs: toMs(result.rfUpdatedAt),

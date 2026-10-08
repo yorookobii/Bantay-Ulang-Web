@@ -1,4 +1,5 @@
 import { isOverdue } from "./taskStatus.js";
+import { modelModeLabel } from "./yieldLabels.js";
 
 // CSV export for gatherReport() output: pure builders plus one browser download helper.
 // The plain-language labels and number formats are exported so the printed report reads the same.
@@ -20,9 +21,6 @@ export const READING_FIELDS = {
 
 export const STATUS_LABELS = { "normal": "Normal", "out-of-range": "Out of Range", "suspect": "Suspect", "incomplete": "Incomplete", "no-data": "No Data" };
 export const TASK_STATUS_LABELS = { "pending": "Pending", "in-progress": "In Progress", "completed": "Completed" };
-// predict_yield.py rfMode only says where the weight came from; the water source is rfWaterSource, labelled separately.
-const MODEL_MODE_LABELS = { real: "Measured weight", hybrid: "Assumed weight", test: "Test mode" };
-const WATER_SOURCE_LABELS = { live: "live sensor water data", synthetic: "synthetic water data", mixed: "live and synthetic water data" };
 const ALERT_TYPE_LABELS = { out_of_range: "Out of Range", critical_out_of_range: "Critical Out of Range", hardware_offline: "Sensor Offline" };
 // Live alert docs use thresholds.js keys (phLevel), so both spellings are listed.
 const ALERT_PARAM_FIELD = { phLevel: "ph", ph: "ph", waterTemp: "waterTemp", dissolvedOxygen: "dissolvedOxygen", salinity: "salinity", turbidity: "turbidity", tds: "tds" };
@@ -79,11 +77,8 @@ export const readingHeader = (field) => READING_FIELDS[field].label + (READING_F
 export const alertParamLabel = (param) => READING_FIELDS[ALERT_PARAM_FIELD[param]]?.label || ALERT_PARAM_LABELS[param] || param;
 export const alertTypeLabel = (type) => ALERT_TYPE_LABELS[type] || type;
 export const capitalize = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : "");
-export const modelModeLabel = (mode, waterSource) => {
-    const label = MODEL_MODE_LABELS[mode] || capitalize(mode);
-    const water = mode === "test" ? null : WATER_SOURCE_LABELS[waterSource];
-    return water ? `${label}, ${water}` : label;
-};
+// Re-exported so the print view keeps importing every label from this module.
+export { modelModeLabel };
 
 // Last value of an alert group in its reading's units; water level is Safe/Unsafe and hardware stays as stored text.
 export function alertValueText(group) {

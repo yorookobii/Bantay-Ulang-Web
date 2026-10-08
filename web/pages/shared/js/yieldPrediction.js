@@ -10,6 +10,7 @@ import {
 import { loadThresholds } from "./thresholds.js";
 import { SENSOR_KEYS, scoreParam, calcWaterQualityScore } from "./waterQualityScore.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
+import { modelModeLabel, yieldWaterNote } from "./yieldLabels.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
 //  Yield (kg)   = RF-projected harvest weight × survival (from mortality_records) × initialStock
@@ -68,6 +69,8 @@ export function calcYield(growthData, wqScore) {
         incomeMax,
         rfAvailable,
         rfMode: rfAvailable ? (growthData.rfMode ?? null) : null,
+        // live | synthetic | mixed, written by predict_yield.py alongside the prediction.
+        rfWaterSource: rfAvailable ? (growthData.rfWaterSource ?? null) : null,
         rfNote: rfAvailable ? (growthData.rfNote ?? "") : "",
         rfReadingsUsed: rfAvailable && Number.isFinite(Number(growthData.rfReadingsUsed))
             ? Number(growthData.rfReadingsUsed) : null,
@@ -75,11 +78,11 @@ export function calcYield(growthData, wqScore) {
     };
 }
 
-const RF_MODE_LABELS = {
-    hybrid: "RF Prediction — Hybrid",
-    real:   "RF Prediction — Real",
-    test:   "RF Prediction — Test"
-};
+// Same label as the report ("Assumed weight, live sensor water data"), so no page calls synthetic data "Real".
+function rfModeText(result) {
+    const label = modelModeLabel(result.rfMode, result.rfWaterSource);
+    return label ? "RF Prediction — " + label : "RF Prediction";
+}
 
 // ─── Formatting ────────────────────────────────────────────────────────────────
 function fmt(n, d = 1) {
@@ -144,17 +147,22 @@ function updateUI(result, cycleData, sensorData) {
         setEl("predictedYieldConfidence", pendingMsg);
     } else if (result.rfAvailable) {
         // State (b): eligible AND RF has produced a usable prediction.
+        const liveWater = result.rfWaterSource === "live";
+        const waterNote = yieldWaterNote(result.rfMode, result.rfWaterSource);
         setEl("yp-yield-big", fmt(result.adjustedYield, 1) + " kg");
-        setEl("yp-yield-sub", "Random Forest projection from live sensor data");
+        setEl("yp-yield-sub", liveWater ? "Random Forest projection from live sensor data" : "Random Forest projection");
 
         const modeBadge = document.getElementById("yp-rf-mode-badge");
         if (modeBadge) {
-            modeBadge.textContent = RF_MODE_LABELS[result.rfMode] || "RF Prediction";
-            modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (result.rfMode || "unknown");
+            modeBadge.textContent = rfModeText(result);
+            // Green (is-real) only when the water data is live too; unverified water gets the neutral style.
+            const tone = result.rfMode === "test" || liveWater ? result.rfMode : "unverified";
+            modeBadge.className   = "yp-rf-mode-badge is-rf is-" + (tone || "unknown");
         }
-        setEl("yp-rf-note", result.rfNote);
+        // The script's older notes claim real water data, so the synthetic note replaces them.
+        setEl("yp-rf-note", waterNote || result.rfNote);
         setEl("yp-rf-readings", result.rfReadingsUsed != null
-            ? "Based on " + result.rfReadingsUsed.toLocaleString("en-PH") + " sensor readings"
+            ? "Based on " + result.rfReadingsUsed.toLocaleString("en-PH") + " water readings"
             : "");
         const rfUpdatedDate = toDateValue(result.rfUpdatedAt);
         setEl("yp-rf-updated", rfUpdatedDate
@@ -166,7 +174,7 @@ function updateUI(result, cycleData, sensorData) {
         setEl("yp-income-max", fmtPeso(result.incomeMax));
 
         setEl("predictedYieldValue", fmt(result.adjustedYield, 1) + " kg");
-        setEl("predictedYieldConfidence", RF_MODE_LABELS[result.rfMode] || "RF Prediction");
+        setEl("predictedYieldConfidence", rfModeText(result));
     } else {
         // State (c): eligible, but RF hasn't produced a usable prediction for
         // this cycle yet. Distinct from (a) — this is an operational wait
