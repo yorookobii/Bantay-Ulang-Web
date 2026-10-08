@@ -23,7 +23,7 @@ import { loadMortalityRecords, bucketDeathsByWeek } from "./mortalityChart.js";
 import { loadWeightsByWeek } from "./avgWeightChart.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { normalizeLogData, getTextField, toDateValue, LOG_ACTOR_KEYS } from "./logEntry.js";
-import { groupAlerts, flagWeights, buildSummary, median } from "./reportCleanup.js";
+import { groupAlerts, flagWeights, buildSummary, median, confirmedAlive } from "./reportCleanup.js";
 
 // Report data layer: gathers every section from existing read paths, no UI.
 
@@ -382,7 +382,7 @@ async function gatherMortalityGrowth({ sinceMs, untilMs, growth, now, warnings }
             totalDeaths,
             survivalPct,
             mortalityPct: survivalPct === null ? null : 100 - survivalPct,
-            confirmedAlive: hasStock ? Math.max(0, Math.round(initialStock - totalDeaths)) : null
+            confirmedAlive: confirmedAlive(initialStock, totalDeaths)
         }
     };
 }

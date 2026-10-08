@@ -307,6 +307,36 @@ main {
 }
 .fr-btn-icon:hover { background: #fecaca; }
 
+/* ── Recommended feed amount (feedRecommendationPanel.js) ───────────────── */
+
+.feed-rec {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+.feed-rec:empty { display: none; }
+.feed-rec p { margin: 0; }
+.feed-rec-head { font-size: 14px; font-weight: 600; color: #111827; }
+.feed-rec-body { font-size: 13px; color: #6b7280; }
+.feed-rec-math { font-size: 13px; color: #374151; font-variant-numeric: tabular-nums; }
+.feed-rec-meta, .feed-rec-fine { font-size: 12px; color: #6b7280; }
+.feed-rec-fine { margin-top: 4px; }
+.feed-rec-warn {
+    margin-top: 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 12px;
+}
+.feed-rec-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.feed-rec-status { font-size: 12px; color: #047857; }
+
 /* ── Status / feedback ───────────────────────────────────────────────────── */
 
 .fr-feedback {

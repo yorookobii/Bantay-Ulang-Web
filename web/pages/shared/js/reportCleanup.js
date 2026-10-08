@@ -48,6 +48,12 @@ export function groupAlerts(alerts) {
         .sort((a, b) => (b.lastMs ?? 0) - (a.lastMs ?? 0));
 }
 
+// Confirmed alive = initial stock minus every logged death (clamped at 0), or null without a stock count.
+export function confirmedAlive(initialStock, totalDeaths) {
+    const stock = Number(initialStock);
+    return Number.isFinite(stock) && stock > 0 ? Math.max(0, Math.round(stock - totalDeaths)) : null;
+}
+
 // Giant freshwater prawn growth is heterogeneous (fast "bull" males vs. runts), so these are loose sanity caps whose numbers need adviser confirmation.
 export const WEIGHT_CAP_BASE_G = 5;
 export const WEIGHT_CAP_PER_WEEK_G = 5;
