@@ -468,7 +468,6 @@ function setupTopbarSidebar() {
     const overlay  = document.getElementById("sidebarOverlay");
     const menuBtn  = document.getElementById("topbarMenuBtn");
     const appEl    = document.querySelector(".app");
-    const toggleBtn = document.getElementById("sidebarToggleBtn");
 
     menuBtn?.addEventListener("click", () => {
         sidebar?.classList.add("open");
@@ -481,7 +480,7 @@ function setupTopbarSidebar() {
         overlay?.setAttribute("aria-hidden", "true");
     });
 
-    // Sidebar collapse/toggle, persistence and click-to-collapse.
+    // Sidebar: mobile drawer close button and Esc.
     initSidebar();
 }
 

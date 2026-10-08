@@ -507,5 +507,5 @@ init();
     }
 })();
 
-// ── Sidebar collapse/toggle, persistence and click-to-collapse ───────────────
+// ── Sidebar: mobile drawer close button and Esc ───────────────
 initSidebar();
