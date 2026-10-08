@@ -48,6 +48,11 @@ DAILY_CACHE_FILE = "daily_averages_cache.json"  # per-day aggregate cache (gitig
 ESTIMATED_READS_PER_DAY = 720  # rough estimate for the guardrail PRE-check only —
                                 # correct against actual live daily doc counts;
                                 # post-fetch counter update always uses the real count.
+INCLUDE_SYNTHETIC = False  # isSynthetic: true docs (hal. ESP32_SYNTHETIC_BACKFILL) never feed the model unless True
+CACHE_VERSION = 2  # v2: hiwalay ang bilang ng synthetic; ibang version = clear ang buong daily cache
+# HistoryLogs day folders are named by the ESP32's local (PHT) date: reading_365 on Oct 6
+# has time "18:12:25" while measuredAt is 10:12:25 UTC, so every day walk uses PHT dates.
+PHT = timezone(timedelta(hours=8))
 GRACE_DAYS = 2  # old empty days (older than today - GRACE_DAYS) are marked
                 # "confirmed empty" and stop being retried; the last GRACE_DAYS
                 # days are excluded from the completeness requirement entirely
@@ -176,9 +181,13 @@ def reconcile_daily_cache(cache, cycle_start):
     cycle) — invalid na ang mga naka-cache na araw. Mirrors
     readingsService.js's reconcileCycleStart()."""
     cycle_start_iso = cycle_start.isoformat()
-    if cache.get("cycleStart") != cycle_start_iso:
-        return {"cycleStart": cycle_start_iso, "days": {}}
+    if cache.get("cycleStart") != cycle_start_iso or cache.get("version") != CACHE_VERSION:
+        return {"version": CACHE_VERSION, "cycleStart": cycle_start_iso, "days": {}}
     return cache
+
+def ph_date(ts):
+    """Petsa sa PHT ng isang aware datetime — ito ang pangalan ng day folder."""
+    return ts.astimezone(PHT).date()
 
 def get_missing_dates(cache, start_date, today):
     """Mga petsa mula start_date hanggang KAHAPON (hindi kasama si today,
@@ -197,7 +206,9 @@ def fetch_day_readings(db, year, month, day):
     HistoryLogs/Ulang/years/reading_YYYY/reading_MM/reading_DD/readings
     (zero-padded ang month/day segments — verified sa Firestore console).
 
-    Nagbabalik: (day_avgs dict {feat: float|None}, usable_n, docs_streamed)
+    Docs na isSynthetic: true ay nilalaktawan maliban kung INCLUDE_SYNTHETIC.
+
+    Nagbabalik: (day_avgs dict {feat: float|None}, usable_n, docs_streamed, synthetic_used)
     """
     coll = (
         db.collection("HistoryLogs").document("Ulang")
@@ -209,8 +220,12 @@ def fetch_day_readings(db, year, month, day):
 
     collected = {k: [] for k in STAT_MAP}
     usable_n = 0
+    synthetic_used = 0
     for doc in docs:
         data = doc.to_dict()
+        is_synthetic = data.get("isSynthetic") is True
+        if is_synthetic and not INCLUDE_SYNTHETIC:
+            continue
         stats = data.get("statistics", {})
         if not stats:
             continue
@@ -223,9 +238,10 @@ def fetch_day_readings(db, year, month, day):
                 got = True
         if got:
             usable_n += 1
+            synthetic_used += is_synthetic
 
     day_avgs = {feat: (float(np.mean(vals)) if vals else None) for feat, vals in collected.items()}
-    return day_avgs, usable_n, len(docs)
+    return day_avgs, usable_n, len(docs), synthetic_used
 
 def backfill_missing_days(db, daily_cache, missing_dates, budget_remaining, grace_cutoff):
     """
@@ -255,11 +271,12 @@ def backfill_missing_days(db, daily_cache, missing_dates, budget_remaining, grac
         if reads_used + ESTIMATED_READS_PER_DAY > budget_remaining:
             break  # pre-check: don't start a day likely to overshoot
 
-        day_avgs, n, docs_streamed = fetch_day_readings(db, d.year, d.month, d.day)
+        day_avgs, n, docs_streamed, n_synthetic = fetch_day_readings(db, d.year, d.month, d.day)
         reads_used += docs_streamed
         if n > 0:
             entry = dict(day_avgs)
             entry["n"] = n
+            entry["n_synthetic"] = n_synthetic
             daily_cache["days"][d.isoformat()] = entry
         elif d < grace_cutoff:
             # genuinely empty, past the grace window — mark done, never retry
@@ -283,14 +300,16 @@ def fetch_today_and_average(db, daily_cache, today):
     ngayong araw — then computes the READING-COUNT-WEIGHTED whole-cycle
     average across all cached days + today.
 
-    Nagbabalik: (water_dict, total_readings_used, actual_reads)
+    Nagbabalik: (water_dict, total_readings_used, actual_reads, provenance)
+    provenance = {"source": live|synthetic|mixed, "from": "YYYY-MM-DD", "to": "YYYY-MM-DD"} o None
     """
-    today_avgs, today_n, actual_reads = fetch_day_readings(db, today.year, today.month, today.day)
+    today_avgs, today_n, actual_reads, today_synthetic = fetch_day_readings(db, today.year, today.month, today.day)
     print(f"[INFO] {today.isoformat()} (today, hindi kino-cache): {today_n} usable readings ({actual_reads} read)")
 
-    all_days = list(daily_cache["days"].values())
+    dated_days = dict(daily_cache["days"])
     if today_n > 0:
-        all_days.append(dict(today_avgs, n=today_n))
+        dated_days[today.isoformat()] = dict(today_avgs, n=today_n, n_synthetic=today_synthetic)
+    all_days = list(dated_days.values())
 
     water = {}
     for feat in STAT_MAP:
@@ -307,12 +326,19 @@ def fetch_today_and_average(db, daily_cache, today):
     total_n = sum(day.get("n", 0) for day in all_days)
     if total_n == 0:
         print("[WARN] Walang usable readings sa buong cycle range — test-mode fallback")
-        return None, 0, actual_reads
+        return None, 0, actual_reads, None
 
     data_days = sum(1 for day in all_days if day.get("n", 0) > 0)
     empty_days = len(all_days) - data_days
     print(f"[OK] Na-aggregate: {total_n} readings sa {data_days} data days ({len(all_days)} sa range, {empty_days} empty) — weighted by n")
-    return water, total_n, actual_reads
+
+    # Saan galing ang water data: para sa honest na label sa web (rfWaterSource).
+    synthetic_n = sum(day.get("n_synthetic", 0) for day in all_days)
+    source = "live" if synthetic_n == 0 else "synthetic" if synthetic_n == total_n else "mixed"
+    data_dates = sorted(date for date, day in dated_days.items() if day.get("n", 0) > 0)
+    provenance = {"source": source, "from": data_dates[0], "to": data_dates[-1]}
+    print(f"[OK] Water source: {source} ({synthetic_n} synthetic), {provenance['from']} hanggang {provenance['to']}")
+    return water, total_n, actual_reads, provenance
 
 # ============================================================
 # 3. ASSUMED VALUES (HYBRID MODE)
@@ -427,17 +453,23 @@ def compute_yield(gi_doc, gi, harvest_weight, total_deaths):
 # ============================================================
 # 6. ISULAT PABALIK SA FIRESTORE
 # ============================================================
-def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note):
+WATER_SOURCE_TEXT = {"live": "live sensor", "synthetic": "synthetic", "mixed": "live + synthetic"}
+
+def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance):
+    water = WATER_SOURCE_TEXT.get(provenance["source"]) if provenance else None
     notes = {
         "test": "Test-mode: assumed optimal conditions (walang readings pa)",
-        "hybrid": "Hybrid: real water params, assumed biomass/feed",
-        "real": "Real water + real biomass weight; feed via optimal-rate curve",
+        "hybrid": f"Hybrid: {water} water params, assumed biomass/feed",
+        "real": f"Real biomass weight + {water} water params; feed via optimal-rate curve",
     }
     payload = {
         "rfProjectedWeight": round(harvest_weight, 2),
         "rfProjectedYield": round(yield_kg, 3),
         "rfMode": mode,
         "rfReadingsUsed": n_readings,
+        "rfWaterSource": provenance["source"] if provenance else None,
+        "rfWaterFrom": provenance["from"] if provenance else None,
+        "rfWaterTo": provenance["to"] if provenance else None,
         "rfUpdatedAt": firestore.SERVER_TIMESTAMP,
         "rfNote": notes.get(mode, "Unknown mode") + " " + survival_note,
         "rfPending": False,
@@ -506,8 +538,9 @@ def main():
     # check. ---
     daily_cache = load_daily_cache()
     daily_cache = reconcile_daily_cache(daily_cache, cycle_start)
-    today = datetime.now(timezone.utc).date()
-    missing_dates = get_missing_dates(daily_cache, cycle_start.date(), today)
+    today = ph_date(datetime.now(timezone.utc))
+    cycle_start_day = ph_date(cycle_start)
+    missing_dates = get_missing_dates(daily_cache, cycle_start_day, today)
     grace_cutoff = today - timedelta(days=GRACE_DAYS)
 
     # --- AUTO-CAPPED BACKFILL (no prompt) — spreads a large initial
@@ -533,9 +566,9 @@ def main():
     # on purpose — they're allowed to still be pending delayed uploads
     # without blocking prediction indefinitely. Partial state is fine; the
     # prediction just waits on the OLD days, not the recent grace window. ---
-    remaining_missing = get_missing_dates(daily_cache, cycle_start.date(), grace_cutoff)
+    remaining_missing = get_missing_dates(daily_cache, cycle_start_day, grace_cutoff)
     if remaining_missing:
-        total_days_in_range = (grace_cutoff - cycle_start.date()).days
+        total_days_in_range = (grace_cutoff - cycle_start_day).days
         cached_days = total_days_in_range - len(remaining_missing)
         gi_doc.reference.update({
             "rfPending": True,
@@ -558,7 +591,7 @@ def main():
     print(f"[OK] Na-load ang model: {MODEL_FILE}")
 
     # Kunin ang water data — backfill complete, fetch today + weighted average
-    water, n_readings, actual_reads = fetch_today_and_average(db, daily_cache, today)
+    water, n_readings, actual_reads, provenance = fetch_today_and_average(db, daily_cache, today)
 
     # Totoong biomass weight mula ulang_growth_records (maliit na manual-log
     # collection, tulad ng mortality_records). Fetched DITO — pagkatapos ng
@@ -579,6 +612,7 @@ def main():
         water = get_optimal_fallback()
         mode = "test"
         n_readings = 0
+        provenance = None
         start_weight, start_week = ASSUMED_START_WEIGHT, 1
     else:
         use_real_weight = (real_weight is not None) and not HYBRID_MODE
@@ -588,7 +622,7 @@ def main():
         else:
             start_weight, start_week = ASSUMED_START_WEIGHT, 1
             mode = "hybrid"
-        print(f"[MODE] {mode.upper()} — totoong water params, "
+        print(f"[MODE] {mode.upper()} — {provenance['source']} water params, "
               + ("totoong weight" if use_real_weight else "assumed weight"))
         print(f"       Water: temp={water['avgWaterTemp']:.1f} pH={water['avgPh']:.2f} "
               f"DO={water['avgDissolvedOxygen']:.1f} tds={water['avgTds']:.0f} "
@@ -607,7 +641,7 @@ def main():
     print(f"[OK] YIELD = {stock} x {survival:.1f}% x {harvest_weight:.1f}g / 1000 = {yield_kg:.2f} kg")
 
     # Isulat pabalik
-    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note)
+    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance)
 
     print("=" * 55)
     print("TAPOS — prediction nasa Firestore growth_indicators")
