@@ -37,7 +37,7 @@
                         });
                     }
 
-                    /* Mobile drawer close button and Esc are wired by shared/js/sidebar.js (initSidebar). */
+                    /* Sidebar collapse/toggle is wired by shared/js/sidebar.js (initSidebar). */
                 }
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', init);

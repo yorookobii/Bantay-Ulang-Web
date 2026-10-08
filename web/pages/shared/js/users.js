@@ -29,7 +29,7 @@ window.toggleNotification = function () {
     });
 })();
 
-// ── Sidebar: mobile drawer close button and Esc ────────────
+// ── Sidebar collapse/toggle, persistence and click-to-collapse ────────────
 initSidebar();
 
 // ── Close dropdowns when clicking outside ─────────────────────────────────

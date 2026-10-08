@@ -11,6 +11,7 @@
         <link rel="stylesheet" href="css/environmental-trends.css">
         <link rel="stylesheet" href="css/profileMenu.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+        <script>try{if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sidebar-init-collapsed')}catch(e){}</script>
     </head>
     <body>
         <div class="app">
@@ -21,7 +22,7 @@
                             <img src="../../assets/img/logo-one.png" alt="Bantay Ulang" class="logo-img">
                         </div>
                         <span class="logo-text">Bantay Ulang</span>
-                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Close menu"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                        <button type="button" class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
                     </div>
                 </div>
                 <ul class="sidebar-menu">

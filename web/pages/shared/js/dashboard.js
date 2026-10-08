@@ -612,7 +612,7 @@ async function loadMortalityStat() {
             });
         }
 
-        /* Sidebar: mobile drawer close button and Esc. */
+        /* Sidebar collapse/toggle, persistence and click-to-collapse. */
         initSidebar();
 
         /* Generate Report modal: range, sections, CSV downloads (reportModal.js). */

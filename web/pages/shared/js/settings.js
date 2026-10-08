@@ -254,5 +254,5 @@ onAuthStateChanged(auth, (user) => {
     }
 })();
 
-// ── Sidebar: mobile drawer close button and Esc ───────────────
+// ── Sidebar collapse/toggle, persistence and click-to-collapse ───────────────
 initSidebar();

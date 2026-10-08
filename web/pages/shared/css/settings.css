@@ -1,6 +1,7 @@
         
 :root {
     --sidebar-width: 260px;
+    --sidebar-collapsed-width: 72px;
     --topbar-height: 72px;
     --color-active-emerald: #10b981;
 }
@@ -127,10 +128,8 @@
 .sidebar .logo-droplets .logo-img { display: block; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 .sidebar .logo-text { color: #ecf0f1; font-size: 18px; font-weight: 600; flex: 1; }
 .sidebar .preview-badge { background: #e5e7eb; color: #374151; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
-.sidebar .sidebar-toggle { display: none; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 12px; }
+.sidebar .sidebar-toggle { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 12px; }
 .sidebar .sidebar-toggle:hover { color: #ecf0f1; }
-/* Close button for the mobile drawer only; desktop has no sidebar toggle. */
-@media (max-width: 768px) { .sidebar .sidebar-toggle { display: inline-flex; margin-left: auto; padding: 8px; font-size: 18px; } }
 .sidebar .sidebar-menu { list-style: none; }
 .sidebar .sidebar-menu li { margin: 0; }
 .sidebar .sidebar-menu a {
@@ -207,6 +206,59 @@
 .topbar .profile-menu-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #666; cursor: pointer; transition: all 0.3s ease; }
 .topbar .profile-menu-item:last-child { border-bottom: none; }
 .topbar .profile-menu-item:hover { background-color: #f9f9f9; color: #3498db; }
+
+/* Desktop: collapsed sidebar (icon-only) */
+@media (min-width: 769px) {
+    .sidebar.collapsed {
+        width: var(--sidebar-collapsed-width);
+    }
+    .sidebar.collapsed .logo-text,
+    .sidebar.collapsed .sidebar-menu span,
+    .sidebar.collapsed .menu-badge,
+    .sidebar.collapsed .user-info,
+    .sidebar.collapsed .sidebar-logout-btn span {
+        display: none;
+    }
+    .sidebar.collapsed .logo-row { justify-content: center; flex-wrap: nowrap; gap: 4px; }
+    .sidebar.collapsed .sidebar-toggle { margin-left: auto; }
+    .sidebar.collapsed .sidebar-toggle i { transform: rotate(180deg); }
+    .sidebar.collapsed .sidebar-menu a { justify-content: center; padding: 15px; }
+    .sidebar.collapsed .sidebar-menu a i { margin-right: 0; }
+    .sidebar.collapsed .user-profile { justify-content: center; }
+    .sidebar.collapsed .sidebar-logout-btn { justify-content: center; padding: 15px; }
+    .sidebar.collapsed .sidebar-logout-btn i { margin-right: 0; }
+    .app.sidebar-collapsed .topbar { left: var(--sidebar-collapsed-width); }
+    .app.sidebar-collapsed .content,
+    .app.sidebar-collapsed main { margin-left: var(--sidebar-collapsed-width); }
+}
+
+/* No-flash restore: head script sets html.sidebar-init-collapsed before first
+   paint; initSidebar() removes it once the real classes apply. */
+@media (min-width: 769px) {
+    html.sidebar-init-collapsed .sidebar { width: var(--sidebar-collapsed-width); }
+    html.sidebar-init-collapsed .sidebar .logo-text,
+    html.sidebar-init-collapsed .sidebar .sidebar-menu span,
+    html.sidebar-init-collapsed .sidebar .menu-badge,
+    html.sidebar-init-collapsed .sidebar .user-info { display: none; }
+    html.sidebar-init-collapsed .topbar { left: var(--sidebar-collapsed-width); }
+    html.sidebar-init-collapsed .content,
+    html.sidebar-init-collapsed main { margin-left: var(--sidebar-collapsed-width); }
+    /* Pre-apply the collapsed logo-row layout so the arrow does not wrap below
+       the logo then snap back (a reflow jump, not a transition). */
+    html.sidebar-init-collapsed .sidebar .logo-row { justify-content: center; flex-wrap: nowrap; gap: 4px; }
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle { margin-left: auto; }
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle i { transform: rotate(180deg); }
+    html.sidebar-init-collapsed .sidebar,
+    html.sidebar-init-collapsed .topbar,
+    html.sidebar-init-collapsed .content,
+    html.sidebar-init-collapsed main,
+    html.sidebar-init-collapsed .sidebar .sidebar-menu a,
+    html.sidebar-init-collapsed .sidebar .sidebar-menu a i,
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle,
+    html.sidebar-init-collapsed .sidebar .sidebar-toggle i,
+    html.sidebar-init-collapsed .sidebar .logo-row,
+    html.sidebar-init-collapsed .sidebar .user-profile { transition: none !important; }
+}
 
 /* Main content styles. change here*/
 main {

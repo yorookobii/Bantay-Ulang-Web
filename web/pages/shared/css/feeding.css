@@ -1,5 +1,6 @@
 :root {
     --sidebar-width: 260px;
+    --sidebar-collapsed-width: 72px;
     --topbar-height: 72px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -98,10 +99,8 @@ main {
 .sidebar .logo-droplets { display: flex; align-items: center; line-height: 1; }
 .sidebar .logo-droplets .logo-img { display: block; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 .sidebar .logo-text { color: #ecf0f1; font-size: 18px; font-weight: 600; flex: 1; }
-.sidebar .sidebar-toggle { display: none; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 12px; }
+.sidebar .sidebar-toggle { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 12px; }
 .sidebar .sidebar-toggle:hover { color: #ecf0f1; }
-/* Close button for the mobile drawer only; desktop has no sidebar toggle. */
-@media (max-width: 768px) { .sidebar .sidebar-toggle { display: inline-flex; margin-left: auto; padding: 8px; font-size: 18px; } }
 .sidebar .sidebar-menu { list-style: none; }
 .sidebar .sidebar-menu li { margin: 0; }
 .sidebar .sidebar-menu a {
@@ -162,6 +161,21 @@ main {
 .topbar .profile-menu-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #666; cursor: pointer; transition: all 0.3s ease; }
 .topbar .profile-menu-item:last-child { border-bottom: none; }
 .topbar .profile-menu-item:hover { background-color: #f9f9f9; color: #3498db; }
+
+@media (min-width: 769px) {
+    .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+    .sidebar.collapsed .logo-text,
+    .sidebar.collapsed .sidebar-menu span,
+    .sidebar.collapsed .user-info { display: none; }
+    .sidebar.collapsed .logo-row { justify-content: center; flex-wrap: nowrap; gap: 4px; }
+    .sidebar.collapsed .sidebar-toggle { margin-left: auto; }
+    .sidebar.collapsed .sidebar-toggle i { transform: rotate(180deg); }
+    .sidebar.collapsed .sidebar-menu a { justify-content: center; padding: 15px; }
+    .sidebar.collapsed .sidebar-menu a i { margin-right: 0; }
+    .sidebar.collapsed .user-profile { justify-content: center; }
+    .app.sidebar-collapsed .topbar { left: var(--sidebar-collapsed-width); }
+    .app.sidebar-collapsed main { margin-left: var(--sidebar-collapsed-width); }
+}
 
 @media (max-width: 768px) {
     .topbar { padding: 0 12px 0 16px; gap: 12px; }
