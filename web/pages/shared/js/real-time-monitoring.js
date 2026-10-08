@@ -8,21 +8,12 @@
                         var open = dropdown.classList.toggle('show');
                         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
                     }
-                    function activateOnKey(el, handler) {
-                        el.addEventListener('keydown', function(e) {
-                            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                                e.preventDefault();
-                                handler(e);
-                            }
-                        });
-                    }
                     if (notifBtn && notifDropdown) {
                         var onNotifToggle = function(e) {
                             e.stopPropagation();
                             toggleDropdown(notifBtn, notifDropdown);
                         };
                         notifBtn.addEventListener('click', onNotifToggle);
-                        activateOnKey(notifBtn, onNotifToggle);
                     }
                     document.addEventListener('click', function(e) {
                         if (container.contains(e.target)) return;

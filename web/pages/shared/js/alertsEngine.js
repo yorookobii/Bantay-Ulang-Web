@@ -11,6 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadThresholds, getRanges, refreshThresholds, computeSeverity } from "./thresholds.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
+import { invalidate as invalidateAlertState } from "./alertState.js";
 
 /*
  * Firestore — alerts collection
@@ -290,10 +291,12 @@ async function handleWaterLevel(value, deviceId) {
                 deviceId
             });
             await autoCreateTask("waterLevel", severity, false);
+            return true;
         }
     } else if (existing) {
         // Water level returned to safe — resolve the alert.
         await resolveAlert(existing.ref, value);
+        return true;
     }
 }
 
@@ -328,10 +331,12 @@ async function handleParameter(param, value, deviceId) {
             });
             // Auto-create a matching task for this new alert.
             await autoCreateTask(param, severity, aboveMax);
+            return true;
         }
     } else if (existing) {
         // Parameter returned to safe range — resolve the alert.
         await resolveAlert(existing.ref, value);
+        return true;
     }
 }
 
@@ -356,7 +361,8 @@ export async function processSensorReading(data) {
         .filter(param => param !== "waterLevel" && data[param] != null && Number.isFinite(Number(data[param])))
         .forEach(param => jobs.push(handleParameter(param, Number(data[param]), deviceId)));
 
-    await Promise.all(jobs);
+    // Each handler returns true when it created or resolved an alert, so the shared cache refetches.
+    if ((await Promise.all(jobs)).some(Boolean)) invalidateAlertState();
 }
 
 /**
@@ -365,7 +371,7 @@ export async function processSensorReading(data) {
  * Resolve-only re-check of every active alert against the CURRENT thresholds
  * and the latest known reading (the live Aquaponics/Ulang doc) — for the two
  * moments the live engine's sensor-reading-updated listener can't reach:
- * a threshold edit in Settings, and a Dashboard/bell load on a page that
+ * a threshold edit in Settings, and a Dashboard or All Alerts load on a page that
  * never ran the engine at all.
  *
  * Never creates a new alert and never touches a still-out-of-range alert —
@@ -403,16 +409,19 @@ export async function reevaluateActiveAlerts() {
         if (value == null) return; // no current reading for this parameter — leave it alone
 
         if (parameter === "waterLevel") {
-            if (isWaterLevelSafe(value)) await resolveAlert(alertDoc.ref, value);
-            return;
+            if (!isWaterLevelSafe(value)) return;
+            await resolveAlert(alertDoc.ref, value);
+            return true;
         }
 
         const numValue = Number(value);
-        if (!Number.isFinite(numValue)) return;
-        if (isInRange(parameter, numValue)) await resolveAlert(alertDoc.ref, numValue);
+        if (!Number.isFinite(numValue) || !isInRange(parameter, numValue)) return;
+        await resolveAlert(alertDoc.ref, numValue);
+        return true;
     });
 
-    await Promise.all(jobs);
+    // Invalidate once after the pass if anything resolved, so a 60 s cached list never shows it.
+    if ((await Promise.all(jobs)).some(Boolean)) invalidateAlertState();
 }
 
 /**

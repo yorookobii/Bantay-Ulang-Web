@@ -1,11 +1,5 @@
-import { db } from './firebase.js';
-import {
-    collection,
-    query,
-    where,
-    getDocs
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { reevaluateActiveAlerts } from './alertsEngine.js';
+import { getActiveAlerts } from './alertState.js';
 
 // localStorage analog of Flutter's SharedPreferences seen-notification set
 // (see notification_service.dart / landing_page.dart) — same key, same
@@ -64,24 +58,23 @@ export function formatRelativeTime(date) {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
-export async function fetchActiveAlerts() {
-    // Filters by status only (matches dashboard.js:232-239) so no composite
-    // Firestore index is required; sort/limit happen client-side instead.
-    // Capped at 15: both the bell dropdown and the "View All Alerts" page
-    // call this same function so their badge counts always match. If active
-    // alert volume grows past 15, this cap will need decoupling (e.g. a
-    // limit parameter) so "View All" can show everything without the bell
-    // undercounting - not needed at current alert volume.
-    await reevaluateActiveAlerts();
-    const snap = await getDocs(query(collection(db, 'alerts'), where('status', '==', 'active')));
-    return snap.docs
-        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+// Newest 15 active alerts; the bell and the "View All Alerts" page share this cap so their lists match.
+export function newestAlerts(alerts) {
+    return [...alerts]
         .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
         .slice(0, 15);
+}
+
+// "View All Alerts" only: resolves stale alerts first (reevaluate invalidates alertState when it writes).
+export async function fetchActiveAlerts() {
+    await reevaluateActiveAlerts();
+    return newestAlerts(await getActiveAlerts());
 }
 
 export function updateBadge(badgeEl, unseenCount) {
     if (!badgeEl) return;
     badgeEl.textContent = unseenCount > 9 ? '9+' : String(unseenCount);
     badgeEl.style.display = unseenCount > 0 ? 'inline-block' : 'none';
+    badgeEl.closest('.notification-icon')?.setAttribute('aria-label',
+        unseenCount > 0 ? `Notifications, ${unseenCount} unseen` : 'Notifications');
 }

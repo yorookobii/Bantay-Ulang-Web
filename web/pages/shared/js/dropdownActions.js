@@ -8,11 +8,12 @@ import {
 import {
     markSeen,
     computeUnseenCount,
-    fetchActiveAlerts,
+    newestAlerts,
     SEVERITY_ICON,
     formatRelativeTime,
     updateBadge
 } from './notificationsShared.js';
+import { getActiveAlerts, subscribe } from './alertState.js';
 import { initProfileMenu } from './profileMenu.js';
 
 const isOnTechnicianPage = window.location.pathname.includes('/technician/');
@@ -183,21 +184,47 @@ function renderNotifications(dropdownEl, alerts) {
     });
 }
 
-async function populateNotifications() {
+// Read-only: renders from the shared alertState cache and re-renders whenever it refreshes.
+function populateNotifications() {
     const notifDropdown = document.getElementById('notificationDropdown');
     if (!notifDropdown) return;
 
     const badgeEl = document.querySelector('.notification-badge');
+    const render = (all) => {
+        const alerts = newestAlerts(all);
+        renderNotifications(notifDropdown, alerts);
+        updateBadge(badgeEl, computeUnseenCount(alerts));
+    };
 
-    let alerts = [];
-    try {
-        alerts = await fetchActiveAlerts();
-    } catch (err) {
+    subscribe(render);
+    getActiveAlerts().catch((err) => {
         console.warn('Unable to load active alerts.', err);
-    }
+        render([]);
+    });
+}
 
-    renderNotifications(notifDropdown, alerts);
-    updateBadge(badgeEl, computeUnseenCount(alerts));
+// Bell keyboard support for every page, whichever script owns its click toggle.
+function initBellKeyboard() {
+    const bell = document.querySelector('.notification-icon');
+    const dropdown = document.getElementById('notificationDropdown');
+    if (!bell || !dropdown) return;
+
+    // aria-expanded follows the dropdown's .show class, whoever toggles it.
+    const sync = () => bell.setAttribute('aria-expanded', dropdown.classList.contains('show') ? 'true' : 'false');
+    new MutationObserver(sync).observe(dropdown, { attributes: true, attributeFilter: ['class'] });
+    sync();
+
+    bell.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            bell.click();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || !dropdown.classList.contains('show')) return;
+        dropdown.classList.remove('show');
+        bell.focus();
+    });
 }
 
 // ── Public init ──────────────────────────────────────────────────────────────
@@ -212,6 +239,7 @@ async function populateNotifications() {
 export function initDropdown({ handleToggle = true } = {}) {
     buildModal();
     populateNotifications();
+    initBellKeyboard();
 
     try {
         initProfileMenu({

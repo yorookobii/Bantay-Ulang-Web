@@ -6,6 +6,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { PARAM_LABELS } from './notificationsShared.js';
 import { SUGGESTIONS } from './alertsEngine.js';
+import { invalidate as invalidateAlertState } from './alertState.js';
 import { getRanges, loadThresholds } from './thresholds.js';
 import { initSidebar } from './sidebar.js';
 import { normalizeStatus, isOverdue } from './taskStatus.js';
@@ -315,6 +316,7 @@ async function handleSubmit(e) {
                     handledTaskId: taskRef.id
                 });
                 markAlertContextHandled();
+                invalidateAlertState();
             } catch (err) {
                 showToast('Task saved, but linking it to the alert failed: ' + (err.code || err.message), 'error');
                 console.error('updateDoc alerts handled*:', err);

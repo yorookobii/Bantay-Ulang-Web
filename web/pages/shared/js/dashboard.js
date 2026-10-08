@@ -4,6 +4,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/f
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { reevaluateActiveAlerts } from "./alertsEngine.js";
+import { getActiveAlerts, invalidate as invalidateAlertState, countAlerts } from "./alertState.js";
 import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 import { initReportModal } from "./reportModal.js";
@@ -215,7 +216,10 @@ async function ensureHardwareOfflineAlert(measuredAtDate) {
             });
             return true;
         });
-        if (created) console.log("[dashboard] Hardware offline alert created:", alertId);
+        if (created) {
+            console.log("[dashboard] Hardware offline alert created:", alertId);
+            invalidateAlertState();
+        }
     } catch (err) {
         ensuredHwAlertIds.delete(alertId); // allow a retry on the next tick
         console.error("[dashboard] Failed to create hardware offline alert:", err);
@@ -241,7 +245,10 @@ async function resolveSupersededHardwareAlerts(measuredAtDate) {
             currentValue:   "Online",
             resolutionNote: "Replaced by a newer outage: the hardware recovered in between, but the exact recovery time is unknown (resolvedAt is when this was detected)."
         })));
-        if (older.length) console.log(`[dashboard] Resolved ${older.length} superseded hardware offline alert(s).`);
+        if (older.length) {
+            console.log(`[dashboard] Resolved ${older.length} superseded hardware offline alert(s).`);
+            invalidateAlertState();
+        }
     } catch (err) {
         console.error("[dashboard] Failed to resolve superseded hardware alerts:", err);
     }
@@ -259,7 +266,10 @@ async function resolveHardwareOfflineAlerts() {
             resolvedAt:   serverTimestamp(),
             currentValue: "Online"
         })));
-        if (hwAlerts.length) console.log(`[dashboard] Resolved ${hwAlerts.length} hardware offline alert(s).`);
+        if (hwAlerts.length) {
+            console.log(`[dashboard] Resolved ${hwAlerts.length} hardware offline alert(s).`);
+            invalidateAlertState();
+        }
     } catch (err) {
         console.error("[dashboard] Failed to resolve hardware alerts:", err);
     } finally {
@@ -390,7 +400,7 @@ async function loadTotalYieldExpected() {
     }
 }
 
-function setActiveAlertsValue(count) {
+function setActiveAlertsValue(count, handled = 0) {
     const activeAlertsValue = document.getElementById("active-alerts-value");
     const activeAlertsTrend = document.getElementById("active-alerts-trend");
 
@@ -399,8 +409,9 @@ function setActiveAlertsValue(count) {
     }
 
     if (activeAlertsTrend) {
+        const handledText = handled > 0 ? ` · ${handled} being handled` : "";
         activeAlertsTrend.innerHTML = count > 0
-            ? '<i class="fa-solid fa-arrow-up"></i> Action required'
+            ? `<i class="fa-solid fa-arrow-up"></i> Action required${handledText}`
             : '<i class="fa-solid fa-check"></i> No active alerts';
     }
 }
@@ -462,11 +473,10 @@ function renderRecentLogs(entries) {
     });
 }
 
-function applyActiveAlertsSnapshot(snapshot) {
-    // Exclude alerts already handled via Assign Actions (handledAt set,
-    // status still "active").
-    const count = snapshot.docs.filter(d => d.data().handledAt == null).length;
-    setActiveAlertsValue(count);
+// Same counting rule as every alert count (alertState.countAlerts): handled alerts still count.
+function applyActiveAlerts(alerts) {
+    const { active, handled } = countAlerts(alerts);
+    setActiveAlertsValue(active, handled);
 }
 
 function applyRecentLogsSnapshot(snapshot) {
@@ -497,12 +507,12 @@ function applyRecentLogsSnapshot(snapshot) {
 
 async function loadData() {
     const [alertsResult, logsResult] = await Promise.allSettled([
-        getDocs(query(collection(db, "alerts"), where("status", "==", "active"))),
+        getActiveAlerts(),
         getDocs(query(collection(db, "logs"), orderBy("createdAt", "desc"), limit(5)))
     ]);
 
     if (alertsResult.status === "fulfilled") {
-        applyActiveAlertsSnapshot(alertsResult.value);
+        applyActiveAlerts(alertsResult.value);
     } else {
         console.warn("Unable to load active alerts from alerts collection.", alertsResult.reason);
     }
