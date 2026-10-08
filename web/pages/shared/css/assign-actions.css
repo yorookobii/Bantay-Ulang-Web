@@ -248,8 +248,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .sidebar .logo-droplets svg, .sidebar .logo-droplets .logo-img { display: block; }
 .sidebar .logo-droplets .logo-img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 .sidebar .logo-text { color: #ecf0f1; font-size: 18px; font-weight: 600; flex: 1; }
-.sidebar .sidebar-toggle { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 12px; }
+.sidebar .sidebar-toggle { display: none; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 12px; }
 .sidebar .sidebar-toggle:hover { color: #ecf0f1; }
+/* Close button for the mobile drawer only; on desktop the collapsed rail itself expands. */
+@media (max-width: 768px) { .sidebar .sidebar-toggle { display: inline-flex; margin-left: auto; padding: 8px; font-size: 18px; } }
 .sidebar .sidebar-menu { list-style: none; }
 .sidebar .sidebar-menu li { margin: 0; }
 .sidebar .sidebar-menu a {
@@ -371,6 +373,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .topbar .profile-menu-item:hover { background: #f9f9f9; color: #3498db; }
 
 @media (min-width: 769px) {
+    /* Collapsed rail: a click anywhere expands it; the header is its keyboard control. */
+    .sidebar.collapsed { cursor: pointer; }
+    .sidebar.collapsed .sidebar-header:focus-visible { outline: 2px solid #10b981; outline-offset: -2px; }
     .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
     .sidebar.collapsed .logo-text,
     .sidebar.collapsed .sidebar-menu span,
@@ -396,8 +401,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     html.sidebar-init-collapsed .topbar { left: var(--sidebar-collapsed-width); }
     html.sidebar-init-collapsed .content,
     html.sidebar-init-collapsed main { margin-left: var(--sidebar-collapsed-width); }
-    /* Pre-apply the collapsed logo-row layout so the arrow does not wrap below
-       the logo then snap back (a reflow jump, not a transition). This page's
+    /* Pre-apply the collapsed logo-row layout so the logo row does not reflow
+       and snap back (a reflow jump, not a transition). This page's
        .collapsed only sets .logo-row, so match that and nothing more. */
     html.sidebar-init-collapsed .sidebar .logo-row { justify-content: center; flex-wrap: nowrap; gap: 4px; }
     html.sidebar-init-collapsed .sidebar,
@@ -406,8 +411,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     html.sidebar-init-collapsed main,
     html.sidebar-init-collapsed .sidebar .sidebar-menu a,
     html.sidebar-init-collapsed .sidebar .sidebar-menu a i,
-    html.sidebar-init-collapsed .sidebar .sidebar-toggle,
-    html.sidebar-init-collapsed .sidebar .sidebar-toggle i,
     html.sidebar-init-collapsed .sidebar .logo-row,
     html.sidebar-init-collapsed .sidebar .user-profile { transition: none !important; }
 }
