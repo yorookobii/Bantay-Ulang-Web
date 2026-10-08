@@ -4,6 +4,7 @@ import {
     collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { initSidebar } from './sidebar.js';
+import { ROLE_LABELS, roleLabel } from './roleLabels.js';
 
 // ── Global functions for onclick attrs in HTML ────────────────────────────
 window.toggleNotification = function () {
@@ -52,6 +53,10 @@ function showToast(msg, type = 'success') {
     t._timer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// Role <option>s from the shared label map; values stay the stored role keys.
+const roleOptions = (role) => Object.entries(ROLE_LABELS)
+    .map(([key, label]) => `<option value="${key}"${role === key ? ' selected' : ''}>${label}</option>`).join('');
+
 // ── Build a pending user card ─────────────────────────────────────────────
 function buildPendingCard(uid, data, canEdit) {
     const name    = data.fullName || data.displayName || 'Unknown User';
@@ -75,9 +80,7 @@ function buildPendingCard(uid, data, canEdit) {
             <div class="ctrl-group">
                 <label>Role</label>
                 <select class="um-select role-select"${canEdit ? '' : ' disabled'}>
-                    <option value="admin"${role === 'admin' ? ' selected' : ''}>Admin</option>
-                    <option value="technician"${role === 'technician' ? ' selected' : ''}>Technician</option>
-                    <option value="user"${role === 'user' ? ' selected' : ''}>User</option>
+                    ${roleOptions(role)}
                 </select>
             </div>
             <div class="ctrl-group">
@@ -86,10 +89,10 @@ function buildPendingCard(uid, data, canEdit) {
             </div>
         </div>
         <div class="user_actions pending-actions">
-            <button class="um-approve-btn" title="Approve this user"${canEdit ? '' : ' disabled'}>
+            <button class="um-approve-btn" title="Approve this account"${canEdit ? '' : ' disabled'}>
                 <i class="fas fa-check"></i> Approve
             </button>
-            <button class="um-delete-btn" title="Remove user from Firestore"${canEdit ? '' : ' disabled'}>
+            <button class="um-delete-btn" title="Remove account"${canEdit ? '' : ' disabled'}>
                 <i class="fas fa-trash-alt"></i> Delete
             </button>
         </div>
@@ -103,7 +106,7 @@ function buildPendingCard(uid, data, canEdit) {
         const prevRole = role;
         try {
             await updateDoc(doc(db, 'users', uid), { role: newRole });
-            showToast(`Role updated to ${newRole.charAt(0).toUpperCase() + newRole.slice(1)}`);
+            showToast(`Role updated to ${roleLabel(newRole)}`);
         } catch (err) {
             roleSel.value = prevRole;
             showToast('Failed to update role: ' + (err.code || err.message), 'error');
@@ -156,9 +159,7 @@ function buildCard(uid, data, canEdit) {
             <div class="ctrl-group">
                 <label>Role</label>
                 <select class="um-select role-select"${canEdit ? '' : ' disabled'}>
-                    <option value="admin"${role === 'admin' ? ' selected' : ''}>Admin</option>
-                    <option value="technician"${role === 'technician' ? ' selected' : ''}>Technician</option>
-                    <option value="user"${role === 'user' ? ' selected' : ''}>User</option>
+                    ${roleOptions(role)}
                 </select>
             </div>
             <div class="ctrl-group">
@@ -170,7 +171,7 @@ function buildCard(uid, data, canEdit) {
             </div>
         </div>
         <div class="user_actions">
-            <button class="um-delete-btn" title="Remove user from Firestore"${canEdit ? '' : ' disabled'}>
+            <button class="um-delete-btn" title="Remove account"${canEdit ? '' : ' disabled'}>
                 <i class="fas fa-trash-alt"></i> Delete
             </button>
         </div>
@@ -185,7 +186,7 @@ function buildCard(uid, data, canEdit) {
         const prevRole = role;
         try {
             await updateDoc(doc(db, 'users', uid), { role: newRole });
-            showToast(`Role updated to ${newRole.charAt(0).toUpperCase() + newRole.slice(1)}`);
+            showToast(`Role updated to ${roleLabel(newRole)}`);
         } catch (err) {
             roleSel.value = prevRole;
             showToast('Failed to update role: ' + (err.code || err.message), 'error');
@@ -226,9 +227,9 @@ function buildCard(uid, data, canEdit) {
 
 // ── Render all users grouped by role ─────────────────────────────────────
 const GROUPS = [
-    { key: 'admin',      label: 'Admins',      icon: 'fa-shield-halved', cls: 'admins'      },
-    { key: 'technician', label: 'Technicians', icon: 'fa-wrench',        cls: 'technicians' },
-    { key: 'user',       label: 'Users',       icon: 'fa-user',          cls: 'users'       },
+    { key: 'admin',      label: 'Admins',        icon: 'fa-shield-halved', cls: 'admins'      },
+    { key: 'technician', label: 'Technicians',   icon: 'fa-wrench',        cls: 'technicians' },
+    { key: 'user',       label: 'Practitioners', icon: 'fa-user',          cls: 'users'       },
 ];
 
 function makeRenderUsers(canEdit) {
@@ -297,7 +298,7 @@ function makeRenderUsers(canEdit) {
             container.innerHTML = `
                 <div class="um-empty">
                     <i class="fas fa-users-slash"></i>
-                    <p>No users found in the system.</p>
+                    <p>No accounts found in the system.</p>
                 </div>
             `;
         }
@@ -327,6 +328,6 @@ onAuthStateChanged(auth, async (user) => {
 
     onSnapshot(collection(db, 'users'), makeRenderUsers(canEdit), (err) => {
         console.error('Firestore snapshot error:', err.code, err.message);
-        if (loading) loading.innerHTML = `<p class="um-error">Failed to load users (${err.code || err.message}).</p>`;
+        if (loading) loading.innerHTML = `<p class="um-error">Failed to load accounts (${err.code || err.message}).</p>`;
     });
 });

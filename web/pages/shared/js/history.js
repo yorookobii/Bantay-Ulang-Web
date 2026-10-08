@@ -10,6 +10,7 @@ import {
 import { getReadingsInRangeWithStatus, catchUpCache } from "./readingsService.js";
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
+import { roleLabel } from "./roleLabels.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { isSuspect } from "./plausibility.js";
 import { computeRowStatus } from "./readingStatus.js";
@@ -364,7 +365,7 @@ function buildTaskRow(data, userNameMap) {
 
     // assignedToRole (assign-actions.js) vs assignedRole (alertsEngine.js) — check both.
     const role      = data.assignedToRole || data.assignedRole || "";
-    const roleLabel = role ? capitalize(role) : "";
+    const roleText  = roleLabel(role);
     const assignee  = resolveAssignee(data, userNameMap);
 
     const source = data.createdBy === "system" ? "System" : "Admin";
@@ -373,7 +374,7 @@ function buildTaskRow(data, userNameMap) {
         <td data-label="Date Assigned">${fmtTaskDate(data.createdAt)}</td>
         <td data-label="Assigned To">
             <strong>${escHtml(assignee)}</strong>
-            ${roleLabel ? `<div class="assignee-role">${escHtml(roleLabel)}</div>` : ""}
+            ${roleText ? `<div class="assignee-role">${escHtml(roleText)}</div>` : ""}
         </td>
         <td data-label="Task">${escHtml(data.title || "—")}</td>
         <td data-label="Status"><span class="status-badge ${statusClass}">${statusLabel}</span></td>

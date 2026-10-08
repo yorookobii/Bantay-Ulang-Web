@@ -1,5 +1,6 @@
 import { isOverdue } from "./taskStatus.js";
 import { modelModeLabel } from "./yieldLabels.js";
+import { roleLabel } from "./roleLabels.js";
 
 // CSV export for gatherReport() output: pure builders plus one browser download helper.
 // The plain-language labels and number formats are exported so the printed report reads the same.
@@ -159,7 +160,7 @@ const TASK_COLUMNS = [
     ["Title", t => t.title],
     ["Description", t => t.description],
     ["Assigned To", t => t.assignee],
-    ["Role", t => capitalize(t.assigneeRole)],
+    ["Role", t => roleLabel(t.assigneeRole)],
     ["Status", t => TASK_STATUS_LABELS[t.status] || t.status],
     ["Due Date", t => t.dueDate],
     ["Overdue", t => yesNo(t.overdue)]
@@ -209,7 +210,7 @@ export function cycleStatus(cycle) {
     return `Day ${cycle.day}`;
 }
 
-export const generatedByText = (by) => (by.role ? `${by.name} (${capitalize(by.role)})` : by.name);
+export const generatedByText = (by) => (by.role ? `${by.name} (${roleLabel(by.role)})` : by.name);
 
 // Item/value rows describing the report itself; one row per note and data source.
 export function buildReportInfoRows(report, files) {

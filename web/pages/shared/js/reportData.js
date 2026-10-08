@@ -23,6 +23,7 @@ import { loadMortalityRecords, bucketDeathsByWeek } from "./mortalityChart.js";
 import { loadWeightsByWeek } from "./avgWeightChart.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { normalizeLogData, getTextField, toDateValue, LOG_ACTOR_KEYS } from "./logEntry.js";
+import { roleLabel } from "./roleLabels.js";
 import { groupAlerts, flagWeights, buildSummary, median, confirmedAlive } from "./reportCleanup.js";
 
 // Report data layer: gathers every section from existing read paths, no UI.
@@ -457,7 +458,7 @@ async function gatherLogs({ sinceMs, untilMs, warnings }) {
             const { loggedAt, ...rest } = normalizeLogData(data, snap.id);
             // Exported files never carry emails: skip createdByEmail, and treat any email-shaped value as unknown.
             const actor = getTextField(data, REPORT_ACTOR_KEYS, "");
-            return { id: snap.id, loggedAtMs: loggedAt ? loggedAt.getTime() : null, ...rest, actor: actor && !EMAIL_RE.test(actor) ? actor : "Unknown user" };
+            return { id: snap.id, loggedAtMs: loggedAt ? loggedAt.getTime() : null, ...rest, actor: actor && !EMAIL_RE.test(actor) ? roleLabel(actor) : "Unknown user" };
         })
         .filter(l => inRange(l.loggedAtMs, sinceMs, untilMs));
 }

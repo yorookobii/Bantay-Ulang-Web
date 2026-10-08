@@ -2,6 +2,7 @@ import { auth, db } from './firebase.js';
 import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initSidebar } from './sidebar.js';
+import { roleLabel } from './roleLabels.js';
 
 const form        = document.getElementById('profile-form');
 const fullNameEl  = document.getElementById('profile-fullname');
@@ -35,7 +36,7 @@ onAuthStateChanged(auth, async (user) => {
         const snap = await getDoc(doc(db, 'users', user.uid));
         const data = snap.exists() ? snap.data() : {};
         const fullName = data.fullName || user.displayName || '';
-        const role     = data.role || '';
+        const role     = roleLabel(data.role);
         const initial  = (fullName || user.email || 'U').charAt(0).toUpperCase();
 
         if (fullNameEl) fullNameEl.value  = fullName;

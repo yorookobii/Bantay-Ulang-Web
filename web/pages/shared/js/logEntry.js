@@ -1,4 +1,5 @@
 // Shared "logs" doc field mapping (moved from logs.js so the report reads logs the same way).
+import { roleLabel } from "./roleLabels.js";
 
 export function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
@@ -29,7 +30,7 @@ export function normalizeLogData(data, id) {
     return {
         loggedAt: toDateValue(data.createdAt || data.timestamp || data.loggedAt || data.date),
         type: getTextField(data, ["status", "type", "level"], "").toLowerCase(),
-        actor: getTextField(data, LOG_ACTOR_KEYS, "System"),
+        actor: roleLabel(getTextField(data, LOG_ACTOR_KEYS, "System")),
         title: getTextField(data, ["action", "title", "event", "name"], id),
         description: getTextField(data, ["details", "description", "message"], "No details provided.")
     };

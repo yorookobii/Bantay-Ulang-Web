@@ -10,6 +10,7 @@ import { invalidate as invalidateAlertState } from './alertState.js';
 import { getRanges, loadThresholds } from './thresholds.js';
 import { initSidebar } from './sidebar.js';
 import { normalizeStatus, isOverdue } from './taskStatus.js';
+import { roleLabel } from './roleLabels.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -242,13 +243,13 @@ function renderTasks(snapshot) {
         const d      = docSnap.data();
         const status = normalizeStatus(d.status);
         const role   = d.assignedToRole || '';
-        const roleLabel = role ? role.charAt(0).toUpperCase() + role.slice(1) : '—';
+        const roleText = role ? roleLabel(role) : '—';
 
         const tr = document.createElement('tr');
         if (isOverdue(d)) tr.classList.add('task-overdue');
         tr.innerHTML = `
             <td>${d.assignedToName || '—'}</td>
-            <td>${roleLabel}</td>
+            <td>${roleText}</td>
             <td>${d.title || '—'}</td>
             <td>${fmtDate(d.dueDate)}</td>
             <td><span class="status-badge ${STATUS_CLASS[status] || 'status-pending'}">${STATUS_LABEL[status] || 'Pending'}</span></td>
@@ -348,6 +349,8 @@ onAuthStateChanged(auth, async (user) => {
     // Filter Person by role when Role select changes
     const roleSelect = document.getElementById('assignRole');
     if (roleSelect) roleSelect.addEventListener('change', () => populatePeople(roleSelect.value));
+    // Role option text comes from the shared label map.
+    if (roleSelect) for (const opt of roleSelect.options) if (opt.value) opt.textContent = roleLabel(opt.value);
 
     // Wire form submit
     const form = document.getElementById('assignForm');

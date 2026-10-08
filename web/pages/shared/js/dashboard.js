@@ -8,6 +8,7 @@ import { getActiveAlerts, invalidate as invalidateAlertState, countAlerts, subsc
 import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 import { initReportModal } from "./reportModal.js";
+import { roleLabel } from "./roleLabels.js";
 
 function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
@@ -495,7 +496,7 @@ function applyRecentLogsSnapshot(snapshot) {
                 sortValue: loggedAt ? loggedAt.getTime() : index,
                 title: getTextField(data, ["action", "title", "event", "name"], doc.id),
                 timeText: getTextField(data, ["timeText", "time"], formatLogTime(loggedAt)),
-                actor: getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System"),
+                actor: roleLabel(getTextField(data, ["role", "actor", "user", "source", "by", "createdByName", "createdByEmail"], "System")),
                 description: getTextField(data, ["details", "description", "message"], "No details provided."),
                 type: getTextField(data, ["status", "type", "level"], "").toLowerCase()
             };

@@ -1,6 +1,7 @@
 import { auth, db } from './firebase.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { roleLabel } from './roleLabels.js';
 
 const CACHE_KEY = 'bantay-ulang-user-cache';
 
@@ -20,7 +21,7 @@ function paintCachedProfile() {
     }
     if (cached.role) {
         document.querySelectorAll('.user-role, .admin-role, .pm-role').forEach(el => {
-            el.textContent = cached.role;
+            el.textContent = roleLabel(cached.role);
         });
     }
     if (cached.initial) {
@@ -39,7 +40,8 @@ export function loadUserProfile() {
             const snap = await getDoc(doc(db, 'users', user.uid));
             const data = snap.exists() ? snap.data() : {};
             const fullName = data.fullName || user.displayName || user.email || 'User';
-            const role = data.role || 'User';
+            // Display label, also what gets cached for user-cache-paint.js.
+            const role = roleLabel(data.role || 'user');
             const initial = fullName.charAt(0).toUpperCase();
 
             document.querySelectorAll('.user-name, .admin-name, .pm-name').forEach(el => {
