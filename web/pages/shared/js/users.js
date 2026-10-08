@@ -242,13 +242,17 @@ function makeRenderUsers(canEdit) {
         const pending = [];
         const byRole = { admin: [], technician: [], user: [] };
         snapshot.forEach(d => {
-            const data   = d.data();
+            const data = d.data();
+            const role = (data.role || 'user').toLowerCase();
+            // Users page shows non-admin users only (technicians/farmers) —
+            // skip before the pending check too, so a pending admin signup
+            // doesn't leak through under "Pending Approval".
+            if (role === 'admin') return;
             const status = (data.status || 'active').toLowerCase();
             if (status === 'pending' && data.emailVerified !== false) {
                 pending.push({ uid: d.id, data });
                 return;
             }
-            const role = (data.role || 'user').toLowerCase();
             const bucket = byRole[role] ?? byRole.user;
             bucket.push({ uid: d.id, data });
         });
