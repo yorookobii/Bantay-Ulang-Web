@@ -30,7 +30,8 @@ async function loadCycleStart() {
 // ulang_growth_records has no precomputed weekNumber (unlike mortality_records) —
 // derive it from createdAt the same way Flutter's _weekNumberFor does:
 // week 1 = [cycleStart, cycleStart+7d), etc.
-export async function loadWeightsByWeek(cycleStart) {
+// One entry per prawn sample: { weightG, week, createdAtMs, observedAtMs }, oldest first.
+export async function loadWeightSamples(cycleStart) {
     const q = query(
         collection(db, "ulang_growth_records"),
         where("createdAt", ">=", Timestamp.fromDate(cycleStart)),
@@ -38,8 +39,7 @@ export async function loadWeightsByWeek(cycleStart) {
     );
     const snap = await getDocs(q);
 
-    // { week: { sum, count } } — averaged per week below, never summed raw.
-    const byWeek = {};
+    const samples = [];
     snap.docs.forEach(docSnap => {
         const d = docSnap.data();
         const createdAt = toDateValue(d.createdAt);
@@ -49,11 +49,29 @@ export async function loadWeightsByWeek(cycleStart) {
         const week = Math.floor((createdAt.getTime() - cycleStart.getTime()) / MS_PER_WEEK) + 1;
         if (week < 1) return;
 
+        samples.push({
+            weightG: weight,
+            week,
+            createdAtMs: createdAt.getTime(),
+            observedAtMs: toDateValue(d.observedAt)?.getTime() ?? null
+        });
+    });
+    return samples;
+}
+
+// { week: { sum, count } } — averaged per week by callers, never summed raw.
+export function bucketWeightsByWeek(samples) {
+    const byWeek = {};
+    samples.forEach(({ weightG, week }) => {
         if (!byWeek[week]) byWeek[week] = { sum: 0, count: 0 };
-        byWeek[week].sum   += weight;
+        byWeek[week].sum   += weightG;
         byWeek[week].count += 1;
     });
     return byWeek;
+}
+
+export async function loadWeightsByWeek(cycleStart) {
+    return bucketWeightsByWeek(await loadWeightSamples(cycleStart));
 }
 
 function showEmpty(canvas, emptyEl) {
