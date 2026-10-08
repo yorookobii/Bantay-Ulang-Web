@@ -15,6 +15,7 @@ import {
 } from './notificationsShared.js';
 import { getActiveAlerts, subscribe } from './alertState.js';
 import { initProfileMenu } from './profileMenu.js';
+import { initAlertFab } from './alertFab.js';
 
 const isOnTechnicianPage = window.location.pathname.includes('/technician/');
 // Technicians stay inside technician/ pages and have no Settings they can save.
@@ -240,6 +241,11 @@ export function initDropdown({ handleToggle = true } = {}) {
     buildModal();
     populateNotifications();
     initBellKeyboard();
+    try {
+        initAlertFab({ technician: isOnTechnicianPage });
+    } catch (err) {
+        console.error('Alert indicator init failed:', err);
+    }
 
     try {
         initProfileMenu({

@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/f
 import { collection, getDocs, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initSidebar } from "../../shared/js/sidebar.js";
 import { normalizeStatus } from "../../shared/js/taskStatus.js";
+import { getActiveAlerts, countAlerts } from "../../shared/js/alertState.js";
 
 const AUTH_SESSION_KEY = "bantay-ulang-auth-user";
 function getSessionProfileId() {
@@ -203,10 +204,8 @@ async function loadSummaryCards(assignedToId) {
     }
 
     try {
-        var alertsSnap = await getDocs(
-            query(collection(db, "alerts"), where("status", "==", "active"))
-        );
-        var count   = alertsSnap.size;
+        // Shared store and counting rule, so this matches the bell and the floating indicator.
+        var count   = countAlerts(await getActiveAlerts()).active;
         var hwValue = document.getElementById("hw-value");
         var hwDesc  = document.getElementById("hw-desc");
         var hwWarn  = document.getElementById("hw-meta-warn");

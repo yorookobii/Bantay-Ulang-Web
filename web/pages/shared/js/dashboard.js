@@ -4,7 +4,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/f
 import { loadThresholds } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { reevaluateActiveAlerts } from "./alertsEngine.js";
-import { getActiveAlerts, invalidate as invalidateAlertState, countAlerts } from "./alertState.js";
+import { getActiveAlerts, invalidate as invalidateAlertState, countAlerts, subscribe as subscribeAlerts } from "./alertState.js";
 import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 import { initReportModal } from "./reportModal.js";
@@ -506,22 +506,20 @@ function applyRecentLogsSnapshot(snapshot) {
 }
 
 async function loadData() {
-    const [alertsResult, logsResult] = await Promise.allSettled([
-        getActiveAlerts(),
-        getDocs(query(collection(db, "logs"), orderBy("createdAt", "desc"), limit(5)))
-    ]);
-
-    if (alertsResult.status === "fulfilled") {
-        applyActiveAlerts(alertsResult.value);
-    } else {
-        console.warn("Unable to load active alerts from alerts collection.", alertsResult.reason);
+    try {
+        applyRecentLogsSnapshot(await getDocs(query(collection(db, "logs"), orderBy("createdAt", "desc"), limit(5))));
+    } catch (err) {
+        console.warn("Unable to load logs collection.", err);
     }
+}
 
-    if (logsResult.status === "fulfilled") {
-        applyRecentLogsSnapshot(logsResult.value);
-    } else {
-        console.warn("Unable to load logs collection.", logsResult.reason);
-    }
+// Card and banner both follow the shared alert store, so they update together on every refresh.
+function loadActiveAlerts() {
+    subscribeAlerts((alerts) => {
+        applyActiveAlerts(alerts);
+        renderTopAlert(alerts);
+    });
+    getActiveAlerts().catch((err) => console.warn("Unable to load active alerts from alerts collection.", err));
 }
 
 // ── growth_indicators cycleStart (one-shot, mirrors yieldPrediction.js) ────
@@ -723,49 +721,26 @@ function iconForSev(sev) {
     return 'fa-circle-info';
 }
 
-async function loadTopAlert() {
+// Top alert: unhandled before handled, then worst severity, then newest; excludeFromReports duplicates skipped.
+function renderTopAlert(alerts) {
     var bannerEl = document.getElementById('top-alert-banner');
     if (!bannerEl) return;
-    try {
-        var snap = await getDocs(
-            query(collection(db, 'alerts'), where('status', '==', 'active'))
-        );
+    var counted = alerts.filter(function (a) { return a.excludeFromReports !== true; });
+    if (!counted.length) { renderNoBanner(bannerEl); return; }
 
-        // Exclude alerts already handled via Assign Actions (handledAt set,
-        // status still "active") so the banner matches the Active Alerts card.
-        var unhandled = snap.docs.filter(function (d) { return d.data().handledAt == null; });
-        if (!unhandled.length) { renderNoBanner(bannerEl); return; }
-
-        var topData = null;
-        var topRank = -1;
-        var topTime = 0;
-
-        unhandled.forEach(function(d) {
-            var data = d.data();
-            var rank = SEVERITY_RANK[data.severity] || 0;
-            var t    = (data.createdAt && data.createdAt.seconds) ? data.createdAt.seconds : 0;
-            if (rank > topRank || (rank === topRank && t > topTime)) {
-                topRank = rank;
-                topData = data;
-                topTime = t;
-            }
-        });
-
-        if (topData) {
-            renderAlertBanner(bannerEl, topData, unhandled.length);
-        } else {
-            renderNoBanner(bannerEl);
-        }
-    } catch (err) {
-        console.warn('[dashboard] Could not load top alert:', err);
-    }
+    var top = counted.slice().sort(function (a, b) {
+        return ((a.handledAt != null) - (b.handledAt != null))
+            || ((SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0))
+            || ((b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+    })[0];
+    renderAlertBanner(bannerEl, top, counted.length);
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
     await reevaluateActiveAlerts();
     initHardwareStatusMonitor();
     loadWelcomeData();
-    loadTopAlert();
+    loadActiveAlerts();
     loadMortalityStat();
     loadTotalYieldExpected();
     await loadData();

@@ -415,7 +415,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 /* ── Toast notification ──────────────────────────────────────────────────── */
 .aa-toast {
     position: fixed;
-    bottom: 24px;
+    /* Sits above the floating alert indicator (24px offset + 48px button + 16px gap, see alertFab.css). */
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     right: 24px;
     padding: 12px 20px;
     border-radius: 8px;
