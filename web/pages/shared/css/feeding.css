@@ -138,7 +138,6 @@ main {
 .topbar .notification-container { position: relative; }
 .topbar .notification-icon { font-size: 24px; cursor: pointer; color: #333; transition: all 0.3s ease; position: relative; }
 .topbar .notification-icon:hover { color: #3498db; transform: scale(1.1); }
-.topbar .notification-badge { position: absolute; top: -5px; right: -5px; background-color: #e74c3c; border-radius: 50%; width: 10px; height: 10px; }
 .topbar .notification-dropdown {
     position: absolute; top: 100%; right: 0; background-color: white; border: 1px solid #ddd; border-radius: 6px;
     min-width: 300px; max-height: 400px; overflow-y: auto; margin-top: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
