@@ -3,9 +3,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function myDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Approved account: own users doc exists with status 'active' (no role bypass; a missing doc is false).
+    function isActive() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().data.get('status', '') == 'active';
+    }
+
     function isAdmin() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isActive() && myDoc().data.get('role', '') == 'admin';
     }
 
     function isAuthenticated() {
@@ -47,8 +57,9 @@ service cloud.firestore {
                  && d.emailVerified == true);
       }
 
-      // Any authenticated user can read user documents (web login role check, assignee lookups).
-      allow read: if isAuthenticated();
+      // Admins read all; others read only their own doc, by uid or by the staff login email query.
+      allow read: if isAdmin() || isSelf()
+                  || (isAuthenticated() && resource.data.email == request.auth.token.email);
 
       allow create: if isAdmin() || (isSelf() && isValidSelfCreate());
 
@@ -63,7 +74,7 @@ service cloud.firestore {
     // settings
     // -------------------------------------------------------------------------
     match /settings/{docId} {
-      allow read:  if isAuthenticated();
+      allow read:  if isActive();
       allow write: if isAdmin();
     }
 
@@ -71,8 +82,8 @@ service cloud.firestore {
     // sensor_readings
     // -------------------------------------------------------------------------
     match /sensor_readings/{docId} {
-      // Authenticated users (web + Flutter) can read.
-      allow read: if isAuthenticated();
+      // Approved users (web + Flutter) can read.
+      allow read: if isActive();
 
       // ESP32/Arduino writes without auth.
       allow create: if true;
@@ -85,9 +96,10 @@ service cloud.firestore {
     // alerts
     // -------------------------------------------------------------------------
     match /alerts/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
-      allow create, update: if true;
+      // Written only by the web alerts engine on admin pages.
+      allow create, update: if isAdmin();
 
       allow delete: if isAdmin();
     }
@@ -96,27 +108,30 @@ service cloud.firestore {
     // growth_indicators
     // -------------------------------------------------------------------------
     match /growth_indicators/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
       allow create, delete: if isAdmin();
 
-      allow update: if isAdmin() ||
-                       (isAuthenticated() &&
-                        request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['survivalRate', 'avgWeightPerPiece', 'expectedYield']));
+      // Practitioners may only write survivalRate (logs.dart recalculation); everything else is admin-only.
+      allow update: if isAdmin()
+                    || (isActive()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['survivalRate'])
+                        && request.resource.data.survivalRate is number
+                        && request.resource.data.survivalRate >= 0
+                        && request.resource.data.survivalRate <= 100);
     }
 
     // -------------------------------------------------------------------------
     // ulang_growth_records
     // -------------------------------------------------------------------------
     match /ulang_growth_records/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
-      allow create: if isAuthenticated() &&
+      allow create: if isActive() &&
                        request.resource.data.recordedBy == request.auth.uid;
 
       allow update: if isAdmin() ||
-                       (isAuthenticated() &&
+                       (isActive() &&
                         resource.data.recordedBy == request.auth.uid);
 
       allow delete: if isAdmin();
@@ -126,13 +141,13 @@ service cloud.firestore {
     // mortality_records
     // -------------------------------------------------------------------------
     match /mortality_records/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
-      allow create: if isAuthenticated() &&
+      allow create: if isActive() &&
                        request.resource.data.recordedBy == request.auth.uid;
 
       allow update: if isAdmin() ||
-                       (isAuthenticated() &&
+                       (isActive() &&
                         resource.data.recordedBy == request.auth.uid);
 
       allow delete: if isAdmin();
@@ -142,18 +157,18 @@ service cloud.firestore {
     // feeding_records
     // -------------------------------------------------------------------------
     match /feeding_records/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
     // feeding_schedules
     // Arduino R4 needs unauthenticated READ access so it can retrieve:
     // enabled, feedTime, amount, feedType
-    // Writes remain authenticated only.
+    // Writes are admin-only (automation page).
     // -------------------------------------------------------------------------
     match /feeding_schedules/{docId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -161,7 +176,7 @@ service cloud.firestore {
     // Single live doc: Aquaponics/Ulang
     // -------------------------------------------------------------------------
     match /Aquaponics/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
       // Arduino can create/update live sensor data.
       allow create, update: if true;
@@ -175,7 +190,7 @@ service cloud.firestore {
     // HistoryLogs/Ulang/years/{Y}/{M}/{D}/readings/{docId}
     // -------------------------------------------------------------------------
     match /{path=**}/readings/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
       // Arduino can CREATE a new reading or UPDATE an existing document
       // when the same document ID is encountered.
@@ -194,7 +209,7 @@ service cloud.firestore {
     // This rule was missing before, causing HTTP 403 PERMISSION_DENIED.
     // -------------------------------------------------------------------------
     match /ActionLogs/{actionDocument=**} {
-      allow read: if isAuthenticated();
+      allow read: if isActive();
 
       // Arduino can create/update device-generated action logs.
       allow create, update: if true;
@@ -207,15 +222,15 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /logs/{docId} {
       allow read: if isAdmin() ||
-                    (isAuthenticated() &&
+                    (isActive() &&
                      (resource.data.createdBy == request.auth.uid ||
                       resource.data.assignedTo == request.auth.uid));
 
-      allow create: if isAuthenticated() &&
+      allow create: if isActive() &&
                        request.resource.data.createdBy == request.auth.uid;
 
       allow update: if isAdmin() ||
-                       (isAuthenticated() &&
+                       (isActive() &&
                         resource.data.createdBy == request.auth.uid);
 
       allow delete: if isAdmin();
@@ -226,20 +241,20 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /tasks/{docId} {
       allow read: if isAdmin() ||
-                    (isAuthenticated() &&
+                    (isActive() &&
                      (resource.data.createdBy == request.auth.uid ||
-                      resource.data.assignedTo == request.auth.uid ||
-                      resource.data.createdBy == 'system'));
+                      resource.data.assignedTo == request.auth.uid));
 
-      allow create: if isAuthenticated() &&
+      // Only admin pages create tasks (Assign Actions and the alerts engine's 'system' tasks).
+      allow create: if isAdmin() &&
                        (request.resource.data.createdBy == request.auth.uid ||
                         request.resource.data.createdBy == 'system');
 
+      // Assignees may only change status (technician and mobile mark-done).
       allow update: if isAdmin() ||
-                       (isAuthenticated() &&
-                        (resource.data.createdBy == request.auth.uid ||
-                         resource.data.assignedTo == request.auth.uid ||
-                         resource.data.createdBy == 'system'));
+                       (isActive() &&
+                        resource.data.assignedTo == request.auth.uid &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
 
       allow delete: if isAdmin();
     }
