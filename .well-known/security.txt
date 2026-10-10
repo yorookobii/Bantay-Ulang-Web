@@ -1,0 +1,4 @@
+Contact: mailto:jesryllebalatbat14@gmail.com
+Expires: 2027-10-10T00:00:00.000Z
+Preferred-Languages: en, tl
+Canonical: https://bantay-ulang.vercel.app/.well-known/security.txt
