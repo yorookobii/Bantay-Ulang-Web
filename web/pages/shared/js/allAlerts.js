@@ -1,13 +1,14 @@
 import {
     fetchActiveAlerts,
     markSeen,
-    computeUnseenCount,
+    bellCounts,
     updateBadge,
     getSeenKeys,
     SEVERITY_ICON,
     formatRelativeTime,
     PARAM_LABELS
 } from './notificationsShared.js';
+import { getActiveAlerts } from './alertState.js';
 import { getReadingsInRange } from './readingsService.js';
 import { db } from './firebase.js';
 import { initSidebar } from './sidebar.js';
@@ -435,7 +436,11 @@ function renderGroups(container, alerts) {
         card.addEventListener('click', () => {
             markSeen([`alert:${card.getAttribute('data-alert-id')}`]);
             card.classList.remove('unseen');
-            updateBadge(document.querySelector('.notification-badge'), computeUnseenCount(alerts));
+            // Badge counts come from the full cached active list (no extra reads), not the capped page list.
+            getActiveAlerts().then((all) => {
+                const { active, unseen } = bellCounts(all);
+                updateBadge(document.querySelector('.notification-badge'), active, unseen);
+            }).catch(() => {});
             renderGroups(container, alerts);
         });
     });

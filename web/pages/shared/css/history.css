@@ -160,6 +160,10 @@
 .topbar .notification-icon { font-size: 24px; cursor: pointer; color: #333; transition: all 0.3s ease; position: relative; }
 .topbar .notification-icon:hover { color: #3498db; transform: scale(1.1); }
 .topbar .notification-badge { position: absolute; top: -6px; right: -8px; background-color: #e74c3c; color: #fff; border-radius: 10px; min-width: 16px; height: 16px; padding: 0 3px; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; display: none; }
+/* Grey once every active alert has been seen; white on #4b5563 is 7.6:1. */
+.topbar .notification-badge.all-seen { background-color: #4b5563; }
+/* Bell dropdown summary line, e.g. "5 active · 3 new". */
+.topbar .notification-summary { padding: 10px 15px; border-bottom: 1px solid #f0f0f0; font-size: 12px; font-weight: 600; color: #374151; }
 .topbar .notification-dropdown {
     position: absolute; top: 100%; right: 0; background-color: white; border: 1px solid #ddd; border-radius: 6px;
     min-width: 300px; max-height: 400px; overflow-y: auto; margin-top: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);

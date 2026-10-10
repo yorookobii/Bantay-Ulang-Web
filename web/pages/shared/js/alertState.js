@@ -108,8 +108,11 @@ export function subscribe(fn) {
     return () => subscribers.delete(fn);
 }
 
-/** Counting rule shared by every alert count: all active minus excludeFromReports duplicates. */
+/** The alerts every count and the bell list use: all active minus excludeFromReports duplicates. */
+export const countedAlerts = (alerts) => alerts.filter((alert) => alert.excludeFromReports !== true);
+
+/** Counting rule shared by every alert count. */
 export function countAlerts(alerts) {
-    const counted = alerts.filter((alert) => alert.excludeFromReports !== true);
+    const counted = countedAlerts(alerts);
     return { active: counted.length, handled: counted.filter((alert) => alert.handledAt != null).length };
 }

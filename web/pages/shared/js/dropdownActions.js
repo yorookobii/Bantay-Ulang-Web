@@ -7,13 +7,14 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
     markSeen,
-    computeUnseenCount,
+    bellCounts,
+    bellSummary,
     newestAlerts,
     SEVERITY_ICON,
     formatRelativeTime,
     updateBadge
 } from './notificationsShared.js';
-import { getActiveAlerts, subscribe } from './alertState.js';
+import { getActiveAlerts, subscribe, countedAlerts } from './alertState.js';
 import { initProfileMenu } from './profileMenu.js';
 import { initAlertFab } from './alertFab.js';
 
@@ -160,12 +161,12 @@ function closeModal() {
 
 // ── Notification bell (active alerts) ────────────────────────────────────────
 
-function renderNotifications(dropdownEl, alerts) {
+function renderNotifications(dropdownEl, alerts, active, unseen) {
     if (!alerts.length) {
-        dropdownEl.innerHTML = '<div class="notification-item">No new notifications</div>';
+        dropdownEl.innerHTML = '<div class="notification-item">No active alerts</div>';
         return;
     }
-    dropdownEl.innerHTML = alerts.map((alert) => {
+    dropdownEl.innerHTML = `<div class="notification-summary">${bellSummary(active, unseen)}</div>` + alerts.map((alert) => {
         const { icon, color } = SEVERITY_ICON[alert.severity] || SEVERITY_ICON.low;
         const time = formatRelativeTime(alert.createdAt?.toDate?.());
         return `<div class="notification-item" data-alert-id="${alert.id}">
@@ -191,10 +192,11 @@ function populateNotifications() {
     if (!notifDropdown) return;
 
     const badgeEl = document.querySelector('.notification-badge');
+    // Same alerts and count as the floating indicator: excludeFromReports duplicates are left out.
     const render = (all) => {
-        const alerts = newestAlerts(all);
-        renderNotifications(notifDropdown, alerts);
-        updateBadge(badgeEl, computeUnseenCount(alerts));
+        const { active, unseen } = bellCounts(all);
+        renderNotifications(notifDropdown, newestAlerts(countedAlerts(all)), active, unseen);
+        updateBadge(badgeEl, active, unseen);
     };
 
     subscribe(render);

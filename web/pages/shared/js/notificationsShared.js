@@ -1,5 +1,5 @@
 import { reevaluateActiveAlerts } from './alertsEngine.js';
-import { getActiveAlerts } from './alertState.js';
+import { getActiveAlerts, countedAlerts } from './alertState.js';
 
 // localStorage analog of Flutter's SharedPreferences seen-notification set
 // (see notification_service.dart / landing_page.dart) — same key, same
@@ -71,10 +71,21 @@ export async function fetchActiveAlerts() {
     return newestAlerts(await getActiveAlerts());
 }
 
-export function updateBadge(badgeEl, unseenCount) {
+// Bell numbers: active follows countAlerts(); unseen is how many of those are not yet seen.
+export function bellCounts(alerts) {
+    const counted = countedAlerts(alerts);
+    return { active: counted.length, unseen: computeUnseenCount(counted) };
+}
+
+// Dropdown summary line, e.g. "5 active · 3 new".
+export const bellSummary = (active, unseen) => (unseen > 0 ? `${active} active · ${unseen} new` : `${active} active`);
+
+// Badge shows the active count: red while any of them is unseen, grey (.all-seen) once all are seen.
+export function updateBadge(badgeEl, active, unseen) {
     if (!badgeEl) return;
-    badgeEl.textContent = unseenCount > 9 ? '9+' : String(unseenCount);
-    badgeEl.style.display = unseenCount > 0 ? 'inline-block' : 'none';
-    badgeEl.closest('.notification-icon')?.setAttribute('aria-label',
-        unseenCount > 0 ? `Notifications, ${unseenCount} unseen` : 'Notifications');
+    badgeEl.textContent = active > 9 ? '9+' : String(active);
+    badgeEl.style.display = active > 0 ? 'inline-block' : 'none';
+    badgeEl.classList.toggle('all-seen', unseen === 0);
+    badgeEl.closest('.notification-icon')?.setAttribute('aria-label', active === 0 ? 'Notifications'
+        : `Notifications, ${active} active${unseen > 0 ? `, ${unseen} new` : ''}`);
 }

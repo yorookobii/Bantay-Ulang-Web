@@ -436,6 +436,20 @@ body {
     display: none;
 }
 
+/* Grey once every active alert has been seen; white on #4b5563 is 7.6:1. */
+.topbar .notification-badge.all-seen {
+    background-color: #4b5563;
+}
+
+/* Bell dropdown summary line, e.g. "5 active · 3 new". */
+.topbar .notification-summary {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+}
+
 .topbar .notification-dropdown {
     position: absolute;
     top: 100%;

@@ -332,6 +332,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .topbar .notification-container { position: relative; }
 .topbar .notification-icon { font-size: 24px; cursor: pointer; color: #333; }
 .topbar .notification-badge { position: absolute; top: -6px; right: -8px; background-color: #e74c3c; color: #fff; border-radius: 10px; min-width: 16px; height: 16px; padding: 0 3px; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; display: none; }
+/* Grey once every active alert has been seen; white on #4b5563 is 7.6:1. */
+.topbar .notification-badge.all-seen { background-color: #4b5563; }
+/* Bell dropdown summary line, e.g. "5 active · 3 new". */
+.topbar .notification-summary { padding: 10px 15px; border-bottom: 1px solid #f0f0f0; font-size: 12px; font-weight: 600; color: #374151; }
 .topbar .notification-dropdown {
     position: absolute;
     top: 100%;
