@@ -11,6 +11,7 @@ import { getRanges, loadThresholds } from './thresholds.js';
 import { initSidebar } from './sidebar.js';
 import { normalizeStatus, isOverdue } from './taskStatus.js';
 import { roleLabel } from './roleLabels.js';
+import { escapeHtml } from './escapeHtml.js';
 
 // ── Sidebar: hamburger opens drawer, overlay closes it ────────────────────
 (function () {
@@ -248,9 +249,9 @@ function renderTasks(snapshot) {
         const tr = document.createElement('tr');
         if (isOverdue(d)) tr.classList.add('task-overdue');
         tr.innerHTML = `
-            <td>${d.assignedToName || '—'}</td>
+            <td>${escapeHtml(d.assignedToName || '—')}</td>
             <td>${roleText}</td>
-            <td>${d.title || '—'}</td>
+            <td>${escapeHtml(d.title || '—')}</td>
             <td>${fmtDate(d.dueDate)}</td>
             <td><span class="status-badge ${STATUS_CLASS[status] || 'status-pending'}">${STATUS_LABEL[status] || 'Pending'}</span></td>
             <td><button type="button" class="btn-remove" title="Delete task"><i class="fa-solid fa-trash-can"></i></button></td>

@@ -5,6 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { initSidebar } from './sidebar.js';
 import { ROLE_LABELS, roleLabel } from './roleLabels.js';
+import { escapeHtml } from './escapeHtml.js';
 
 // ── Global functions for onclick attrs in HTML ────────────────────────────
 window.toggleNotification = function () {
@@ -70,11 +71,11 @@ function buildPendingCard(uid, data, canEdit) {
 
     card.innerHTML = `
         <div class="user_profile">
-            <span class="user-initial">${initial}</span>
+            <span class="user-initial">${escapeHtml(initial)}</span>
         </div>
         <div class="user_information">
-            <h4>${name}</h4>
-            <p>${email}</p>
+            <h4>${escapeHtml(name)}</h4>
+            <p>${escapeHtml(email)}</p>
         </div>
         <div class="user_controls">
             <div class="ctrl-group">
@@ -149,11 +150,11 @@ function buildCard(uid, data, canEdit) {
 
     card.innerHTML = `
         <div class="user_profile">
-            <span class="user-initial">${initial}</span>
+            <span class="user-initial">${escapeHtml(initial)}</span>
         </div>
         <div class="user_information">
-            <h4>${name}</h4>
-            <p>${email}</p>
+            <h4>${escapeHtml(name)}</h4>
+            <p>${escapeHtml(email)}</p>
         </div>
         <div class="user_controls">
             <div class="ctrl-group">
