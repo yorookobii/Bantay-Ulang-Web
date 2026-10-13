@@ -305,6 +305,15 @@ main {
     line-height: 1;
 }
 .fr-btn-icon:hover { background: #fecaca; }
+.fr-btn-icon-neutral { background: #f3f4f6; color: #374151; }
+.fr-btn-icon-neutral:hover { background: #e5e7eb; }
+
+/* Inline schedule time editor (automation.html). */
+.sched-edit-wrap { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.sched-edit-wrap .fr-btn { padding: 5px 10px; }
+.sched-edit-input { padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+.sched-edit-input.invalid { border-color: #dc2626; }
+.sched-edit-error { color: #dc2626; font-size: 12px; }
 
 /* ── Recommended feed amount (feedRecommendationPanel.js) ───────────────── */
 

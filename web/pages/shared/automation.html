@@ -121,8 +121,8 @@
                                 </button>
                             </div>
                         </form>
-                        <div id="schedFeedback" class="fr-feedback" aria-live="polite"></div>
                     </div>
+                    <div id="schedFeedback" class="fr-feedback" aria-live="polite" style="margin-bottom: 16px;"></div>
 
                     <div id="scheduleLoading" class="fr-loading">
                         <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading schedules…
@@ -146,13 +146,19 @@
             } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
             import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
             import { initFeedRecommendation } from "./js/feedRecommendationPanel.js";
+            import { escapeHtml } from "./js/escapeHtml.js";
 
             const SCHED_COLL = "feeding_schedules";
             let currentUid = null;
             onAuthStateChanged(auth, u => { currentUid = u ? u.uid : null; });
 
-            function escHtml(s) {
-                return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+            const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+            const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000; // Philippines is UTC+8 with no daylight saving.
+            const PASSED_TODAY_NOTE = "This time has already passed today; it will run tomorrow.";
+
+            // Current PHT time as "HH:mm", independent of the browser's timezone.
+            function phtNowHHmm() {
+                return new Date(Date.now() + MANILA_OFFSET_MS).toISOString().slice(11, 16);
             }
 
             function fmt12(t) {
@@ -172,6 +178,11 @@
                 container: document.getElementById("feedRec"),
                 amountInput: document.getElementById("schedAmount")
             });
+
+            // Device dedupes feeds by time; swap this text if the firmware moves to doc-ID tracking.
+            function feedAgainWarning(oldTime, newTime) {
+                return `This schedule already ran at ${fmt12(oldTime)} today. Moving it to ${fmt12(newTime)} may feed again today. Continue?`;
+            }
 
             function showForm(show) {
                 formWrap.style.display = show ? "block" : "none";
@@ -203,6 +214,11 @@
                 if (!feedType) { form.feedType.classList.add("invalid"); valid = false; } else form.feedType.classList.remove("invalid");
                 if (isNaN(amount) || amount < 0) { form.amount.classList.add("invalid"); valid = false; } else form.amount.classList.remove("invalid");
                 if (!valid) return;
+                if (isDuplicateTime(feedTime, null)) {
+                    form.feedTime.classList.add("invalid");
+                    showSchedFeedback("Another enabled schedule already uses this time.", "error");
+                    return;
+                }
 
                 const btn = form.querySelector("button[type=submit]");
                 btn.disabled = true;
@@ -228,42 +244,109 @@
 
             const schedList    = document.getElementById("scheduleList");
             const schedLoading = document.getElementById("scheduleLoading");
+            let schedDocs = [];
+            let editingId = null;
+
+            // True when another enabled schedule already uses this time.
+            function isDuplicateTime(time, excludeId) {
+                return schedDocs.some(d => d.id !== excludeId && d.data().enabled === true && d.data().feedTime === time);
+            }
+
+            function cardHtml(d) {
+                const s = d.data();
+                const id = escapeHtml(d.id);
+                const timeHtml = d.id === editingId
+                    ? `<span class="sched-edit-wrap">
+                           <input type="time" class="sched-edit-input" value="${escapeHtml(s.feedTime)}" aria-label="Feed time">
+                           <button type="button" class="fr-btn fr-btn-primary sched-edit-save">Save</button>
+                           <button type="button" class="fr-btn fr-btn-secondary sched-edit-cancel">Cancel</button>
+                           <span class="sched-edit-error" role="alert"></span>
+                       </span>`
+                    : `<span>${escapeHtml(fmt12(s.feedTime))}</span>`;
+                return `
+                <div class="workflow-card">
+                    <div class="workflow-card-left">
+                        <div class="workflow-icon ${s.enabled ? "active" : "inactive"}">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div class="workflow-info">
+                            <div class="workflow-title">${escapeHtml(s.feedType)}</div>
+                            <div class="workflow-schedule">
+                                <i class="fa-regular fa-clock"></i>
+                                ${timeHtml}
+                                <span>&middot; ${escapeHtml(Number(s.amount).toLocaleString())} g</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="workflow-card-right">
+                        <input type="checkbox" id="st-${id}" class="workflow-toggle-input sched-toggle"
+                               data-id="${id}" ${s.enabled ? "checked" : ""} aria-label="Enable schedule">
+                        <label class="workflow-toggle" for="st-${id}"></label>
+                        <button class="fr-btn-icon fr-btn-icon-neutral sched-edit" data-id="${id}" type="button" title="Edit time" aria-label="Edit time">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="fr-btn-icon sched-delete" data-id="${id}" title="Delete schedule">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }
+
+            function renderList() {
+                schedList.innerHTML = schedDocs.length
+                    ? schedDocs.map(cardHtml).join("")
+                    : '<p class="fr-empty">No feeding schedules configured.</p>';
+            }
+
+            function openEditor(id) {
+                editingId = id;
+                renderList();
+                schedList.querySelector(".sched-edit-input")?.focus();
+            }
+
+            function closeEditor() {
+                editingId = null;
+                renderList();
+            }
+
+            async function saveEdit() {
+                const current = schedDocs.find(d => d.id === editingId);
+                const input = schedList.querySelector(".sched-edit-input");
+                if (!current || !input) return closeEditor();
+                const errEl = schedList.querySelector(".sched-edit-error");
+                const controls = schedList.querySelectorAll(".sched-edit-wrap input, .sched-edit-wrap button");
+                const fail = msg => {
+                    errEl.textContent = msg;
+                    input.classList.add("invalid");
+                    controls.forEach(c => { c.disabled = false; });
+                };
+                const oldTime = current.data().feedTime;
+                const newTime = input.value;
+                if (!newTime) return fail("Time is required.");
+                if (!TIME_RE.test(newTime)) return fail("Enter a valid time.");
+                if (newTime === oldTime) return closeEditor();
+                if (isDuplicateTime(newTime, current.id)) return fail("Another enabled schedule already uses this time.");
+                const now = phtNowHHmm();
+                if (oldTime < now && newTime > now && !confirm(feedAgainWarning(oldTime, newTime))) return;
+                controls.forEach(c => { c.disabled = true; });
+                try {
+                    await updateDoc(doc(db, SCHED_COLL, current.id), { feedTime: newTime });
+                    closeEditor();
+                    showSchedFeedback(newTime < now ? PASSED_TODAY_NOTE : "Schedule time updated.", "success");
+                } catch (err) {
+                    console.error("Error updating schedule time:", err);
+                    fail("Failed to update time. Try again.");
+                }
+            }
 
             onSnapshot(
                 query(collection(db, SCHED_COLL), orderBy("feedTime")),
                 snap => {
                     if (schedLoading) schedLoading.style.display = "none";
+                    schedDocs = snap.docs;
                     feedRec.setEnabledCount(snap.docs.filter(d => d.data().enabled === true).length);
-                    if (snap.empty) {
-                        schedList.innerHTML = '<p class="fr-empty">No feeding schedules configured.</p>';
-                        return;
-                    }
-                    schedList.innerHTML = snap.docs.map(d => {
-                        const s = d.data();
-                        return `
-                        <div class="workflow-card">
-                            <div class="workflow-card-left">
-                                <div class="workflow-icon ${s.enabled ? "active" : "inactive"}">
-                                    <i class="fa-solid fa-clock"></i>
-                                </div>
-                                <div class="workflow-info">
-                                    <div class="workflow-title">${escHtml(s.feedType)}</div>
-                                    <div class="workflow-schedule">
-                                        <i class="fa-regular fa-clock"></i>
-                                        <span>${fmt12(s.feedTime)} &middot; ${Number(s.amount).toLocaleString()} g</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="workflow-card-right">
-                                <input type="checkbox" id="st-${d.id}" class="workflow-toggle-input sched-toggle"
-                                       data-id="${d.id}" ${s.enabled ? "checked" : ""} aria-label="Enable schedule">
-                                <label class="workflow-toggle" for="st-${d.id}"></label>
-                                <button class="fr-btn-icon sched-delete" data-id="${d.id}" title="Delete schedule">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>`;
-                    }).join("");
+                    // Hold the re-render while a row is being edited; closeEditor() renders the latest docs.
+                    if (!editingId) renderList();
                 },
                 err => {
                     if (schedLoading) schedLoading.style.display = "none";
@@ -275,16 +358,39 @@
             schedList.addEventListener("change", async e => {
                 const cb = e.target.closest(".sched-toggle");
                 if (!cb) return;
-                await updateDoc(doc(db, SCHED_COLL, cb.dataset.id), { enabled: cb.checked });
+                const current = schedDocs.find(d => d.id === cb.dataset.id);
+                if (cb.checked && current && isDuplicateTime(current.data().feedTime, current.id)) {
+                    cb.checked = false;
+                    showSchedFeedback(`Another enabled schedule already uses ${fmt12(current.data().feedTime)}.`, "error");
+                    return;
+                }
+                try {
+                    await updateDoc(doc(db, SCHED_COLL, cb.dataset.id), { enabled: cb.checked });
+                } catch (err) {
+                    console.error("Error toggling schedule:", err);
+                    cb.checked = !cb.checked;
+                    showSchedFeedback("Failed to update schedule.", "error");
+                }
+            });
+
+            schedList.addEventListener("keydown", e => {
+                if (!e.target.closest(".sched-edit-input")) return;
+                if (e.key === "Escape") { e.preventDefault(); closeEditor(); }
+                else if (e.key === "Enter") { e.preventDefault(); saveEdit(); }
             });
 
             schedList.addEventListener("click", async e => {
+                const editBtn = e.target.closest(".sched-edit");
+                if (editBtn) return openEditor(editBtn.dataset.id);
+                if (e.target.closest(".sched-edit-save")) return saveEdit();
+                if (e.target.closest(".sched-edit-cancel")) return closeEditor();
                 const btn = e.target.closest(".sched-delete");
                 if (!btn) return;
                 if (!confirm("Delete this schedule? This cannot be undone.")) return;
                 btn.disabled = true;
                 try {
                     await deleteDoc(doc(db, SCHED_COLL, btn.dataset.id));
+                    if (editingId === btn.dataset.id) closeEditor();
                 } catch {
                     btn.disabled = false;
                 }
