@@ -70,8 +70,9 @@ FEATURES = [
     "avgTds", "avgTurbidity", "avgFeedRate",
 ]
 
-# water stat field -> reading doc's statistics.<key>.average (single source
-# of truth, shared by fetch_day_readings)
+# water stat field -> firmware key, read as statistics.<key>.average (old docs)
+# or flat top-level <key> (docs from Oct 13 2026 evening) via stat_value()
+# (single source of truth, shared by fetch_day_readings)
 STAT_MAP = {
     "avgWaterTemp": "waterTemperatureC",
     "avgPh": "phValue",
@@ -200,6 +201,14 @@ def get_missing_dates(cache, start_date, today):
         d += timedelta(days=1)
     return missing
 
+def stat_value(data, key):
+    """statistics.<key>.average (lumang docs) o flat top-level <key> (bagong docs)."""
+    avg = ((data.get("statistics") or {}).get(key) or {}).get("average")
+    if avg is not None:
+        return avg
+    v = data.get(key)
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
 def fetch_day_readings(db, year, month, day):
     """
     Direktang path read para sa ISANG araw (hindi collection_group scan):
@@ -207,6 +216,7 @@ def fetch_day_readings(db, year, month, day):
     (zero-padded ang month/day segments — verified sa Firestore console).
 
     Docs na isSynthetic: true ay nilalaktawan maliban kung INCLUDE_SYNTHETIC.
+    Parehong schema ang binabasa (nested statistics o flat fields, tingnan ang stat_value).
 
     Nagbabalik: (day_avgs dict {feat: float|None}, usable_n, docs_streamed, synthetic_used)
     """
@@ -226,13 +236,9 @@ def fetch_day_readings(db, year, month, day):
         is_synthetic = data.get("isSynthetic") is True
         if is_synthetic and not INCLUDE_SYNTHETIC:
             continue
-        stats = data.get("statistics", {})
-        if not stats:
-            continue
         got = False
         for feat, stat_key in STAT_MAP.items():
-            param = stats.get(stat_key, {})
-            avg = param.get("average")
+            avg = stat_value(data, stat_key)
             if avg is not None:
                 collected[feat].append(float(avg))
                 got = True
