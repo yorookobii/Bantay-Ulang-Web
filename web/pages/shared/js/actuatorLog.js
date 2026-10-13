@@ -1,5 +1,5 @@
 import { db } from "./firebase.js";
-import { collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, query, limit, orderBy, documentId } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Actuator Log panel: one-time fetch of the last 7 PHT days of ActionLogs, built with textContent only (docs are device-writable).
 
@@ -39,7 +39,7 @@ async function fetchRows() {
     for (const day of phtDays()) {
         const [y, m, dd] = day.split("-");
         const ref = collection(db, "ActionLogs", "Ulang", "years", `action_${y}`, `action_${m}`, `action_${dd}`, "actions");
-        const snap = await getDocs(query(ref, limit(PER_DAY)));
+        const snap = await getDocs(query(ref, orderBy(documentId(), "desc"), limit(PER_DAY)));
         snap.forEach(s => rows.push({ data: s.data(), key: sortKey(s.data(), day) }));
         if (rows.length >= MAX_ROWS) break;
     }
