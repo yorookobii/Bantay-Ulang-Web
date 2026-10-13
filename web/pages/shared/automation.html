@@ -130,6 +130,23 @@
                     <div id="scheduleList" class="workflow-list"></div>
                 </section>
 
+                <!-- ── Actuator Log ──────────────────────────────────────────── -->
+                <details class="feeding-section actuator-log" id="actuatorLog">
+                    <summary>
+                        <h2 class="feeding-section-title">
+                            <i class="fa-solid fa-chevron-right al-chevron"></i>
+                            <i class="fa-solid fa-list-check"></i> Actuator Log
+                        </h2>
+                    </summary>
+                    <div class="al-toolbar">
+                        <span>Latest 25 actions from the last 7 days (Philippine time).</span>
+                        <button type="button" class="fr-btn fr-btn-secondary" id="actuatorLogRefresh">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                    <div id="actuatorLogBody"></div>
+                </details>
+
             </main>
         </div>
 
@@ -439,6 +456,14 @@
         <script type="module">
             import { requireRole } from './js/roleGuard.js';
             requireRole('admin');
+        </script>
+        <script type="module">
+            import { initActuatorLog } from './js/actuatorLog.js';
+            initActuatorLog({
+                panel: document.getElementById('actuatorLog'),
+                body: document.getElementById('actuatorLogBody'),
+                refreshBtn: document.getElementById('actuatorLogRefresh')
+            });
         </script>
         <script type="module">
             import { loadUserProfile } from './js/userProfile.js';

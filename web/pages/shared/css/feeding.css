@@ -316,6 +316,16 @@ main {
 .sched-edit-input.invalid, .sched-edit-amount.invalid { border-color: #dc2626; }
 .sched-edit-error { color: #dc2626; font-size: 12px; }
 
+/* Actuator Log panel (actuatorLog.js). */
+.actuator-log summary { list-style: none; cursor: pointer; }
+.actuator-log summary::-webkit-details-marker { display: none; }
+.actuator-log:not([open]) .feeding-section-title { margin-bottom: 0; }
+.actuator-log .al-chevron { font-size: 13px; color: #6b7280; transition: transform 0.15s; }
+.actuator-log[open] .al-chevron { transform: rotate(90deg); }
+.al-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: 13px; color: #6b7280; }
+.al-badge { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 600; }
+.al-error { color: #dc2626; }
+
 /* ── Recommended feed amount (feedRecommendationPanel.js) ───────────────── */
 
 .feed-rec {
