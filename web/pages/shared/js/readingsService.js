@@ -144,6 +144,8 @@ export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
     return (await getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs)).rows;
 }
 
+let warnedNoCache = false; // catchUpCache warns about a missing cache once per page
+
 /**
  * catchUpCache(cycleStartMs, opts)
  *
@@ -161,8 +163,14 @@ export async function getReadingsInRange(cycleStartMs, sinceMs, untilMs) {
  * page happens to return.
  *
  * Resolves true once caught up, false if a sync failed or the budget/cap ran out.
+ * Without IndexedDB, lastSync never advances, so it fetches one page and stops.
  */
 export async function catchUpCache(cycleStartMs, { maxIterations = 150, timeBudgetMs = 10000, onPage = null } = {}) {
+    const cacheAvailable = (await cacheStore.openDB()) != null;
+    if (!cacheAvailable && !warnedNoCache) {
+        warnedNoCache = true;
+        console.warn("readingsService: IndexedDB unavailable, catchUpCache will fetch one page only.");
+    }
     const deadline = Date.now() + timeBudgetMs;
     for (let i = 0; i < maxIterations && Date.now() < deadline; i++) {
         const { newReadings: page, syncError } = await syncCache(cycleStartMs);
@@ -170,6 +178,7 @@ export async function catchUpCache(cycleStartMs, { maxIterations = 150, timeBudg
         if (onPage) onPage(page.length);
         if (syncError) return false;
         if (page.length < DEFAULT_FETCH_LIMIT) return true; // exhausted — cache is current
+        if (!cacheAvailable) return false; // the next page would refetch this same page
     }
     return false;
 }

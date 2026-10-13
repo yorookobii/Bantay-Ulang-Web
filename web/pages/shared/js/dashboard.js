@@ -183,11 +183,15 @@ function renderHardwareStatus(measuredAtDate) {
 const HW_DEVICE_ID = "ESP32-001";
 const ensuredHwAlertIds = new Set(); // per-tab memo so each outage doc is transacted once
 let isResolvingHwAlert = false;
+let hwOnlineResolved = false; // true once this online stretch has run its resolve query
 
+// Resolve runs once per transition into online (including the first online after load), not on every 15 s tick.
 function syncHardwareOfflineAlert(state, measuredAtDate) {
+    if (state !== "online") hwOnlineResolved = false;
     if (state === "offline") {
         ensureHardwareOfflineAlert(measuredAtDate);
-    } else if (state === "online") {
+    } else if (state === "online" && !hwOnlineResolved) {
+        hwOnlineResolved = true;
         resolveHardwareOfflineAlerts();
     }
 }
@@ -272,6 +276,7 @@ async function resolveHardwareOfflineAlerts() {
             invalidateAlertState();
         }
     } catch (err) {
+        hwOnlineResolved = false; // retry on the next tick
         console.error("[dashboard] Failed to resolve hardware alerts:", err);
     } finally {
         isResolvingHwAlert = false;
@@ -357,12 +362,19 @@ function setTotalYieldValue(value) {
     }
 }
 
+let latestGrowthIndicatorPromise = null;
+
+// Newest growth_indicators doc data (or null), read once per page load and shared by every widget below.
+function getLatestGrowthIndicator() {
+    latestGrowthIndicatorPromise ??= getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)))
+        .then(snap => (snap.empty ? null : snap.docs[0].data()));
+    return latestGrowthIndicatorPromise;
+}
+
 async function loadTotalYieldExpected() {
     try {
-        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
-        if (snap.empty) return;
-
-        const data = snap.docs[0].data();
+        const data = await getLatestGrowthIndicator();
+        if (!data) return;
 
         // Same panelist gate as yieldPrediction.js: no yield number until the
         // cycle is RF_GATE_DAYS old. Checked before the rfProjectedYield
@@ -527,10 +539,10 @@ function loadActiveAlerts() {
 
 async function loadCycleStartMs() {
     try {
-        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
-        if (snap.empty) return null;
+        const data = await getLatestGrowthIndicator();
+        if (!data) return null;
 
-        const cycleStart = toDateValue(snap.docs[0].data().cycleStart);
+        const cycleStart = toDateValue(data.cycleStart);
         return cycleStart ? cycleStart.getTime() : null;
     } catch (err) {
         console.warn("dashboard: unable to load growth_indicators for cycleStart:", err);
@@ -546,10 +558,9 @@ async function loadMortalityStat() {
     if (!rateEl && !countEl) return;
 
     try {
-        const snap = await getDocs(query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1)));
-        if (snap.empty) return;
+        const data = await getLatestGrowthIndicator();
+        if (!data) return;
 
-        const data = snap.docs[0].data();
         const initialStock = Number(data.initialStock);
         const cycleStart   = toDateValue(data.cycleStart);
 

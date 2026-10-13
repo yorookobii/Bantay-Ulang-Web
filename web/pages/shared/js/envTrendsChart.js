@@ -1,4 +1,5 @@
 import { getReadingsInRange, catchUpCache } from "./readingsService.js";
+import * as cacheStore from "./cacheStore.js";
 import { getRanges } from "./thresholds.js";
 
 /*
@@ -110,9 +111,12 @@ export function bucketReadings(readings, paramKey, rangeKey, sinceMs, untilMs) {
 
 // ── Fetch (cold-cache-safe) ──────────────────────────────────────────────────
 
+// After catch-up the cache is current, so read it directly instead of syncing a second time.
 async function getReadingsInRangeCaughtUp(cycleStartMs, sinceMs, untilMs) {
+    // Without IndexedDB a cache read is always empty, so one uncached sync returns the fetched rows as before.
+    if (!(await cacheStore.openDB())) return getReadingsInRange(cycleStartMs, sinceMs, untilMs);
     await catchUpCache(cycleStartMs);
-    return getReadingsInRange(cycleStartMs, sinceMs, untilMs);
+    return cacheStore.getReadings(sinceMs, untilMs);
 }
 
 async function fetchEnvTrends(paramKey, rangeKey, cycleStartMs) {

@@ -7,7 +7,8 @@ import {
     getDoc,
     addDoc,
     updateDoc,
-    serverTimestamp
+    serverTimestamp,
+    limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadThresholds, getRanges, refreshThresholds, computeSeverity } from "./thresholds.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
@@ -146,36 +147,45 @@ const TASK_PLAYBOOK = {
     }
 };
 
+// Users-by-role query results, memoized for the page lifetime so each auto-task skips the users read.
+const usersByRole = new Map();
+
 // Returns the Firestore UID of the first matching user.
 // Queries by role only (single-field index) and filters status in memory.
 async function findFirstUserByRole(role, requireActive = false) {
     try {
-        const snap = await getDocs(
-            query(collection(db, "users"), where("role", "==", role))
-        );
+        if (!usersByRole.has(role)) {
+            usersByRole.set(role, getDocs(query(collection(db, "users"), where("role", "==", role))));
+        }
+        const snap = await usersByRole.get(role);
         if (snap.empty) return null;
         if (!requireActive) return snap.docs[0].id;
         const match = snap.docs.find(d => d.data().status === "active");
         return match ? match.id : null;
     } catch {
+        usersByRole.delete(role); // a failed read is retried on the next task instead of memoized
         return null;
     }
 }
 
-// Queries tasks by parameter only (avoids composite index) then filters status in memory.
+// Unfinished statuses the app writes to tasks: "pending" on create, "in-progress" from the technician page.
+const OPEN_TASK_STATUSES = ["pending", "in-progress"];
+
+// One equality-only query per open status (served by index merge, no composite index), limit 1 since only existence matters.
 async function hasPendingTask(param) {
     try {
-        const q = query(collection(db, "tasks"), where("parameterTriggered", "==", param));
-        console.log(`[alertsEngine] hasPendingTask: querying tasks where parameterTriggered == "${param}"`);
-        const snap = await getDocs(q);
-        console.log(`[alertsEngine] hasPendingTask: found ${snap.size} task doc(s) for "${param}"`);
-        return snap.docs.some(d => {
-            const s = d.data().status;
-            return s !== "done" && s !== "completed";
-        });
+        const snaps = await Promise.all(OPEN_TASK_STATUSES.map(status => getDocs(query(
+            collection(db, "tasks"),
+            where("parameterTriggered", "==", param),
+            where("status", "==", status),
+            limit(1)
+        ))));
+        const pending = snaps.some(snap => !snap.empty);
+        console.log(`[alertsEngine] hasPendingTask: open task for "${param}" = ${pending}`);
+        return pending;
     } catch (err) {
         console.error(`[alertsEngine] hasPendingTask: Firestore query failed for "${param}" — check security rules on tasks collection.`, err);
-        return false; // fail open so the task creation still proceeds
+        return true; // fail closed: if the check fails, skip creating a task this round
     }
 }
 
@@ -227,15 +237,17 @@ async function autoCreateTask(param, severity, isHigh) {
 
 // ── Alert helpers ─────────────────────────────────────────────────────────────
 
-// Queries by parameter only (single-field index, no composite index needed) then
-// filters status and deviceId in memory to avoid requiring a composite Firestore index.
-async function findActiveAlert(param, deviceId) {
-    const snap = await getDocs(
-        query(collection(db, "alerts"), where("parameter", "==", param))
-    );
-    const match = snap.docs.find(d => {
+// One status=='active' query (single-field index) per live update, shared by every parameter handler.
+async function fetchActiveAlerts() {
+    const snap = await getDocs(query(collection(db, "alerts"), where("status", "==", "active")));
+    return snap.docs;
+}
+
+// First active alert for this parameter and device, in the same doc-ID order the old per-parameter query returned.
+function findActiveAlert(activeDocs, param, deviceId) {
+    const match = activeDocs.find(d => {
         const data = d.data();
-        return data.status === "active" && data.deviceId === deviceId;
+        return data.parameter === param && data.deviceId === deviceId;
     });
     return match || null;
 }
@@ -267,8 +279,7 @@ async function resolveAlert(ref, value) {
 // Water level is now reported as a boolean (safe/unsafe), not a numeric depth —
 // see aquaponicsReading.js. No range/severity gradient exists for a boolean, so
 // this bypasses computeSeverity()/buildMessage() and uses a fixed message/severity.
-async function handleWaterLevel(value, deviceId) {
-    const existing = await findActiveAlert("waterLevel", deviceId);
+async function handleWaterLevel(value, deviceId, existing) {
     const isUnsafe = !isWaterLevelSafe(value);
 
     if (isUnsafe) {
@@ -300,11 +311,9 @@ async function handleWaterLevel(value, deviceId) {
     }
 }
 
-async function handleParameter(param, value, deviceId) {
+async function handleParameter(param, value, deviceId, existing) {
     const { min, max, safeRangeStr } = getRanges()[param];
     const outOfRange = !isInRange(param, value);
-
-    const existing = await findActiveAlert(param, deviceId);
 
     if (outOfRange) {
         const aboveMax  = max !== null && max !== undefined && value > max;
@@ -351,15 +360,16 @@ async function handleParameter(param, value, deviceId) {
  */
 export async function processSensorReading(data) {
     const deviceId = data.deviceId || "unknown";
+    const activeDocs = await fetchActiveAlerts();
     const jobs = [];
 
     if (data.waterLevel != null) {
-        jobs.push(handleWaterLevel(data.waterLevel, deviceId));
+        jobs.push(handleWaterLevel(data.waterLevel, deviceId, findActiveAlert(activeDocs, "waterLevel", deviceId)));
     }
 
     Object.keys(getRanges())
         .filter(param => param !== "waterLevel" && data[param] != null && Number.isFinite(Number(data[param])))
-        .forEach(param => jobs.push(handleParameter(param, Number(data[param]), deviceId)));
+        .forEach(param => jobs.push(handleParameter(param, Number(data[param]), deviceId, findActiveAlert(activeDocs, param, deviceId))));
 
     // Each handler returns true when it created or resolved an alert, so the shared cache refetches.
     if ((await Promise.all(jobs)).some(Boolean)) invalidateAlertState();
