@@ -16,7 +16,7 @@ import { catchUpCache } from "./readingsService.js";
 import { DEFAULT_FETCH_LIMIT, fetchReadingsInRange } from "./historyLogsReader.js";
 import { loadThresholds } from "./thresholds.js";
 import { sanitizeReading } from "./plausibility.js";
-import { computeRowStatus, STATUS_PARAMS } from "./readingStatus.js";
+import { computeRowStatus, readingBreaches, STATUS_PARAMS } from "./readingStatus.js";
 import { calcYield } from "./yieldPrediction.js";
 import { yieldWaterNote } from "./yieldLabels.js";
 import { loadMortalityRecords, bucketDeathsByWeek } from "./mortalityChart.js";
@@ -265,7 +265,7 @@ async function gatherWaterQuality({ sinceMs, untilMs, cycleStartMs, now, onProgr
     // Readings with no sensor values at all are skipped from the rows and only counted.
     const allRows = raw.filter(reading => !reading.isSynthetic).map(reading => {
         const { reading: clean, suspect } = sanitizeReading(reading);
-        return { ...clean, status: computeRowStatus(reading), suspectFields: suspect };
+        return { ...clean, status: computeRowStatus(reading), suspectFields: suspect, breaches: readingBreaches(reading) };
     });
     const rows = allRows.filter(r => r.status !== "no-data");
 

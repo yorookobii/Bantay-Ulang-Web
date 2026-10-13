@@ -22,17 +22,29 @@ export const THRESHOLD_KEY = {
 };
 export const STATUS_PARAMS = Object.keys(THRESHOLD_KEY);
 
-export function isBreached(param, value) {
-    if (typeof value !== "number" || !Number.isFinite(value)) return false;
+// "low" | "high" | null for one value against its configured range; suspect or missing values never breach.
+export function breachDirection(param, value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return null;
     // A physically impossible value is a sensor fault, not a water condition.
-    if (isSuspect(param, value)) return false;
+    if (isSuspect(param, value)) return null;
     const range = getRanges()[THRESHOLD_KEY[param]];
-    if (!range) return false;
+    if (!range) return null;
     const hasMin = range.min !== null && range.min !== undefined;
     const hasMax = range.max !== null && range.max !== undefined;
-    if (hasMin && value < range.min) return true;
-    if (hasMax && value > range.max) return true;
-    return false;
+    if (hasMin && value < range.min) return "low";
+    if (hasMax && value > range.max) return "high";
+    return null;
+}
+
+export function isBreached(param, value) {
+    return breachDirection(param, value) !== null;
+}
+
+// Breached params of one reading, e.g. [{ param: "ph", dir: "low" }].
+export function readingBreaches(reading) {
+    return STATUS_PARAMS
+        .map(param => ({ param, dir: breachDirection(param, reading[param]) }))
+        .filter(b => b.dir);
 }
 
 // Precedence: out-of-range > suspect (physically impossible value, see

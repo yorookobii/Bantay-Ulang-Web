@@ -112,6 +112,7 @@ const WATER_QUALITY_COLUMNS = [
     ...Object.keys(READING_FIELDS).map(field => [readingHeader(field), r => formatReading(field, r[field])]),
     ["Water Level", r => waterLevelText(r.waterLevel)],
     ["Status", r => STATUS_LABELS[r.status] || r.status],
+    ["Out of Range", r => (r.breaches || []).map(b => `${READING_FIELDS[b.param]?.label || b.param} ${b.dir}`).join("; ")],
     ["Faulty Values", r => (r.suspectFields || []).map(f => READING_FIELDS[f]?.label || f).join("; ")]
 ];
 

@@ -471,8 +471,6 @@ transition: margin-left 0.25s ease;
 .sr-row--normal:hover  { background: #dcfce7 !important; }
 .sr-row--warning { background: #fffbeb; }
 .sr-row--warning:hover { background: #fef3c7 !important; }
-.sr-row--critical { background: #fff1f2; }
-.sr-row--critical:hover { background: #ffe4e6 !important; }
 .sr-row--no-data { background: #f9fafb; }
 .sr-row--no-data:hover { background: #f3f4f6 !important; }
 
@@ -487,6 +485,10 @@ transition: margin-left 0.25s ease;
 .sr-status--warning  { background: #fef3c7; color: #b45309; }
 .sr-status--critical { background: #fee2e2; color: #991b1b; }
 .sr-status--no-data  { background: #e5e7eb; color: #4b5563; }
+
+/* Out-of-range rows mark only the breached cells, not the whole row. */
+.sr-cell--breach { color: #991b1b; font-weight: 700; }
+.sr-breach-summary { margin-top: 4px; font-size: 12px; color: #991b1b; }
 
 /* Test-data marker next to the timestamp; violet so it never reads as a status. */
 .sr-tag {
@@ -532,7 +534,6 @@ transition: margin-left 0.25s ease;
     .sr-table tr { display: block; margin-bottom: 16px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
     .sr-row--normal   { background: #f0fdf4; }
     .sr-row--warning  { background: #fffbeb; }
-    .sr-row--critical { background: #fff1f2; }
     .sr-row--no-data  { background: #f9fafb; }
     .sr-table td { display: block; border: none; padding: 5px 0; font-size: 13px; }
     .sr-table td::before {

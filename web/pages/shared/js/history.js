@@ -8,12 +8,13 @@ import {
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getReadingsInRangeWithStatus, catchUpCache } from "./readingsService.js";
-import { loadThresholds } from "./thresholds.js";
+import { loadThresholds, getRanges } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { roleLabel } from "./roleLabels.js";
 import { normalizeStatus } from "./taskStatus.js";
 import { isSuspect } from "./plausibility.js";
-import { computeRowStatus } from "./readingStatus.js";
+import { computeRowStatus, breachDirection, readingBreaches, THRESHOLD_KEY } from "./readingStatus.js";
+import { escapeHtml } from "./escapeHtml.js";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
@@ -118,11 +119,17 @@ function escHtml(str) {
         .replace(/"/g, "&quot;");
 }
 
-// Suspect values render empty, with the raw value kept in the tooltip.
+// Settings-backed range for a reading param ({} when none is configured).
+const rangeOf = param => getRanges()[THRESHOLD_KEY[param]] || {};
+
+// Suspect values render empty, with the raw value kept in the tooltip; breached values get an arrow and their safe range.
 function valueCell(label, reading, param, dec) {
     const raw = reading[param];
     if (isSuspect(param, raw)) return `<td data-label="${label}" title="Suspect sensor value: ${escHtml(raw)}">—</td>`;
-    return `<td data-label="${label}">${fmt(raw, dec)}</td>`;
+    const dir = breachDirection(param, raw);
+    if (!dir) return `<td data-label="${label}">${fmt(raw, dec)}</td>`;
+    const tip = `${dir === "low" ? "Below" : "Above"} safe range ${rangeOf(param).safeRangeStr ?? ""}`;
+    return `<td data-label="${label}" class="sr-cell--breach" title="${escapeHtml(tip)}">${dir === "low" ? "↓" : "↑"} ${fmt(raw, dec)}</td>`;
 }
 
 function buildRow(row) {
@@ -138,6 +145,9 @@ function buildRow(row) {
           ts.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
         : "—";
 
+    const breachText = readingBreaches(reading).map(b => `${rangeOf(b.param).label ?? b.param} ${b.dir}`).join(", ");
+    const breachSummary = breachText ? `<div class="sr-breach-summary">${escapeHtml(breachText)}</div>` : "";
+
     const syntheticTag = reading.isSynthetic
         ? ` <span class="sr-tag sr-tag--synthetic" title="${escHtml(reading.dataSource || "Synthetic test data")}">Synthetic</span>`
         : "";
@@ -150,7 +160,7 @@ function buildRow(row) {
         ${valueCell("Salinity (ppt)", reading, "salinity", 2)}
         ${valueCell("Turbidity (NTU)", reading, "turbidity", 1)}
         ${valueCell("TDS (ppm)", reading, "tds", 0)}
-        <td data-label="Status"><span class="sr-status sr-status--${cssStatus}">${STATUS_LABEL[status] || capitalize(status)}</span></td>
+        <td data-label="Status"><span class="sr-status sr-status--${cssStatus}">${STATUS_LABEL[status] || capitalize(status)}</span>${breachSummary}</td>
     `;
     return tr;
 }
