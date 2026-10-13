@@ -145,7 +145,7 @@
                 query, orderBy, onSnapshot, serverTimestamp, updateDoc
             } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
             import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-            import { initFeedRecommendation } from "./js/feedRecommendationPanel.js";
+            import { initFeedRecommendation, roundGrams } from "./js/feedRecommendationPanel.js";
             import { escapeHtml } from "./js/escapeHtml.js";
 
             const SCHED_COLL = "feeding_schedules";
@@ -155,6 +155,7 @@
             const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
             const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000; // Philippines is UTC+8 with no daylight saving.
             const PASSED_TODAY_NOTE = "This time has already passed today; it will run tomorrow.";
+            const AMOUNT_ERROR = "Enter an amount greater than 0 g.";
 
             // Current PHT time as "HH:mm", independent of the browser's timezone.
             function phtNowHHmm() {
@@ -182,6 +183,13 @@
             // Device dedupes feeds by time; swap this text if the firmware moves to doc-ID tracking.
             function feedAgainWarning(oldTime, newTime) {
                 return `This schedule already ran at ${fmt12(oldTime)} today. Moving it to ${fmt12(newTime)} may feed again today. Continue?`;
+            }
+
+            // Confirms when enabled schedules would exceed today's recommended daily grams; skipped without a recommendation.
+            async function confirmDailyTotal(total) {
+                const rec = await feedRec.dailyGrams();
+                return rec == null || total <= rec
+                    || confirm(`Enabled schedules would total ${total} g per day, above today's recommended ${rec} g per day. Continue?`);
             }
 
             function showForm(show) {
@@ -212,8 +220,12 @@
                 let valid = true;
                 if (!feedTime) { form.feedTime.classList.add("invalid"); valid = false; } else form.feedTime.classList.remove("invalid");
                 if (!feedType) { form.feedType.classList.add("invalid"); valid = false; } else form.feedType.classList.remove("invalid");
-                if (isNaN(amount) || amount < 0) { form.amount.classList.add("invalid"); valid = false; } else form.amount.classList.remove("invalid");
-                if (!valid) return;
+                const amountOk = Number.isFinite(amount) && amount > 0;
+                if (!amountOk) { form.amount.classList.add("invalid"); valid = false; } else form.amount.classList.remove("invalid");
+                if (!valid) {
+                    if (!amountOk) showSchedFeedback(AMOUNT_ERROR, "error");
+                    return;
+                }
                 if (isDuplicateTime(feedTime, null)) {
                     form.feedTime.classList.add("invalid");
                     showSchedFeedback("Another enabled schedule already uses this time.", "error");
@@ -224,6 +236,7 @@
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
                 try {
+                    if (!(await confirmDailyTotal(projectedDailyTotal({ amount })))) return;
                     await addDoc(collection(db, SCHED_COLL), {
                         feedTime, feedType, amount,
                         enabled: true,
@@ -252,17 +265,31 @@
                 return schedDocs.some(d => d.id !== excludeId && d.data().enabled === true && d.data().feedTime === time);
             }
 
+            // Grams per day across enabled schedules with one pending change: create { amount }, edit { id, amount }, enable { id, enable }.
+            function projectedDailyTotal({ id = null, amount = null, enable = false }) {
+                let total = id === null && Number.isFinite(amount) ? amount : 0;
+                for (const d of schedDocs) {
+                    const s = d.data();
+                    if (s.enabled !== true && !(enable && d.id === id)) continue;
+                    const a = d.id === id && amount !== null ? amount : Number(s.amount);
+                    if (Number.isFinite(a)) total += a;
+                }
+                return roundGrams(total);
+            }
+
             function cardHtml(d) {
                 const s = d.data();
                 const id = escapeHtml(d.id);
                 const timeHtml = d.id === editingId
                     ? `<span class="sched-edit-wrap">
                            <input type="time" class="sched-edit-input" value="${escapeHtml(s.feedTime)}" aria-label="Feed time">
+                           <input type="number" class="sched-edit-amount" min="0" step="0.1" value="${escapeHtml(s.amount)}" aria-label="Amount (grams)"> g
                            <button type="button" class="fr-btn fr-btn-primary sched-edit-save">Save</button>
                            <button type="button" class="fr-btn fr-btn-secondary sched-edit-cancel">Cancel</button>
                            <span class="sched-edit-error" role="alert"></span>
                        </span>`
-                    : `<span>${escapeHtml(fmt12(s.feedTime))}</span>`;
+                    : `<span>${escapeHtml(fmt12(s.feedTime))}</span>
+                       <span>&middot; ${escapeHtml(Number(s.amount).toLocaleString())} g</span>`;
                 return `
                 <div class="workflow-card">
                     <div class="workflow-card-left">
@@ -274,7 +301,6 @@
                             <div class="workflow-schedule">
                                 <i class="fa-regular fa-clock"></i>
                                 ${timeHtml}
-                                <span>&middot; ${escapeHtml(Number(s.amount).toLocaleString())} g</span>
                             </div>
                         </div>
                     </div>
@@ -282,7 +308,7 @@
                         <input type="checkbox" id="st-${id}" class="workflow-toggle-input sched-toggle"
                                data-id="${id}" ${s.enabled ? "checked" : ""} aria-label="Enable schedule">
                         <label class="workflow-toggle" for="st-${id}"></label>
-                        <button class="fr-btn-icon fr-btn-icon-neutral sched-edit" data-id="${id}" type="button" title="Edit time" aria-label="Edit time">
+                        <button class="fr-btn-icon fr-btn-icon-neutral sched-edit" data-id="${id}" type="button" title="Edit schedule" aria-label="Edit schedule">
                             <i class="fa-solid fa-pen"></i>
                         </button>
                         <button class="fr-btn-icon sched-delete" data-id="${id}" title="Delete schedule">
@@ -312,30 +338,40 @@
             async function saveEdit() {
                 const current = schedDocs.find(d => d.id === editingId);
                 const input = schedList.querySelector(".sched-edit-input");
-                if (!current || !input) return closeEditor();
+                const amountInput = schedList.querySelector(".sched-edit-amount");
+                if (!current || !input || !amountInput) return closeEditor();
                 const errEl = schedList.querySelector(".sched-edit-error");
                 const controls = schedList.querySelectorAll(".sched-edit-wrap input, .sched-edit-wrap button");
-                const fail = msg => {
+                const unlock = () => controls.forEach(c => { c.disabled = false; });
+                const fail = (msg, field = input) => {
                     errEl.textContent = msg;
-                    input.classList.add("invalid");
-                    controls.forEach(c => { c.disabled = false; });
+                    field.classList.add("invalid");
+                    unlock();
                 };
-                const oldTime = current.data().feedTime;
+                input.classList.remove("invalid");
+                amountInput.classList.remove("invalid");
+                const { feedTime: oldTime, amount: oldAmount } = current.data();
                 const newTime = input.value;
+                const newAmount = parseFloat(amountInput.value);
                 if (!newTime) return fail("Time is required.");
                 if (!TIME_RE.test(newTime)) return fail("Enter a valid time.");
-                if (newTime === oldTime) return closeEditor();
-                if (isDuplicateTime(newTime, current.id)) return fail("Another enabled schedule already uses this time.");
+                if (!Number.isFinite(newAmount) || newAmount <= 0) return fail(AMOUNT_ERROR, amountInput);
+                const changes = {};
+                if (newTime !== oldTime) changes.feedTime = newTime;
+                if (newAmount !== oldAmount) changes.amount = newAmount;
+                if (!Object.keys(changes).length) return closeEditor();
+                if (changes.feedTime && isDuplicateTime(newTime, current.id)) return fail("Another enabled schedule already uses this time.");
                 const now = phtNowHHmm();
-                if (oldTime < now && newTime > now && !confirm(feedAgainWarning(oldTime, newTime))) return;
+                if (changes.feedTime && oldTime < now && newTime > now && !confirm(feedAgainWarning(oldTime, newTime))) return;
                 controls.forEach(c => { c.disabled = true; });
                 try {
-                    await updateDoc(doc(db, SCHED_COLL, current.id), { feedTime: newTime });
+                    if ("amount" in changes && !(await confirmDailyTotal(projectedDailyTotal({ id: current.id, amount: newAmount })))) return unlock();
+                    await updateDoc(doc(db, SCHED_COLL, current.id), changes);
                     closeEditor();
-                    showSchedFeedback(newTime < now ? PASSED_TODAY_NOTE : "Schedule time updated.", "success");
+                    showSchedFeedback(changes.feedTime && newTime < now ? PASSED_TODAY_NOTE : "Schedule updated.", "success");
                 } catch (err) {
-                    console.error("Error updating schedule time:", err);
-                    fail("Failed to update time. Try again.");
+                    console.error("Error updating schedule:", err);
+                    fail("Failed to update schedule. Try again.");
                 }
             }
 
@@ -364,6 +400,10 @@
                     showSchedFeedback(`Another enabled schedule already uses ${fmt12(current.data().feedTime)}.`, "error");
                     return;
                 }
+                if (cb.checked && current && !(await confirmDailyTotal(projectedDailyTotal({ id: current.id, enable: true })))) {
+                    cb.checked = false;
+                    return;
+                }
                 try {
                     await updateDoc(doc(db, SCHED_COLL, cb.dataset.id), { enabled: cb.checked });
                 } catch (err) {
@@ -374,7 +414,7 @@
             });
 
             schedList.addEventListener("keydown", e => {
-                if (!e.target.closest(".sched-edit-input")) return;
+                if (!e.target.closest(".sched-edit-input, .sched-edit-amount")) return;
                 if (e.key === "Escape") { e.preventDefault(); closeEditor(); }
                 else if (e.key === "Enter") { e.preventDefault(); saveEdit(); }
             });

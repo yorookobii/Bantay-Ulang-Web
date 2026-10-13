@@ -125,6 +125,13 @@ export function initFeedRecommendation({ container, amountInput }) {
         setEnabledCount(n) {
             enabledCount = n;
             if (inputs) render();
+        },
+        /** Today's recommended grams per day for the whole stock (not per feeding), or null without growth data. */
+        async dailyGrams() {
+            await this.load();
+            if (!inputs || inputs.reason) return null;
+            const rec = feedRecommendation({ alive: inputs.alive, avgWeightG: inputs.weight.weightG, feedingsPerDay: 1 });
+            return rec ? roundGrams(rec.gramsPerDay) : null;
         }
     };
 }
