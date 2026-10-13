@@ -14,8 +14,11 @@
 
 const DB_NAME = "BantayUlangCache";
 // v2: readings gained isSynthetic, dataSource, summaryWindowSec and the lowercase waterLevel key.
-// Each bump clears the cache, so every browser re-downloads the cycle once (~20k+ reads per browser at v2).
-const DB_VERSION = 2;
+// The v2 bump cleared the cache, so every browser re-downloaded the cycle once (~20k+ reads per browser).
+// v3: trims v2 caches from FLAT_SCHEMA_CUTOFF_MS instead of clearing them (see onupgradeneeded).
+const DB_VERSION = 3;
+// One-time schema-migration fix: flat-field docs (from Oct 13 evening) were cached as all-null, so v2 rows from this PHT midnight are re-fetched.
+const FLAT_SCHEMA_CUTOFF_MS = Date.parse("2026-10-13T00:00:00+08:00");
 const READINGS_STORE = "readings";
 const META_STORE = "meta";
 
@@ -52,10 +55,22 @@ export function openDB() {
             if (!db.objectStoreNames.contains(META_STORE)) {
                 db.createObjectStore(META_STORE, { keyPath: "key" });
             }
-            // Rows saved by an older version lack the current fields, so drop them and lastSync with them.
-            if (event.oldVersion > 0) {
-                request.transaction.objectStore(READINGS_STORE).clear();
-                request.transaction.objectStore(META_STORE).clear();
+            const tx = request.transaction;
+            // v1 rows lack the current fields, so drop them and lastSync with them.
+            if (event.oldVersion === 1) {
+                tx.objectStore(READINGS_STORE).clear();
+                tx.objectStore(META_STORE).clear();
+            }
+            // v2: drop rows from the cutoff on and rewind lastSync so the cache still holds everything up to it.
+            if (event.oldVersion === 2) {
+                const readings = tx.objectStore(READINGS_STORE);
+                readings.delete(IDBKeyRange.lowerBound(FLAT_SCHEMA_CUTOFF_MS));
+                readings.openCursor(null, "prev").onsuccess = (e) => {
+                    const newest = e.target.result;
+                    const meta = tx.objectStore(META_STORE);
+                    if (newest) meta.put({ key: "lastSync", value: newest.key });
+                    else meta.delete("lastSync");
+                };
             }
         };
 

@@ -9,6 +9,7 @@ import {
     getDocs,
     Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { statValue, waterLevelValue } from "./aquaponicsReading.js";
 
 /*
  * historyLogsReader.js — read-only Firestore data layer for HistoryLogs.
@@ -19,7 +20,8 @@ import {
  * ml-analytics/predict_yield.py. Each doc's shape mirrors the Aquaponics/
  * Ulang live doc (see aquaponicsReading.js): statistics.*.average for the
  * numeric params, statistics.waterLevel.latest (older docs: WaterLevel) for
- * the boolean water level.
+ * the boolean water level. Docs from Oct 13 2026 evening use flat top-level
+ * fields instead; statValue()/waterLevelValue() read both shapes.
  *
  * IMPORTANT — measuredAt is UNCONFIRMED for HistoryLogs docs:
  * predict_yield.py (the only other code in this repo that reads these docs)
@@ -54,21 +56,19 @@ export const DEFAULT_FETCH_LIMIT = 1000;
  * Adding a field here needs a cacheStore.js DB_VERSION bump, or cached rows keep the old shape.
  */
 export function normalizeHistoryReading(docData) {
-    const stats = docData?.statistics ?? {};
     const measuredAt = docData?.measuredAt;
     const measuredAtMs =
         typeof measuredAt?.toMillis === "function" ? measuredAt.toMillis() : null;
 
     return {
         measuredAtMs,
-        waterTemp:       stats.waterTemperatureC?.average ?? null,
-        ph:              stats.phValue?.average ?? null,
-        dissolvedOxygen: stats.oxygenLevelMgL?.average ?? null,
-        tds:             stats.tdsPpm?.average ?? null,
-        turbidity:       stats.turbidityNTU?.average ?? null,
-        salinity:        stats.salinityPpt?.average ?? null,
-        // Firmware writes waterLevel (current) or WaterLevel (older docs).
-        waterLevel:      stats.waterLevel?.latest ?? stats.WaterLevel?.latest ?? null,
+        waterTemp:       statValue(docData, "waterTemperatureC"),
+        ph:              statValue(docData, "phValue"),
+        dissolvedOxygen: statValue(docData, "oxygenLevelMgL"),
+        tds:             statValue(docData, "tdsPpm"),
+        turbidity:       statValue(docData, "turbidityNTU"),
+        salinity:        statValue(docData, "salinityPpt"),
+        waterLevel:      waterLevelValue(docData),
         // Test-data markers (e.g. the ESP32_SYNTHETIC_BACKFILL set) and the firmware's summary window.
         isSynthetic:      docData?.isSynthetic === true,
         dataSource:       typeof docData?.dataSource === "string" ? docData.dataSource : null,

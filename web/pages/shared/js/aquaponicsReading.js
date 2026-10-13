@@ -31,6 +31,12 @@ import { doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firesto
 
 export const AQUAPONICS_REF = doc(db, "Aquaponics", "Ulang");
 
+// Firmware value: statistics.<f>.average (docs before Oct 13) or flat top-level <f> (newer docs).
+export const statValue = (raw, f) => raw?.statistics?.[f]?.average ?? (typeof raw?.[f] === "number" ? raw[f] : null);
+// Water level: statistics.waterLevel.latest, statistics.WaterLevel.latest, then flat waterLevel.
+export const waterLevelValue = (raw) => raw?.statistics?.waterLevel?.latest ?? raw?.statistics?.WaterLevel?.latest
+    ?? (typeof raw?.waterLevel === "boolean" ? raw.waterLevel : null);
+
 /**
  * normalizeAquaponicsReading(raw)
  *
@@ -43,16 +49,14 @@ export const AQUAPONICS_REF = doc(db, "Aquaponics", "Ulang");
  * formatWaterLevelText() for the matching display text.
  */
 export function normalizeAquaponicsReading(raw) {
-    const stats = raw?.statistics ?? {};
     return {
-        phLevel:         stats.phValue?.average ?? null,
-        waterTemp:       stats.waterTemperatureC?.average ?? null,
-        dissolvedOxygen: stats.oxygenLevelMgL?.average ?? null,
-        tds:             stats.tdsPpm?.average ?? null,
-        salinity:        stats.salinityPpt?.average ?? null,
-        turbidity:       stats.turbidityNTU?.average ?? null,
-        // Firmware writes waterLevel (current) or WaterLevel (older docs).
-        waterLevel:      stats.waterLevel?.latest ?? stats.WaterLevel?.latest ?? null,
+        phLevel:         statValue(raw, "phValue"),
+        waterTemp:       statValue(raw, "waterTemperatureC"),
+        dissolvedOxygen: statValue(raw, "oxygenLevelMgL"),
+        tds:             statValue(raw, "tdsPpm"),
+        salinity:        statValue(raw, "salinityPpt"),
+        turbidity:       statValue(raw, "turbidityNTU"),
+        waterLevel:      waterLevelValue(raw),
         measuredAt:      raw?.measuredAt ?? null
     };
 }
