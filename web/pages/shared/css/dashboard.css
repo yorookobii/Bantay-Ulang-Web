@@ -395,15 +395,6 @@
     border-color: var(--color-active-emerald-glow, rgba(16, 185, 129, 0.15));
 }
 
-.metric-card .card-menu {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    color: #9ca3af;
-    cursor: pointer;
-    font-size: 18px;
-}
-
 .metric-card .card-header {
     display: flex;
     align-items: center;
