@@ -16,6 +16,7 @@ const DB_NAME = "BantayUlangCache";
 // v2: readings gained isSynthetic, dataSource, summaryWindowSec and the lowercase waterLevel key.
 // The v2 bump cleared the cache, so every browser re-downloaded the cycle once (~20k+ reads per browser).
 // v3: trims v2 caches from FLAT_SCHEMA_CUTOFF_MS instead of clearing them (see onupgradeneeded).
+// The rolling cache floor (readingsService.cacheFloorMs) prunes rows at runtime via deleteBefore(), so it needs no bump.
 const DB_VERSION = 3;
 // One-time schema-migration fix: flat-field docs (from Oct 13 evening) were cached as all-null, so v2 rows from this PHT midnight are re-fetched.
 const FLAT_SCHEMA_CUTOFF_MS = Date.parse("2026-10-13T00:00:00+08:00");
@@ -158,6 +159,30 @@ export async function getReadings(sinceMs, untilMs) {
         request.onerror = () => {
             console.warn("cacheStore: getReadings failed.", request.error);
             resolve([]);
+        };
+    });
+}
+
+/**
+ * deleteBefore(ms)
+ *
+ * Deletes every cached reading with measuredAtMs < ms (the rolling cache
+ * floor, see readingsService.cacheFloorMs). Meta is untouched.
+ *
+ * Never rejects: a failed prune only leaves extra old rows behind.
+ */
+export async function deleteBefore(ms) {
+    const db = await openDB();
+    if (!db) return;
+
+    return new Promise((resolve) => {
+        const tx = db.transaction(READINGS_STORE, "readwrite");
+        tx.objectStore(READINGS_STORE).delete(IDBKeyRange.upperBound(ms, true));
+
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => {
+            console.warn("cacheStore: deleteBefore transaction failed.", tx.error);
+            resolve();
         };
     });
 }

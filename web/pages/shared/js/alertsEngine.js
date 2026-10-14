@@ -171,7 +171,12 @@ async function findFirstUserByRole(role, requireActive = false) {
 // Unfinished statuses the app writes to tasks: "pending" on create, "in-progress" from the technician page.
 const OPEN_TASK_STATUSES = ["pending", "in-progress"];
 
+// Param -> when an open task was last confirmed on this page; cleared when the param's alert resolves, a new alert is created, or a task create fails.
+const openTaskParams = new Map();
+const OPEN_TASK_TTL_MS = 30 * 60 * 1000; // older confirmations are re-checked, so a task completed while the alert stays active gets replaced
+
 // One equality-only query per open status (served by index merge, no composite index), limit 1 since only existence matters.
+// Returns null when the check fails, so the caller can fail closed without memoizing.
 async function hasPendingTask(param) {
     try {
         const snaps = await Promise.all(OPEN_TASK_STATUSES.map(status => getDocs(query(
@@ -185,7 +190,7 @@ async function hasPendingTask(param) {
         return pending;
     } catch (err) {
         console.error(`[alertsEngine] hasPendingTask: Firestore query failed for "${param}" — check security rules on tasks collection.`, err);
-        return true; // fail closed: if the check fails, skip creating a task this round
+        return null;
     }
 }
 
@@ -199,9 +204,15 @@ async function autoCreateTask(param, severity, isHigh) {
         return;
     }
 
+    if (Date.now() - (openTaskParams.get(param) ?? -Infinity) < OPEN_TASK_TTL_MS) return; // open task confirmed recently, skip the task reads
+
     const pending = await hasPendingTask(param);
-    if (pending) {
-        console.log(`[alertsEngine] autoCreateTask: skipping ${param} — unresolved task already exists.`);
+    if (pending !== false) {
+        // fail closed: if the check fails, skip creating a task this round
+        if (pending) {
+            openTaskParams.set(param, Date.now());
+            console.log(`[alertsEngine] autoCreateTask: skipping ${param} — unresolved task already exists.`);
+        }
         return;
     }
 
@@ -229,8 +240,10 @@ async function autoCreateTask(param, severity, isHigh) {
             assignedTo,
             assignedToRole:     playbook.assignTo
         });
+        openTaskParams.set(param, Date.now());
         console.log(`[alertsEngine] Auto-task created for ${param} (${direction}, ${severity}).`);
     } catch (err) {
+        openTaskParams.delete(param);
         console.error(`[alertsEngine] autoCreateTask: addDoc failed — check security rules on tasks collection.`, err);
     }
 }
@@ -268,12 +281,20 @@ function isWaterLevelSafe(value) {
 
 // Shared resolve write, reused by both the live engine (below) and
 // reevaluateActiveAlerts() so there is exactly one copy of this update.
-async function resolveAlert(ref, value) {
+async function resolveAlert(ref, value, param) {
+    openTaskParams.delete(param);
     await updateDoc(ref, {
         status:       "resolved",
         resolvedAt:   serverTimestamp(),
         currentValue: value
     });
+}
+
+// Skips the write when the live alert already shows these fields, so a steady out-of-range reading costs no write.
+async function updateIfChanged(existing, fields) {
+    const data = existing.data();
+    if (Object.keys(fields).every(key => data[key] === fields[key])) return;
+    await updateDoc(existing.ref, fields);
 }
 
 // Water level is now reported as a boolean (safe/unsafe), not a numeric depth —
@@ -287,9 +308,10 @@ async function handleWaterLevel(value, deviceId, existing) {
         const message  = "Unsafe Water Level Detected.";
 
         if (existing) {
-            await updateDoc(existing.ref, { currentValue: value, message, severity });
+            await updateIfChanged(existing, { currentValue: value, message, severity });
             await autoCreateTask("waterLevel", severity, false);
         } else {
+            openTaskParams.delete("waterLevel"); // a new alert always re-checks tasks, as another tab may have resolved the last one
             await addDoc(collection(db, "alerts"), {
                 type:         "out_of_range",
                 parameter:    "waterLevel",
@@ -306,7 +328,7 @@ async function handleWaterLevel(value, deviceId, existing) {
         }
     } else if (existing) {
         // Water level returned to safe — resolve the alert.
-        await resolveAlert(existing.ref, value);
+        await resolveAlert(existing.ref, value, "waterLevel");
         return true;
     }
 }
@@ -323,10 +345,11 @@ async function handleParameter(param, value, deviceId, existing) {
 
         if (existing) {
             // Update the live alert with the latest value and recalculated severity.
-            await updateDoc(existing.ref, { currentValue: value, message, severity });
+            await updateIfChanged(existing, { currentValue: value, message, severity });
             // Task may not exist yet if alert pre-dates the task engine — create it if missing.
             await autoCreateTask(param, severity, aboveMax);
         } else {
+            openTaskParams.delete(param); // a new alert always re-checks tasks, as another tab may have resolved the last one
             await addDoc(collection(db, "alerts"), {
                 type:         alertType,
                 parameter:    param,
@@ -344,7 +367,7 @@ async function handleParameter(param, value, deviceId, existing) {
         }
     } else if (existing) {
         // Parameter returned to safe range — resolve the alert.
-        await resolveAlert(existing.ref, value);
+        await resolveAlert(existing.ref, value, param);
         return true;
     }
 }
@@ -420,13 +443,13 @@ export async function reevaluateActiveAlerts() {
 
         if (parameter === "waterLevel") {
             if (!isWaterLevelSafe(value)) return;
-            await resolveAlert(alertDoc.ref, value);
+            await resolveAlert(alertDoc.ref, value, parameter);
             return true;
         }
 
         const numValue = Number(value);
         if (!Number.isFinite(numValue) || !isInRange(parameter, numValue)) return;
-        await resolveAlert(alertDoc.ref, numValue);
+        await resolveAlert(alertDoc.ref, numValue, parameter);
         return true;
     });
 

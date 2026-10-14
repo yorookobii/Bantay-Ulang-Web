@@ -18,6 +18,21 @@ import { fetchNewReadings, DEFAULT_FETCH_LIMIT } from "./historyLogsReader.js";
  * that case, ensuring charts still work (just without the caching benefit).
  */
 
+// Rolling cache window: cold syncs start here and older rows are pruned; older readings are read directly, never cached.
+export const CACHE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * cacheFloorMs(cycleStartMs, now)
+ *
+ * Oldest reading the cache keeps: the later of cycleStartMs and
+ * now - CACHE_WINDOW_MS. The cache holds every reading in [floor, lastSync],
+ * so consumers needing older data read it with fetchReadingsInRange().
+ */
+export function cacheFloorMs(cycleStartMs, now = Date.now()) {
+    const windowStartMs = now - CACHE_WINDOW_MS;
+    return cycleStartMs != null ? Math.max(cycleStartMs, windowStartMs) : windowStartMs;
+}
+
 /**
  * reconcileCycleStart(currentCycleStartMs)
  *
@@ -47,12 +62,12 @@ async function reconcileCycleStart(currentCycleStartMs) {
  *
  * Internal — runs the invalidate → incremental-fetch → merge/persist
  * sequence shared by both exported functions:
- *   1. reconcileCycleStart() (see above).
+ *   1. reconcileCycleStart() (see above), then once per page load prunes
+ *      rows older than cacheFloorMs() (see above).
  *   2. Reads cacheStore.getLastSync() and fetches only readings newer than
- *      that via historyLogsReader.fetchNewReadings(). If lastSync is null
- *      (cold cache), fetches from currentCycleStartMs instead, so earlier
- *      cycles are never downloaded; with no cycleStart either, fetches from
- *      the beginning (see historyLogsReader.js).
+ *      the later of lastSync and the floor via
+ *      historyLogsReader.fetchNewReadings(). A cold cache (or one idle past
+ *      the window) therefore starts at the floor, never at cycleStart.
  *   3. If any new readings came back, persists them via
  *      cacheStore.saveReadings() and advances lastSync to the newest
  *      reading's measuredAtMs.
@@ -62,15 +77,23 @@ async function reconcileCycleStart(currentCycleStartMs) {
  * result. A failed fetch yields newReadings [] plus the error in syncError, so
  * callers can tell "nothing new" apart from "couldn't reach Firestore".
  */
+let prunedThisPage = false; // syncCache prunes below the floor once per page load
+
 async function syncCache(currentCycleStartMs) {
     await reconcileCycleStart(currentCycleStartMs);
 
+    const floorMs = cacheFloorMs(currentCycleStartMs);
+    if (!prunedThisPage) {
+        prunedThisPage = true;
+        await cacheStore.deleteBefore(floorMs);
+    }
+
     const lastSync = await cacheStore.getLastSync();
-    // fetchNewReadings is exclusive (>), so step back 1ms to keep a reading stamped exactly at cycleStart.
-    const floorMs = lastSync ?? (currentCycleStartMs != null ? currentCycleStartMs - 1 : null);
+    // fetchNewReadings is exclusive (>), so step back 1ms to keep a reading stamped exactly at the floor.
+    const sinceMs = Math.max(lastSync ?? -Infinity, floorMs - 1);
     let newReadings;
     try {
-        newReadings = await fetchNewReadings(floorMs);
+        newReadings = await fetchNewReadings(sinceMs);
     } catch (syncError) {
         return { newReadings: [], syncError };
     }

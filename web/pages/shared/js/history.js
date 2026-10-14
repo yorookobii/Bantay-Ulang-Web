@@ -7,7 +7,8 @@ import {
     startAfter,
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getReadingsInRangeWithStatus, catchUpCache } from "./readingsService.js";
+import { getReadingsInRangeWithStatus, catchUpCache, cacheFloorMs, CACHE_WINDOW_MS } from "./readingsService.js";
+import { fetchReadingsInRange } from "./historyLogsReader.js";
 import { loadThresholds, getRanges } from "./thresholds.js";
 import { initSidebar } from "./sidebar.js";
 import { roleLabel } from "./roleLabels.js";
@@ -17,8 +18,9 @@ import { computeRowStatus, breachDirection, readingBreaches, THRESHOLD_KEY } fro
 import { escapeHtml } from "./escapeHtml.js";
 
 const PAGE_SIZE = 20;
-const DEFAULT_RANGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — bounded default when no date filter is set
+const DEFAULT_RANGE_MS = CACHE_WINDOW_MS; // 7 days, the cache window, so the default view never reads directly
 const CATCH_UP_MAX_PAGES = 19; // plus the range sync's own page: at most 20,000 reads per visit, the report's READ_BUDGET
+const HISTORY_OLDER_CAP = 2000; // direct reads per search for From dates older than the cache floor, never cached
 const LOADING_TEXT = "Loading sensor readings…";
 
 let statusFilter = "all";
@@ -67,7 +69,7 @@ function getCycleStartMs() {
 }
 
 // ─── Effective date range (bounded default) ─────────────────────────────────
-// If either date field is left blank, defaults that end to a 30-day-bounded
+// If either date field is left blank, defaults that end to a 7-day-bounded
 // value instead of pulling the whole cycle into memory. Each field defaults
 // independently, so an explicit "from" with no "to" still only defaults the
 // missing end.
@@ -218,9 +220,18 @@ async function loadSensorReadings() {
             }
         });
 
-        const { rows: readings, syncError } = await getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs);
+        const { rows: cachedRows, syncError } = await getReadingsInRangeWithStatus(cycleStartMs, sinceMs, untilMs);
 
-        // A failed sync with no cached rows is an error, not an empty farm.
+        // The cache only holds readings from the floor on; older ones in the range are read directly and capped.
+        const floorMs = cacheFloorMs(cycleStartMs);
+        const olderSinceMs = Math.max(sinceMs, cycleStartMs ?? sinceMs);
+        // The default range is the cache window itself, so only an explicit From date reads directly.
+        const older = dateFromVal && olderSinceMs < floorMs
+            ? await fetchReadingsInRange(olderSinceMs, Math.min(untilMs, floorMs - 1), { maxDocs: HISTORY_OLDER_CAP })
+            : { readings: [], truncated: false };
+        const readings = older.readings.concat(cachedRows.filter(reading => reading.measuredAtMs >= floorMs));
+
+        // A failed sync with no rows at all is an error, not an empty farm.
         if (syncError && !readings.length) throw syncError;
 
         // Rows come back ascending; reverse for newest-first, matching
@@ -233,12 +244,16 @@ async function loadSensorReadings() {
             .filter(row => sourceFilter === "all" || row.reading.isSynthetic === (sourceFilter === "synthetic"));
 
         if (loadingEl) loadingEl.style.display = "none";
-        if (syncError && errorEl) {
-            errorEl.textContent = "Showing cached readings; couldn't refresh from the server. " + syncErrorHint(syncError);
-            errorEl.classList.add("sr-error--warning");
-            errorEl.style.display = "block";
-        } else if (!caughtUp && errorEl) {
-            errorEl.textContent = "Still catching up on older readings; the newest may be missing. Reload to continue.";
+        const warnings = [];
+        if (syncError) warnings.push("Showing cached readings; couldn't refresh from the server. " + syncErrorHint(syncError));
+        else if (!caughtUp) warnings.push("Still catching up on older readings; the newest may be missing. Reload to continue.");
+        if (older.truncated) {
+            const lastOlder = older.readings[older.readings.length - 1];
+            const stopAt = lastOlder ? new Date(lastOlder.measuredAtMs).toLocaleString("en-PH") : "the start of the range";
+            warnings.push(`Older readings stop at ${stopAt} (${HISTORY_OLDER_CAP.toLocaleString("en-PH")}-reading limit); narrow the From date to see the rest.`);
+        }
+        if (warnings.length && errorEl) {
+            errorEl.textContent = warnings.join(" ");
             errorEl.classList.add("sr-error--warning");
             errorEl.style.display = "block";
         }

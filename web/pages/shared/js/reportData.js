@@ -12,7 +12,7 @@ import {
     Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as cacheStore from "./cacheStore.js";
-import { catchUpCache } from "./readingsService.js";
+import { catchUpCache, cacheFloorMs } from "./readingsService.js";
 import { DEFAULT_FETCH_LIMIT, fetchReadingsInRange } from "./historyLogsReader.js";
 import { loadThresholds } from "./thresholds.js";
 import { sanitizeReading } from "./plausibility.js";
@@ -92,12 +92,14 @@ export async function estimateNewReads(cycleStartMs, sinceMs, untilMs, now = Dat
     const cacheAvailable = dbHandle != null;
     // Mirrors readingsService.reconcileCycleStart: a different recorded cycle clears the cache.
     const invalidated = cycleStartMs != null && cachedCycle != null && cachedCycle !== cycleStartMs;
-    const usable = cacheAvailable && !invalidated && lastSync != null;
+    const floorMs = cacheFloorMs(cycleStartMs, now);
+    const usable = cacheAvailable && !invalidated && lastSync != null && windowSinceMs >= floorMs;
     const plan = (source, newReads) => ({ source, newReads, cacheAvailable, windowSinceMs, windowUntilMs });
 
-    // Cold syncs start at cycleStart, so a usable cache holds everything from the window start to lastSync.
+    // The cache holds everything from the rolling floor (cacheFloorMs) to lastSync, so only windows starting at or after the floor use it.
     if (rangeReads === 0 || (usable && lastSync >= windowUntilMs - CACHE_TOLERANCE_MS)) return plan("cache", 0);
-    const catchUpReads = usable ? Math.ceil((now - lastSync) / READ_ESTIMATE_INTERVAL_MS) : Infinity;
+    // Catch-up syncs from the later of lastSync and the floor (readingsService.syncCache).
+    const catchUpReads = usable ? Math.ceil((now - Math.max(lastSync, floorMs)) / READ_ESTIMATE_INTERVAL_MS) : Infinity;
     return catchUpReads <= rangeReads ? plan("catch-up", catchUpReads) : plan("direct-range", rangeReads);
 }
 
@@ -106,9 +108,9 @@ export function checkReadBudget(estimate) {
     if (estimate.newReads >= READ_BUDGET) {
         return {
             allowed: false,
-            message: `This report needs about ${estimate.newReads.toLocaleString("en-PH")} sensor readings that aren't saved in this browser yet, ` +
-                `above the ${READ_BUDGET.toLocaleString("en-PH")}-read limit per report (Firestore's free tier allows 50,000 reads a day). ` +
-                `Choose a range of ${MAX_UNCACHED_DAYS} days or fewer.`
+            message: `This range needs about ${estimate.newReads.toLocaleString("en-PH")} sensor readings that aren't saved in this browser yet. ` +
+                `The farm database only allows a limited number of reads per day, so one report can download at most ${MAX_UNCACHED_DAYS} days of readings. ` +
+                `Choose "Last 7 days", or a custom range of ${MAX_UNCACHED_DAYS} days or fewer.`
         };
     }
     return { allowed: true, message: "" };

@@ -5,7 +5,6 @@ import {
     rangeForPreset,
     validateCustomRange,
     loadCycleInfo,
-    MAX_UNCACHED_DAYS,
     SECTIONS
 } from "./reportData.js";
 import { buildReportFiles, downloadFiles } from "./reportCsv.js";
@@ -47,12 +46,6 @@ function errorMessage(err) {
         return "Couldn't reach the server. Check the internet connection and try again.";
     }
     return "Something went wrong while building the report" + (code ? ` (${code})` : "") + ". Please try again.";
-}
-
-function budgetText(newReads) {
-    return `This range needs about ${newReads.toLocaleString("en-PH")} sensor readings that aren't saved in this browser yet. ` +
-        `The farm database only allows a limited number of reads per day, so one report can download at most ${MAX_UNCACHED_DAYS} days of readings. ` +
-        `Choose a shorter range.`;
 }
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -99,7 +92,8 @@ async function refreshEstimate() {
     try {
         const estimate = await estimateNewReads(cycleStartMs, range.sinceMs, range.untilMs);
         if (token !== estimateToken) return;
-        if (!checkReadBudget(estimate).allowed) return setEstimate(budgetText(estimate.newReads), true);
+        const budget = checkReadBudget(estimate);
+        if (!budget.allowed) return setEstimate(budget.message, true);
         setEstimate(estimate.newReads === 0
             ? "Uses saved readings (no download)."
             : `Downloads about ${estimate.newReads.toLocaleString("en-PH")} readings.`, false);

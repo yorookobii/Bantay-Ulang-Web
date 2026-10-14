@@ -9,7 +9,7 @@ import {
     PARAM_LABELS
 } from './notificationsShared.js';
 import { getActiveAlerts } from './alertState.js';
-import { getReadingsInRange } from './readingsService.js';
+import { getReadingsInRange, cacheFloorMs } from './readingsService.js';
 import { db } from './firebase.js';
 import { initSidebar } from './sidebar.js';
 import {
@@ -38,7 +38,6 @@ const SPARK_MAX_POINTS = 48;                        // downsample target — a s
 const SPARK_W = 96;
 const SPARK_H = 40;
 const SPARK_PAD = 4;
-const READINGS_FALLBACK_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000; // used only if there is no cycleStart
 
 // alert.parameter -> normalized reading-object key (historyLogsReader.js:58-67).
 // Only phLevel differs; every other parameter passes through unchanged.
@@ -191,12 +190,11 @@ async function loadCycleStartMs() {
     }
 }
 
-// One-time fetch through the existing cached readings path (readingsService.js:115).
+// One-time fetch through the cached readings path, from the cache floor on (older alerts show "no trend data").
 // Returns { waterTemp: [{t,v}...], ph: [...], ... } ascending by t.
 async function loadReadingsIndex() {
     const cycleStartMs = await loadCycleStartMs();
-    const sinceMs = cycleStartMs ?? (Date.now() - READINGS_FALLBACK_LOOKBACK_MS);
-    const readings = await getReadingsInRange(cycleStartMs, sinceMs, Date.now());
+    const readings = await getReadingsInRange(cycleStartMs, cacheFloorMs(cycleStartMs), Date.now());
     // Sparklines show real pond conditions only, never synthetic test readings.
     return buildSeriesIndex(readings.filter((r) => !r.isSynthetic));
 }

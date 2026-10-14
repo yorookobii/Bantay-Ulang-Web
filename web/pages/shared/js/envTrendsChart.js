@@ -1,4 +1,5 @@
-import { getReadingsInRange, catchUpCache } from "./readingsService.js";
+import { getReadingsInRange, catchUpCache, cacheFloorMs } from "./readingsService.js";
+import { fetchReadingsInRange } from "./historyLogsReader.js";
 import * as cacheStore from "./cacheStore.js";
 import { getRanges } from "./thresholds.js";
 
@@ -24,6 +25,9 @@ export const ENV_RANGE_CONFIG = {
     "7d":  { ms: 7  * 24 * 60 * 60 * 1000, label: "Last 7 Days" },
     "30d": { ms: 30 * 24 * 60 * 60 * 1000, label: "Last 30 Days" }
 };
+
+// Direct-read cap for the part of "30d" older than the cache floor (23 days at the 300 s cadence is about 6,600 docs).
+export const ENV_OLDER_CAP = 7000;
 
 function computeRange(values, fallbackMin, fallbackMax) {
     const numericValues = values.filter((value) => typeof value === "number" && Number.isFinite(value));
@@ -119,13 +123,42 @@ async function getReadingsInRangeCaughtUp(cycleStartMs, sinceMs, untilMs) {
     return cacheStore.getReadings(sinceMs, untilMs);
 }
 
+let olderPartPromise = null; // "30d" readings below the cache floor, fetched once per page
+
+// Readings in [max(sinceMs, cycleStart), floor) read directly and capped; a failed read is not memoized.
+function getOlderPart(cycleStartMs, sinceMs, now) {
+    if (!olderPartPromise) {
+        const floorMs = cacheFloorMs(cycleStartMs, now);
+        const fromMs = Math.max(sinceMs, cycleStartMs ?? sinceMs);
+        olderPartPromise = fromMs >= floorMs
+            ? Promise.resolve({ floorMs, readings: [], truncated: false, failed: false })
+            : fetchReadingsInRange(fromMs, floorMs - 1, { maxDocs: ENV_OLDER_CAP })
+                .then(({ readings, truncated }) => ({ floorMs, readings, truncated, failed: false }))
+                .catch(() => {
+                    olderPartPromise = null;
+                    return { floorMs, readings: [], truncated: false, failed: true };
+                });
+    }
+    return olderPartPromise;
+}
+
 async function fetchEnvTrends(paramKey, rangeKey, cycleStartMs) {
     const now = Date.now();
     const cutoff = now - ENV_RANGE_CONFIG[rangeKey].ms;
-    const readings = await getReadingsInRangeCaughtUp(cycleStartMs, cutoff, now);
+    let readings = await getReadingsInRangeCaughtUp(cycleStartMs, cutoff, now);
+    const notes = [];
+    // Only "30d" reaches below the 7-day cache floor; the cached part starts at the older part's floor so nothing is counted twice.
+    if (rangeKey === "30d") {
+        const older = await getOlderPart(cycleStartMs, cutoff, now);
+        readings = older.readings.concat(readings.filter((reading) => reading.measuredAtMs >= older.floorMs));
+        if (older.truncated) notes.push(`Older readings capped at ${ENV_OLDER_CAP.toLocaleString("en-PH")}; gap before ${new Date(older.floorMs).toLocaleDateString("en-PH")}`);
+        if (older.failed) notes.push(`Readings before ${new Date(older.floorMs).toLocaleDateString("en-PH")} couldn't be loaded`);
+    }
     // Synthetic test readings never feed the trend line; only their count is reported.
     const live = readings.filter((reading) => !reading.isSynthetic);
-    return { points: bucketReadings(live, paramKey, rangeKey, cutoff, now), syntheticHidden: readings.length - live.length };
+    const syntheticHidden = readings.length - live.length;
+    if (syntheticHidden > 0) notes.unshift(`${syntheticHidden.toLocaleString("en-PH")} synthetic test readings hidden`);
+    return { points: bucketReadings(live, paramKey, rangeKey, cutoff, now), notes };
 }
 
 // ── Chart ────────────────────────────────────────────────────────────────────
@@ -178,7 +211,7 @@ export async function refreshEnvTrendsChart(chart, paramKey, rangeKey, cycleStar
     const config = ENV_PARAM_CONFIG[paramKey] || ENV_PARAM_CONFIG.ph;
 
     try {
-        const { points, syntheticHidden } = await fetchEnvTrends(paramKey, rangeKey, cycleStartMs);
+        const { points, notes } = await fetchEnvTrends(paramKey, rangeKey, cycleStartMs);
         const labels = points.map((point) => point.label);
         const values = points.map((point) => point.value);
         const fallback = envFallbackRange(paramKey, config);
@@ -192,8 +225,8 @@ export async function refreshEnvTrendsChart(chart, paramKey, rangeKey, cycleStar
         chart.options.scales.y.min = range.min;
         chart.options.scales.y.max = range.max;
         chart.options.plugins.subtitle = {
-            display: syntheticHidden > 0,
-            text: `${syntheticHidden.toLocaleString("en-PH")} synthetic test readings hidden`,
+            display: notes.length > 0,
+            text: notes.join(" · "),
             color: "#6b7280",
             font: { size: 11 }
         };
