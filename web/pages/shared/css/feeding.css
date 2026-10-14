@@ -326,6 +326,14 @@ main {
 .al-badge { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 600; }
 .al-error { color: #dc2626; }
 
+/* Actuator Activity counter cards (actuatorActivity.js); panel chrome reuses .actuator-log. */
+.aa-heading { font-weight: 600; color: #374151; }
+.aa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.aa-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; }
+.aa-value { font-size: 28px; font-weight: 700; line-height: 1.1; color: #111827; font-variant-numeric: tabular-nums; }
+.aa-label { font-size: 13px; color: #6b7280; }
+.aa-meta { margin: 12px 0 0; font-size: 12px; color: #6b7280; }
+
 /* ── Recommended feed amount (feedRecommendationPanel.js) ───────────────── */
 
 .feed-rec {

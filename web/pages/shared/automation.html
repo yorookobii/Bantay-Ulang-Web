@@ -130,6 +130,24 @@
                     <div id="scheduleList" class="workflow-list"></div>
                 </section>
 
+                <!-- ── Actuator Activity ─────────────────────────────────────── -->
+                <details class="feeding-section actuator-log" id="actuatorActivity">
+                    <summary>
+                        <h2 class="feeding-section-title">
+                            <i class="fa-solid fa-chevron-right al-chevron"></i>
+                            <i class="fa-solid fa-gauge-high"></i> Actuator Activity
+                        </h2>
+                    </summary>
+                    <div class="al-toolbar">
+                        <span class="aa-heading">Controller activation counters</span>
+                        <button type="button" class="fr-btn fr-btn-secondary" id="actuatorActivityRefresh">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                    <div id="actuatorActivityBody"></div>
+                    <p class="aa-meta">Counts reported by the controller. They may reset when it restarts, so compare with the 7-day log below.</p>
+                </details>
+
                 <!-- ── Actuator Log ──────────────────────────────────────────── -->
                 <details class="feeding-section actuator-log" id="actuatorLog">
                     <summary>
@@ -459,6 +477,12 @@
         </script>
         <script type="module">
             import { initActuatorLog } from './js/actuatorLog.js';
+            import { initActuatorActivity } from './js/actuatorActivity.js';
+            initActuatorActivity({
+                panel: document.getElementById('actuatorActivity'),
+                body: document.getElementById('actuatorActivityBody'),
+                refreshBtn: document.getElementById('actuatorActivityRefresh')
+            });
             initActuatorLog({
                 panel: document.getElementById('actuatorLog'),
                 body: document.getElementById('actuatorLogBody'),
