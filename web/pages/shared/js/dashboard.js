@@ -9,6 +9,7 @@ import { initEnvTrendsChart, refreshEnvTrendsChart } from "./envTrendsChart.js";
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.js";
 import { initReportModal } from "./reportModal.js";
 import { roleLabel } from "./roleLabels.js";
+import { renderWaterCondition } from "./waterConditionPanel.js";
 
 function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
@@ -146,6 +147,7 @@ function renderHardwareStatus(measuredAtDate) {
     if (!valueEl && !iconEl && !trendEl) return;
 
     const { state, label, updatedText } = evaluateHardwareFreshness(measuredAtDate);
+    renderWaterCondition(window.latestSensorReading ?? null, { state, updatedText });
 
     if (valueEl) valueEl.textContent = label;
     if (updatedEl) updatedEl.textContent = updatedText;
@@ -304,6 +306,7 @@ function initHardwareStatusMonitor() {
         AQUAPONICS_REF,
         (snapshot) => {
             if (!snapshot.exists()) {
+                window.latestSensorReading = null;
                 latestHardwareMeasuredAt = null;
                 hwAlertMeasuredAt = null;
                 renderHardwareStatus(null);

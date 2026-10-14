@@ -63,3 +63,11 @@ export function calcWaterQualityScore(sensorData) {
     if (!scores.length) return null;
     return scores.reduce((sum, s) => sum + s, 0) / scores.length;
 }
+
+// Status word and colour for a 0-100 score, shared by the Analytics donut and the Dashboard panel.
+export function scoreStatus(pct) {
+    if (pct >= 85) return { label: "OPTIMAL", color: "#10b981" };
+    if (pct >= 70) return { label: "GOOD", color: "#d97706" };
+    if (pct >= 60) return { label: "FAIR", color: "#ef4444" };
+    return { label: "POOR", color: "#ef4444" };
+}

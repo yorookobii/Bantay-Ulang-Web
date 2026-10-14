@@ -2,7 +2,7 @@ import {
     onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { loadThresholds, getRanges } from './thresholds.js';
-import { calcWaterQualityScore } from './waterQualityScore.js';
+import { calcWaterQualityScore, scoreStatus } from './waterQualityScore.js';
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from './aquaponicsReading.js';
 
 // One-decimal display formatting for parameters whose bounds are conventionally
@@ -243,8 +243,7 @@ function updateEfficiencyCircle(wqScore) {
 
     const pct    = Math.round(wqScore * 100);
     const deg    = ((pct / 100) * 360).toFixed(1);
-    const color  = pct >= 85 ? '#10b981' : pct >= 70 ? '#d97706' : '#ef4444';
-    const status = pct >= 85 ? 'OPTIMAL' : pct >= 70 ? 'GOOD' : pct >= 60 ? 'FAIR' : 'POOR';
+    const { label: status, color } = scoreStatus(pct);
 
     const outer = document.getElementById('eff-circle-outer');
     if (outer) outer.style.background =
