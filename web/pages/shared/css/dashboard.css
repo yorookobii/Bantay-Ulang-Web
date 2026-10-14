@@ -372,7 +372,7 @@
 /* ── Metrics Grid ────────────────────────────────────────── */
 .metrics-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 20px;
     margin-bottom: 24px;
 }
@@ -462,48 +462,19 @@
     line-height: 1.4;
 }
 
-/* ── Water Condition panel (waterConditionPanel.js) ──────── */
-.wc-card {
-    background: var(--color-cloud-white, #fff);
-    border: 1px solid var(--color-border-gray, #e5e7eb);
-    border-radius: var(--radius-lg, 12px);
-    padding: 16px 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-}
-.wc-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; }
-.wc-title { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: var(--color-ink, #111827); }
-.wc-title i { color: #0d9488; }
-.wc-body { display: grid; grid-template-columns: 240px 1fr; gap: 24px; align-items: center; }
-.wc-score { display: flex; align-items: center; gap: 16px; }
-.wc-donut { flex: none; width: 96px; height: 96px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; }
-.wc-donut-inner { width: 74px; height: 74px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; }
-.wc-pct { font-size: 20px; font-weight: 700; color: var(--color-ink, #111827); font-variant-numeric: tabular-nums; }
-.wc-score-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 40px; }
-.wc-status { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: #374151; }
-.wc-fresh { font-size: 12px; color: var(--color-slate, #6b7280); }
-.wc-rows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; }
-.wc-row { display: flex; flex-direction: column; gap: 2px; min-height: 58px; padding: 8px 12px; border-radius: 8px; background: #f9fafb; }
-.wc-name { font-size: 12px; color: var(--color-slate, #6b7280); }
-.wc-val { font-size: 15px; font-weight: 600; color: var(--color-ink, #111827); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.wc-state { font-size: 12px; font-weight: 600; white-space: nowrap; }
-.wc-state--ok   { color: var(--color-success-green, #059669); }
-.wc-state--bad  { color: var(--color-critical-red, #dc2626); }
-.wc-state--warn { color: var(--color-warning-amber, #d97706); }
-.wc-state--none { color: #9ca3af; }
+/* ── Water Condition card (waterConditionPanel.js) ──────── */
+a.metric-card { display: block; color: inherit; text-decoration: none; }
+a.metric-card:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }
+.metric-card .card-icon.water { background: #ccfbf1; color: #0d9488; }
+.wc-value { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+.wc-status { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; color: var(--color-slate, #6b7280); }
+.wc-summary { margin-top: 4px; min-height: 1.4em; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.wc-summary--ok   { color: var(--color-success-green, #059669); }
+.wc-summary--bad  { color: var(--color-critical-red, #dc2626); }
+.wc-summary--warn { color: var(--color-warning-amber, #d97706); }
 /* Stale or offline: last-known values stay readable but lose every status colour. */
-.wc-card.wc--dim .wc-rows { opacity: 0.6; }
-.wc-card.wc--dim .wc-state { color: var(--color-slate, #6b7280); }
-.wc-card.wc--dim .wc-status { color: var(--color-slate, #6b7280); }
-
-@media (max-width: 640px) {
-    .wc-body { grid-template-columns: 1fr; gap: 16px; }
-    .wc-rows { grid-template-columns: 1fr; gap: 6px; }
-    .wc-row { flex-direction: row; align-items: center; gap: 8px; min-height: 36px; }
-    .wc-name { flex: 1; font-size: 13px; }
-    .wc-val { font-size: 14px; }
-    .wc-state { min-width: 84px; text-align: right; }
-}
+.metric-card.wc--dim .card-value,
+.metric-card.wc--dim .wc-summary { color: var(--color-slate, #6b7280); }
 
 /* ── Charts Grid ─────────────────────────────────────────── */
 .charts-row {
@@ -704,10 +675,18 @@
 }
 
 /* ── Page Grid Responsive Breakpoint ─────────────────────── */
+/* Five metric cards: 5 across on wide screens, 3+2 on mid widths, Water Condition full width over 2+2 on tablets, 1 column on phones. */
+@media (max-width: 1279px) {
+    .metrics-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 1024px) {
-    .metrics-row { grid-template-columns: 1fr; }
+    .metrics-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metrics-row .wc-metric { grid-column: 1 / -1; }
     .charts-row { grid-template-columns: 1fr; }
     .cards-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    .metrics-row { grid-template-columns: 1fr; }
 }
 
 /* ── Report Generation Modal ─────────────────────────────── */

@@ -98,33 +98,18 @@
                 <!-- Top Alert Banner -->
                 <div id="top-alert-banner" class="top-alert-banner" aria-live="polite"></div>
 
-                <!-- Water Condition (waterConditionPanel.js, fed by the Dashboard's live listener) -->
-                <section class="wc-card" id="waterConditionCard" aria-labelledby="wcTitle">
-                    <div class="wc-header">
-                        <h2 class="wc-title" id="wcTitle"><i class="fa-solid fa-droplet"></i> Water Condition</h2>
-                        <a href="analytics.html" class="tab-action-btn">View details →</a>
-                    </div>
-                    <div class="wc-body">
-                        <div class="wc-score">
-                            <div class="wc-donut" id="wcDonut"><div class="wc-donut-inner"><span class="wc-pct" id="wcPct">--</span></div></div>
-                            <div class="wc-score-text">
-                                <span class="wc-status" id="wcStatus">Connecting…</span>
-                                <span class="wc-fresh" id="wcFresh">Waiting for live data</span>
-                            </div>
-                        </div>
-                        <ul class="wc-rows" id="wcRows" aria-label="Water condition by parameter">
-                            <li class="wc-row"><span class="wc-name">pH Level</span><span class="wc-val">--</span><span class="wc-state wc-state--none">--</span></li>
-                            <li class="wc-row"><span class="wc-name">Water Temp</span><span class="wc-val">--</span><span class="wc-state wc-state--none">--</span></li>
-                            <li class="wc-row"><span class="wc-name">Dissolved O₂</span><span class="wc-val">--</span><span class="wc-state wc-state--none">--</span></li>
-                            <li class="wc-row"><span class="wc-name">Salinity</span><span class="wc-val">--</span><span class="wc-state wc-state--none">--</span></li>
-                            <li class="wc-row"><span class="wc-name">Turbidity</span><span class="wc-val">--</span><span class="wc-state wc-state--none">--</span></li>
-                            <li class="wc-row"><span class="wc-name">Water Level</span><span class="wc-val">--</span><span class="wc-state wc-state--none">--</span></li>
-                        </ul>
-                    </div>
-                </section>
-
                 <!-- Metrics Row -->
                 <div class="metrics-row">
+                    <!-- Water Condition (waterConditionPanel.js, fed by the Dashboard's live listener) -->
+                    <a class="metric-card wc-metric" id="waterConditionCard" href="analytics.html" title="View details on Analytics">
+                        <div class="card-header">
+                            <div class="card-icon water"><i class="fa-solid fa-droplet"></i></div>
+                            <span class="card-title">Water Condition</span>
+                        </div>
+                        <div class="card-value wc-value"><span id="wcPct">--</span><span class="wc-status" id="wcStatus">Connecting…</span></div>
+                        <div class="card-subtext" id="wcCount">Waiting for live data</div>
+                        <div class="wc-summary wc-summary--none" id="wcSummary"></div>
+                    </a>
                     <div class="metric-card" id="hardware-status-card">
                         <i class="fa-solid fa-ellipsis-vertical card-menu" aria-hidden="true"></i>
                         <div class="card-header">
