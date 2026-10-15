@@ -10,6 +10,7 @@ firebase-adminsdk*.json
 *.joblib
 read_counter.json
 daily_averages_cache.json
+real_training_rows.csv
 
 __pycache__/
 *.pyc

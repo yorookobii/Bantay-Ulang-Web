@@ -403,15 +403,12 @@ def fetch_total_deaths(db, cycle_start):
 # ============================================================
 # 4c. FETCH LATEST REAL WEIGHT (ulang_growth_records, real currentWeight)
 # ============================================================
-def fetch_latest_real_weight(db, cycle_start):
-    """Latest week's average weight (g) mula ulang_growth_records.
+def fetch_weights_by_week(db, cycle_start):
+    """Raw weight samples mula ulang_growth_records, naka-group kada week.
     Sinasalamin ang avgWeightChart.js loadWeightsByWeek: week = floor(days_
-    since_cycleStart / 7) + 1, per-week AVERAGE (hindi raw sum), kunin ang
-    PINAKA-BAGONG week na may sample -> yun ang totoong currentWeight at week
-    index nito. Ganito rin ang bucketing sa web para magkasundo.
+    since_cycleStart / 7) + 1. Ganito rin ang bucketing sa web para magkasundo.
 
-    Nagbabalik: (avg_weight_g, latest_week, records_read) o
-    (None, None, records_read) kung walang usable sample."""
+    Nagbabalik: ({week: [weights]}, records_read)"""
     docs = list(db.collection("ulang_growth_records").where("createdAt", ">=", cycle_start).stream())
     MS_PER_WEEK = 7 * 24 * 60 * 60  # seconds (mirror ng JS MS_PER_WEEK)
 
@@ -426,14 +423,22 @@ def fetch_latest_real_weight(db, cycle_start):
         if week < 1:
             continue
         by_week.setdefault(week, []).append(float(weight))
+    return by_week, len(docs)
 
+def fetch_latest_real_weight(db, cycle_start):
+    """Latest week's average weight (g): per-week AVERAGE (hindi raw sum) ng
+    PINAKA-BAGONG week na may sample -> totoong currentWeight at week index nito.
+
+    Nagbabalik: (avg_weight_g, latest_week, records_read) o
+    (None, None, records_read) kung walang usable sample."""
+    by_week, n_docs = fetch_weights_by_week(db, cycle_start)
     if not by_week:
-        return None, None, len(docs)
+        return None, None, n_docs
 
     latest_week = max(by_week)  # LATEST week na may sample
     vals = by_week[latest_week]
     avg_weight = sum(vals) / len(vals)  # per-week average, hindi raw sum
-    return avg_weight, latest_week, len(docs)
+    return avg_weight, latest_week, n_docs
 
 # ============================================================
 # 0. GROWTH_INDICATORS DOC + 3-MONTH GATE
