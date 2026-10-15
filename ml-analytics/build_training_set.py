@@ -5,8 +5,9 @@ Ginagawang weekly training rows (parehong columns ng bantay_ulang_810_dataset.cs
 ang totoong data ng kasalukuyang cycle, para ma-validate o ma-retrain ang RF.
 
 SOURCES:
-  - Water averages: daily_averages_cache.json (gawa ng predict_yield.py) —
-    ZERO sensor reads dito; patakbuhin muna ang predict_yield.py para mapuno.
+  - Water averages: daily_averages_cache.json — kapareho ng predict_yield.py; ang
+    kulang na araw ay bina-backfill dito (hindi naghihintay sa 90-day gate),
+    capped sa natitirang SAFETY_THRESHOLD reads ngayong araw.
   - Weight: ulang_growth_records (per-week average, parehong bucketing ng web).
   - Feed rate: ASSUMED (optimal_feed_rate curve) — feedRateAssumed = 1.
 
@@ -18,13 +19,13 @@ kaya naiipon ang mga cycle sa paglipas ng panahon.
 """
 
 import os
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 
 from predict_yield import (
-    STAT_MAP, connect_firestore, fetch_growth_indicators, fetch_weights_by_week,
-    load_daily_cache, reconcile_daily_cache, ph_date, optimal_feed_rate,
-    load_read_counter, save_read_counter,
+    STAT_MAP, SAFETY_THRESHOLD, GRACE_DAYS, connect_firestore, fetch_growth_indicators,
+    fetch_weights_by_week, load_daily_cache, reconcile_daily_cache, get_missing_dates,
+    backfill_missing_days, ph_date, optimal_feed_rate, load_read_counter, save_read_counter,
 )
 
 OUTPUT_FILE = "real_training_rows.csv"
@@ -95,16 +96,22 @@ def main():
         print("[ERROR] Walang growth_indicators.cycleStart — hindi matukoy ang weeks")
         return
 
-    cache = load_daily_cache()
-    if reconcile_daily_cache(cache, cycle_start) is not cache:
-        print("[ERROR] Walang daily cache para sa cycle na 'to — patakbuhin muna ang predict_yield.py")
-        return
-
     cycle_start_day = ph_date(cycle_start)
     cycle_id = cycle_start_day.isoformat()
+    today = ph_date(datetime.now(timezone.utc))
+
+    # Backfill missing past days (same cache and budget rules as predict_yield.py).
+    cache = reconcile_daily_cache(load_daily_cache(), cycle_start)
+    missing = get_missing_dates(cache, cycle_start_day, today)
+    reads_today = load_read_counter()
+    sensor_reads, fetched = backfill_missing_days(
+        db, cache, missing, max(0, SAFETY_THRESHOLD - reads_today), today - timedelta(days=GRACE_DAYS))
+    if fetched < len(missing):
+        print(f"[BACKFILL] {len(missing) - fetched} day(s) pa — partial muna; i-re-run bukas para tumuloy.")
+
     water_by_week = weekly_water(cache["days"], cycle_start_day)
     weights_by_week, weight_reads = fetch_weights_by_week(db, cycle_start)
-    save_read_counter(load_read_counter() + weight_reads + 1)
+    save_read_counter(reads_today + sensor_reads + weight_reads + 1)
 
     print(f"[OK] Cycle {cycle_id}: {len(water_by_week)} week(s) na may live water data, "
           f"{len(weights_by_week)} week(s) na may weight sample ({weight_reads} records read)")
