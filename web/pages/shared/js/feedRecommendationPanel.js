@@ -12,7 +12,7 @@ const EMPTY = {
     "no-cycle": "No recommendation: no cycle start is set in Settings.",
     "no-stock": "No recommendation: initial stock isn't set for this cycle.",
     "no-alive": "No recommendation: no confirmed alive prawns (every stocked prawn is logged as dead).",
-    "no-samples": "No recommendation yet: no weight samples this cycle. Log a few in the mobile app's Ulang log.",
+    "no-samples": "No recommendation yet: no weight samples this cycle and no stocking weight in Settings. Log a few in the mobile app's Ulang log.",
     "all-flagged": "No recommendation: this cycle's weight entries look wrong (marked “Check entry” in reports). Check the latest samples.",
     "error": "Couldn't load the data for a recommendation. Close and reopen the form to try again."
 };
@@ -37,7 +37,10 @@ export async function loadInputs() {
     const [records, samples] = await Promise.all([loadMortalityRecords(cycleStart), loadWeightSamples(cycleStart)]);
     const alive = confirmedAlive(growth.initialStock, records.reduce((sum, r) => sum + r.deaths, 0));
     if (!alive) return { reason: "no-alive" };
-    const weight = pickCurrentWeight(samples);
+    const weight = pickCurrentWeight(samples, growth.stockingWeight);
+    // Before the first weight sample, the stocking weight from Settings stands in.
+    const stockingWeightG = Number(growth.stockingWeight);
+    if (weight.reason === "no-samples" && stockingWeightG > 0) return { alive, weight: { weightG: stockingWeightG, source: "stocking" } };
     if (weight.weightG === null) return { reason: weight.reason };
     return { alive, weight };
 }
@@ -49,8 +52,9 @@ export function describe(inputs, enabledCount, now = Date.now()) {
     const feedingsPerDay = enabledCount + 1;
     const rec = feedRecommendation({ alive, avgWeightG: weight.weightG, feedingsPerDay });
     const grams = roundGrams(rec.gramsPerFeeding);
-    const ageDays = Math.floor((now - weight.latestSampleMs) / DAY_MS);
-    const skipped = weight.skippedWeeks.length
+    const fromStocking = weight.source === "stocking";
+    const ageDays = fromStocking ? 0 : Math.floor((now - weight.latestSampleMs) / DAY_MS);
+    const skipped = weight.skippedWeeks?.length
         ? ` (skipped week ${weight.skippedWeeks.join(", ")}: entries look wrong)` : "";
     return {
         kind: "ok",
@@ -58,7 +62,9 @@ export function describe(inputs, enabledCount, now = Date.now()) {
         title: `Recommended: about ${fmtNum(grams, grams < 10 ? 1 : 0)} g per feeding`,
         math: `${fmtNum(alive)} alive × ${fmtNum(weight.weightG, 1)} g × ${fmtNum(rec.ratePct, 1)}% per day `
             + `÷ ${plural(feedingsPerDay, "feeding")} a day (${enabledCount} enabled + this one)`,
-        sample: `Median weight of ${plural(weight.sampleCount, "sample")}, week ${weight.week}, sampled ${fmtDate(weight.latestSampleMs)}${skipped}.`,
+        sample: fromStocking
+            ? `Based on stocking weight (${fmtNum(weight.weightG, 1)} g median from Settings); no weight samples yet this cycle.`
+            : `Median weight of ${plural(weight.sampleCount, "sample")}, week ${weight.week}, sampled ${fmtDate(weight.latestSampleMs)}${skipped}.`,
         capNote: weight.weightG >= 25 ? "Rate held at 5% from 25 g (end of the curve)." : null,
         stale: ageDays > STALE_DAYS
             ? `Latest weight sample is ${ageDays} days old. Weigh a few prawns for a better estimate.` : null,

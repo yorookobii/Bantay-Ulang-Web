@@ -180,9 +180,9 @@
             <div class="system_threshold">
                 <div class="card-header">
                     <div class="card-icon growth"><i class="fa-solid fa-chart-line"></i></div>
-                    <h2 class="card-title">Growth Parameters – Expected Yield</h2>
+                    <h2 class="card-title">Cycle Setup</h2>
                 </div>
-                <p class="threshold_section_desc">Cycle start and initial stock feed the RF yield prediction once the cycle reaches 3 months.</p>
+                <p class="threshold_section_desc">Cycle start and initial stock feed the RF yield prediction once the cycle reaches 3 months. Stocking weight sets the weight checks and the feed recommendation until the first weight sample is logged.</p>
                 <form id="growth-form" class="threshold_form">
                     <div class="threshold_row">
                         <div class="threshold_param">
@@ -194,6 +194,23 @@
                             <label for="gi_initialStock">Initial Stock</label>
                             <span class="unit">pieces stocked</span>
                             <input type="number" id="gi_initialStock" name="gi_initialStock" min="0" step="1" placeholder="e.g. 10000" required>
+                        </div>
+                    </div>
+                    <div class="threshold_row cols-3">
+                        <div class="threshold_param">
+                            <label for="gi_stockingWeightMin">Stocking Weight Min</label>
+                            <span class="unit">g, optional</span>
+                            <input type="number" id="gi_stockingWeightMin" name="gi_stockingWeightMin" min="0.1" max="500" step="0.1" placeholder="e.g. 26">
+                        </div>
+                        <div class="threshold_param">
+                            <label for="gi_stockingWeight">Stocking Weight</label>
+                            <span class="unit">g, median of stocking sample</span>
+                            <input type="number" id="gi_stockingWeight" name="gi_stockingWeight" min="0.1" max="500" step="0.1" placeholder="e.g. 36">
+                        </div>
+                        <div class="threshold_param">
+                            <label for="gi_stockingWeightMax">Stocking Weight Max</label>
+                            <span class="unit">g, optional</span>
+                            <input type="number" id="gi_stockingWeightMax" name="gi_stockingWeightMax" min="0.1" max="500" step="0.1" placeholder="e.g. 46">
                         </div>
                     </div>
                     <div class="threshold_actions">
