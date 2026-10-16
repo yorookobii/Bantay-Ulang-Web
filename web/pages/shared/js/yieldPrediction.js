@@ -17,14 +17,14 @@ import { modelModeLabel, yieldWaterNote } from "./yieldLabels.js";
 //  (see ml-analytics/predict_yield.py). No formula fallback — if RF hasn't
 //  produced a prediction for this cycle yet, adjustedYield is null and the
 //  UI shows a "being processed" state instead of a number.
-//  Income range = Yield × (150 | 300 | 450)
-//  Revenue prices based on BFAR National Consolidated Price Monitoring Report 2025;
-//  provincial-adjusted for Hagonoy, Bulacan (non-NCR).
+//  Income range = Yield × (500 | 575 | 650)
+//  Prices: DA-BFAR Monthly National Consolidated Price Monitoring Report, Jan 5-Feb 1 2026,
+//  M. rosenbergii, Region 3 (actual price, limited sampling); mid = midpoint of min and max.
 //  wqScore is carried through only for the separate Efficiency Score display
 //  (analyticsRecommendations.js / analytics.js) — it no longer affects yield.
-const INCOME_MIN_RATE = 150;
-const INCOME_AVG_RATE = 300;
-const INCOME_MAX_RATE = 450;
+const INCOME_MIN_RATE = 500;
+const INCOME_AVG_RATE = 575;
+const INCOME_MAX_RATE = 650;
 // Panelist requirement: yield prediction only after 3 months of real cultivation data
 const RF_GATE_DAYS = 90;
 

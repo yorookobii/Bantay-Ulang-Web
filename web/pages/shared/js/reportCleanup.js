@@ -58,6 +58,10 @@ export function confirmedAlive(initialStock, totalDeaths) {
 export const WEIGHT_CAP_BASE_G = 5;
 export const WEIGHT_CAP_PER_WEEK_G = 5;
 export const WEIGHT_MEDIAN_FACTOR = 3;
+// Bounds relative to the cycle's stocking weight (sub-adult stock), replacing the fixed cap; needs adviser confirmation.
+export const STOCK_LOW_FACTOR = 0.5;
+export const STOCK_HIGH_FACTOR = 4;
+export const STOCK_HIGH_PER_WEEK_G = 10;
 
 export function median(values) {
     const sorted = [...values].sort((a, b) => a - b);
@@ -65,16 +69,24 @@ export function median(values) {
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Returns { week: reason } for weekly averages above the week's cap or above 3x the median of all weekly averages.
-export function flagWeights(averages) {
+// Returns { week: reason } for weekly averages outside the week's bounds (stocking-relative when a stocking weight is set) or above 3x the median.
+export function flagWeights(averages, stockingWeightG = null) {
     const values = averages.map(a => a.avgWeightG).filter(Number.isFinite);
     const med = values.length ? median(values) : null;
+    const stock = Number(stockingWeightG) > 0 ? Number(stockingWeightG) : null;
     const flags = {};
     for (const { week, avgWeightG } of averages) {
         if (!Number.isFinite(avgWeightG)) continue;
         const reasons = [];
-        const cap = WEIGHT_CAP_BASE_G + WEIGHT_CAP_PER_WEEK_G * week;
-        if (avgWeightG > cap) reasons.push(`Above the ${cap} g limit for week ${week}`);
+        if (stock !== null) {
+            const low = Number((STOCK_LOW_FACTOR * stock).toFixed(1));
+            const high = Number((STOCK_HIGH_FACTOR * stock + STOCK_HIGH_PER_WEEK_G * week).toFixed(1));
+            if (avgWeightG < low) reasons.push(`Below the ${low} g minimum (${STOCK_LOW_FACTOR}x the ${stock} g stocking weight)`);
+            if (avgWeightG > high) reasons.push(`Above the ${high} g limit for week ${week}`);
+        } else {
+            const cap = WEIGHT_CAP_BASE_G + WEIGHT_CAP_PER_WEEK_G * week;
+            if (avgWeightG > cap) reasons.push(`Above the ${cap} g limit for week ${week}`);
+        }
         if (med !== null && avgWeightG > WEIGHT_MEDIAN_FACTOR * med) reasons.push(`More than ${WEIGHT_MEDIAN_FACTOR}x the median weekly average (${Number(med.toFixed(1))} g)`);
         if (reasons.length) flags[week] = reasons.join("; ");
     }

@@ -51,8 +51,8 @@ export const MAX_UNCACHED_DAYS = Math.floor(READ_BUDGET / (DAY_MS / READ_ESTIMAT
 const CACHE_TOLERANCE_MS = 10 * 60 * 1000;
 export const MODEL_DISCLAIMER =
     "Yield and revenue are estimates from a Random Forest model trained on synthetic data " +
-    "(R² 0.79 on a held-out test split; 5-fold CV mean 0.73). Revenue uses BFAR 2025 prices " +
-    "of ₱150–450/kg. Treat them as estimates, not guarantees.";
+    "(R² 0.79 on a held-out test split; 5-fold CV mean 0.73). Revenue uses DA-BFAR Jan-Feb 2026 Region 3 prices " +
+    "of ₱500–650/kg. Treat them as estimates, not guarantees.";
 
 // ─── Range helpers (for the modal) ──────────────────────────────────────────
 
@@ -347,7 +347,7 @@ async function gatherMortalityGrowth({ sinceMs, untilMs, growth, now, warnings }
     const { byWeek: deathsByWeek } = bucketDeathsByWeek(records);
 
     // Flags use every week of the cycle so the median isn't skewed by a short range.
-    const weightFlags = flagWeights(Object.entries(weightsByWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })));
+    const weightFlags = flagWeights(Object.entries(weightsByWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })), growth.stockingWeight);
 
     // Every week from the range start to its end (capped at the current week), including weeks with no records.
     const weekOf = (ms) => Math.floor((ms - cycleStart.getTime()) / WEEK_MS) + 1;

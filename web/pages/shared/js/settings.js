@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import {
-    doc, getDoc, setDoc,
+    doc, getDoc, setDoc, deleteField,
     collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
@@ -126,9 +126,22 @@ if (form) {
 // so web and Flutter (which reads stored cycleEnd) agree.
 const GROWOUT_DAYS = 150;
 
-const GROWTH_PARAM_IDS = ['gi_initialStock'];
+// Optional stocking weights in grams, ordered min, median, max.
+const STOCKING_WEIGHT_IDS = ['gi_stockingWeightMin', 'gi_stockingWeight', 'gi_stockingWeightMax'];
+const STOCKING_WEIGHT_MIN_G = 0.1;
+const STOCKING_WEIGHT_MAX_G = 500;
+// Fields predict_yield.py writes for a cycle; cleared when the cycle start changes.
+const RF_PREDICTION_FIELDS = [
+    'rfProjectedWeight', 'rfProjectedYield', 'rfMode', 'rfNote', 'rfUpdatedAt',
+    'rfWaterSource', 'rfWaterFrom', 'rfWaterTo', 'rfReadingsUsed', 'rfBackfillDaysRemaining',
+];
+
+const GROWTH_PARAM_IDS = ['gi_initialStock', ...STOCKING_WEIGHT_IDS];
 const GROWTH_FIELD_MAP = {
     gi_initialStock: 'initialStock',
+    gi_stockingWeightMin: 'stockingWeightMin',
+    gi_stockingWeight: 'stockingWeight',
+    gi_stockingWeightMax: 'stockingWeightMax',
 };
 let growthDocRef = null;
 let loadedCycleStart = null;
@@ -166,7 +179,25 @@ async function loadGrowthParams() {
     }
 }
 
-async function saveGrowthParams() {
+// Stocking weights by field name (null when blank); throws with a user-facing message when invalid.
+function readStockingWeights() {
+    const weights = {};
+    for (const id of STOCKING_WEIGHT_IDS) {
+        const raw = document.getElementById(id)?.value.trim();
+        const g = raw ? Number(raw) : null;
+        if (g !== null && !(g >= STOCKING_WEIGHT_MIN_G && g <= STOCKING_WEIGHT_MAX_G)) {
+            throw new Error(`Stocking weights must be between ${STOCKING_WEIGHT_MIN_G} and ${STOCKING_WEIGHT_MAX_G} g.`);
+        }
+        weights[GROWTH_FIELD_MAP[id]] = g;
+    }
+    const filled = [weights.stockingWeightMin, weights.stockingWeight, weights.stockingWeightMax].filter(g => g !== null);
+    if (filled.some((g, i) => i > 0 && g < filled[i - 1])) {
+        throw new Error('Stocking weights must go min ≤ median ≤ max.');
+    }
+    return weights;
+}
+
+async function saveGrowthParams(stockingWeights, resetPredictions) {
     const initialStock = parseFloat(document.getElementById('gi_initialStock')?.value) || 0;
 
     const cycleStartVal = document.getElementById('gi_cycleStart')?.value;
@@ -177,6 +208,12 @@ async function saveGrowthParams() {
     const cycleEnd = cycleStart ? new Date(cycleStart.getTime() + GROWOUT_DAYS * 24 * 60 * 60 * 1000) : null;
 
     const payload = { initialStock, cycleStart, cycleEnd, timestamp: serverTimestamp() };
+    // Stocking fields follow the form: blanks are deleted from an existing doc, and a new cycle start drops the old RF prediction.
+    for (const [field, g] of Object.entries(stockingWeights)) {
+        if (g !== null) payload[field] = g;
+        else if (growthDocRef) payload[field] = deleteField();
+    }
+    if (resetPredictions && growthDocRef) RF_PREDICTION_FIELDS.forEach(field => { payload[field] = deleteField(); });
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });
@@ -195,14 +232,28 @@ if (growthForm) {
         e.preventDefault();
         const newCycleStart = document.getElementById('gi_cycleStart')?.value;
         const cycleStartChanged = loadedCycleStart != null && newCycleStart !== loadedCycleStart;
+        let stockingWeights;
+        try {
+            stockingWeights = readStockingWeights();
+        } catch (err) {
+            if (growthMsgEl) {
+                growthMsgEl.textContent = err.message;
+                growthMsgEl.style.color = '#dc2626';
+                growthMsgEl.classList.add('show');
+                setTimeout(() => { growthMsgEl.classList.remove('show'); growthMsgEl.style.color = ''; }, 4000);
+            }
+            return;
+        }
         const ok = cycleStartChanged
-            ? await confirmDialog('Change cycle start date?', 'Changing the cycle start date will reset yield predictions and the 3-month prediction timer for this cycle. Are you sure you want to continue?')
+            ? await confirmDialog('Change cycle start date?', 'Changing the cycle start date clears the current yield prediction and restarts the 3-month prediction timer. Update the stocking weight below if this is a new batch. Are you sure you want to continue?')
             : await confirmDialog('Save changes?', 'Are you sure you want to save these changes?');
         if (!ok) return;
         const btn = growthForm.querySelector('button[type="submit"]');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         try {
-            await saveGrowthParams();
+            await saveGrowthParams(stockingWeights, cycleStartChanged);
+            // The saved date is now the baseline, so a second save doesn't count as another change.
+            loadedCycleStart = newCycleStart;
             if (growthMsgEl) {
                 growthMsgEl.textContent  = 'Growth parameters saved successfully.';
                 growthMsgEl.style.color  = '';

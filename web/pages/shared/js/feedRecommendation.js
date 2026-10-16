@@ -27,14 +27,15 @@ export function feedRecommendation({ alive, avgWeightG, feedingsPerDay }) {
 /**
  * Current average weight: median of the latest week whose average isn't flagged
  * ("Check entry" in the report), stepping back past flagged weeks.
+ * stockingWeightG sets the flag bounds the same way the report does.
  * Returns { weightG, week, sampleCount, latestSampleMs, skippedWeeks } or { weightG: null, reason }.
  */
-export function pickCurrentWeight(samples) {
+export function pickCurrentWeight(samples, stockingWeightG = null) {
     const usable = samples.filter((s) => s.weightG > 0);
     if (!usable.length) return { weightG: null, reason: "no-samples" };
 
     const byWeek = bucketWeightsByWeek(usable);
-    const flags = flagWeights(Object.entries(byWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })));
+    const flags = flagWeights(Object.entries(byWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })), stockingWeightG);
     const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a);
     const week = weeks.find((w) => !flags[w]);
     if (week === undefined) return { weightG: null, reason: "all-flagged" };
