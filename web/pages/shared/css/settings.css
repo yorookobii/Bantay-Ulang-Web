@@ -400,6 +400,35 @@ transition: margin-left 0.25s ease;
 .threshold_saved_msg.show {
     display: block;
 }
+.stocking_hint {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #6b7280;
+}
+.stocking_hint[hidden],
+.btn-stocking-hint[hidden] {
+    display: none;
+}
+.btn-stocking-hint {
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #059669;
+    background: #fff;
+    border: 1px solid #10b981;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.btn-stocking-hint:hover {
+    background: #ecfdf5;
+}
+.stocking_hint_status {
+    color: #059669;
+}
 
 .confirm-modal-overlay {
     position: fixed;

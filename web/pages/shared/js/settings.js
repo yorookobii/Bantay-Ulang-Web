@@ -169,6 +169,7 @@ async function loadGrowthParams() {
                 const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 cycleStartEl.value = iso;
                 loadedCycleStart = iso;
+                loadStockingHint(d);
             }
             // One-time check: confirm the latest-by-timestamp doc actually carries
             // cycleStart (a manually-added field on an older doc would never surface here).
@@ -196,6 +197,75 @@ function readStockingWeights() {
     }
     return weights;
 }
+
+// ── Stocking weight hint from logged samples ──────────────────────────────────
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const HINT_MAX_READS = 300;        // safety cap on documents read per hint query
+const HINT_LAST_USABLE_WEEK = 2;   // later weeks reflect growth, not stocking size
+const HINT_SMALL_SAMPLE = 10;
+let hintCycleStartMs = null;
+let hintStats = null;
+
+const round1 = (g) => Number(g.toFixed(1));
+
+// Raw stats of the earliest logged week, unfiltered because the weight flags depend on the stocking weight itself.
+async function earliestWeekStats(cycleStart) {
+    const [{ loadWeightSamples }, { median }] = await Promise.all([import('./avgWeightChart.js'), import('./reportCleanup.js')]);
+    const weekEnd = (week) => new Date(cycleStart.getTime() + week * WEEK_MS);
+    let samples = await loadWeightSamples(cycleStart, { until: weekEnd(1), max: HINT_MAX_READS });
+    if (!samples.length) {
+        const [first] = await loadWeightSamples(cycleStart, { max: 1 });
+        if (!first) return null;
+        samples = await loadWeightSamples(cycleStart, { until: weekEnd(first.week), max: HINT_MAX_READS });
+    }
+    const weights = samples.map(s => s.weightG).filter(g => g > 0);
+    if (!weights.length) return null;
+    return { week: samples[0].week, n: weights.length, median: median(weights), min: Math.min(...weights), max: Math.max(...weights) };
+}
+
+// Shows the earliest-week stats under the stocking fields; a failed load only hides the hint.
+async function loadStockingHint(cycleStart) {
+    const hintEl   = document.getElementById('stocking-hint');
+    const textEl   = document.getElementById('stocking-hint-text');
+    const useBtn   = document.getElementById('stocking-hint-use');
+    const statusEl = document.getElementById('stocking-hint-status');
+    if (!hintEl || !textEl || !useBtn) return;
+    const startMs = cycleStart.getTime();
+    hintCycleStartMs = startMs;
+    try {
+        const stats = await earliestWeekStats(cycleStart);
+        if (hintCycleStartMs !== startMs) return; // a newer load replaced this one
+        const usable = stats !== null && stats.week <= HINT_LAST_USABLE_WEEK;
+        if (!stats) {
+            textEl.textContent = 'No weight logs this cycle yet.';
+        } else {
+            const label = stats.week === 1 ? 'Week 1 from logs' : `Week ${stats.week} from logs (no week 1 samples)`;
+            const notes = [`n = ${stats.n}`, `range ${round1(stats.min)}–${round1(stats.max)} g`];
+            if (stats.n < HINT_SMALL_SAMPLE) notes.push('small sample');
+            textEl.textContent = `${label}: median ${round1(stats.median)} g (${notes.join(', ')})`
+                + (usable ? '' : '. Too late in the cycle to use as stocking weight.');
+        }
+        hintStats = usable ? stats : null;
+        useBtn.hidden = !usable;
+        if (statusEl) statusEl.textContent = '';
+        hintEl.hidden = false;
+    } catch (err) {
+        if (hintCycleStartMs === startMs) hintEl.hidden = true;
+        console.warn('[settings] Stocking hint unavailable:', err);
+    }
+}
+
+// Fills the three stocking inputs only; saving stays with the form's Save button.
+document.getElementById('stocking-hint-use')?.addEventListener('click', () => {
+    if (!hintStats) return;
+    [['gi_stockingWeightMin', hintStats.min], ['gi_stockingWeight', hintStats.median], ['gi_stockingWeightMax', hintStats.max]].forEach(([id, g]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = round1(g);
+    });
+    const statusEl = document.getElementById('stocking-hint-status');
+    if (statusEl) statusEl.textContent = 'Filled from logs. Not saved yet.';
+});
 
 async function saveGrowthParams(stockingWeights, resetPredictions) {
     const initialStock = parseFloat(document.getElementById('gi_initialStock')?.value) || 0;
@@ -254,6 +324,8 @@ if (growthForm) {
             await saveGrowthParams(stockingWeights, cycleStartChanged);
             // The saved date is now the baseline, so a second save doesn't count as another change.
             loadedCycleStart = newCycleStart;
+            const savedStart = new Date(newCycleStart + 'T00:00:00');
+            if (savedStart.getTime() !== hintCycleStartMs) loadStockingHint(savedStart);
             if (growthMsgEl) {
                 growthMsgEl.textContent  = 'Growth parameters saved successfully.';
                 growthMsgEl.style.color  = '';

@@ -31,11 +31,14 @@ async function loadCycleStart() {
 // derive it from createdAt the same way Flutter's _weekNumberFor does:
 // week 1 = [cycleStart, cycleStart+7d), etc.
 // One entry per prawn sample: { weightG, week, createdAtMs, observedAtMs }, oldest first.
-export async function loadWeightSamples(cycleStart) {
+// Optional until (exclusive) and max bound the read; existing callers pass neither.
+export async function loadWeightSamples(cycleStart, { until = null, max = null } = {}) {
     const q = query(
         collection(db, "ulang_growth_records"),
         where("createdAt", ">=", Timestamp.fromDate(cycleStart)),
-        orderBy("createdAt", "asc")
+        ...(until ? [where("createdAt", "<", Timestamp.fromDate(until))] : []),
+        orderBy("createdAt", "asc"),
+        ...(max ? [limit(max)] : [])
     );
     const snap = await getDocs(q);
 
