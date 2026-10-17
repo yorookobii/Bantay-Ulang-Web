@@ -12,6 +12,10 @@ DATA MODE (auto-detected sa rfMode):
   - currentWeight: median ng pinakabagong usable week sa ulang_growth_records
     (hindi flagged, >= MIN_WEEK_SAMPLES); kung wala pa, growth_indicators.stockingWeight
   - feedRate: ASSUMED pa rin (optimal_feed_rate curve) — hiwalay na phase
+  - survival: week-21 trend ng logged mortality (project_survival, mirror ng web survivalTrend.js)
+
+EARLY PROJECTION: bago ang GATE_DAYS, kapag >= EARLY_MIN_USABLE_WEEKS usable weight weeks,
+rfProjection* fields lang ang isinusulat (walang yield number, rfPending pa rin).
 
 READ GUARDRAIL:
   - Nagta-track ng Firestore reads kada araw (local JSON file)
@@ -44,6 +48,8 @@ HYBRID_MODE = False         # manual override: True = force stocking weight
                             # (week 1) kahit may totoong weight data
 HARVEST_WEEK = 150 // 7     # 150-day grow-out, the same horizon as generate_synthetic.py
 GATE_DAYS = 90  # panelist requirement: yield prediction only after 3 months of real cultivation data
+EARLY_MIN_USABLE_WEEKS = 2  # early projection (before GATE_DAYS) needs this many usable weight weeks
+SURVIVAL_TREND_MIN_WEEKS = 3  # survival trend needs this many completed weeks, same as web survivalTrend.js
 
 # Fetch settings — per-day direct reads (see fetch_day_readings), cache-aware
 DAILY_CACHE_FILE = "daily_averages_cache.json"  # per-day aggregate cache (gitignored)
@@ -423,28 +429,59 @@ def out_of_range_notes(inputs, feature_ranges):
             notes.append(f"{feat} {value:.1f} is outside the model's training range ({low:g} to {high:g}).")
     return notes
 
-def project_harvest_weight(model, features, water, start_weight, start_week=1):
+def project_weights(model, features, water, start_weight, start_week=1):
     """I-project ang weight mula (start_week, start_weight) hanggang harvest
     (HARVEST_WEEK). start_weight = timbang na PAPASOK sa start_week; may growth
     step kada linggo mula start_week..HARVEST_WEEK. Ang input columns ay galing
-    sa model_meta.json features. start_week > HARVEST_WEEK -> empty loop,
-    ibabalik ang start_weight (nasa/lampas na sa harvest)."""
+    sa model_meta.json features. Nagbabalik ng [(week, weight)] kada step;
+    start_week > HARVEST_WEEK -> empty list (nasa/lampas na sa harvest)."""
     weight = start_weight
+    trajectory = []
     for wk in range(start_week, HARVEST_WEEK + 1):
         row = {"weekNumber": wk, "currentWeight": weight, **water, "avgFeedRate": optimal_feed_rate(weight)}
         growth = float(model.predict(pd.DataFrame([row])[features])[0])
         weight += growth
-    return weight
+        trajectory.append((wk, weight))
+    return trajectory
+
+def projection_fields(start_week, start_weight, source, trajectory, early, notes):
+    """rfProjection* fields: anchor sa week start_week - 1 (0 = stocking day) + bawat projected week."""
+    anchor_week = start_week - 1
+    points = [(anchor_week, start_weight), *trajectory]
+    return {
+        "rfProjectionByWeek": [{"week": wk, "weightG": round(w, 2)} for wk, w in points],
+        "rfProjectionStart": {"week": anchor_week, "weightG": round(start_weight, 2), "source": source},
+        "rfProjectionUpdatedAt": firestore.SERVER_TIMESTAMP,
+        "rfProjectionEarly": early,
+        "rfProjectionNote": " ".join(notes) or None,
+    }
 
 # ============================================================
 # 4b. FETCH TOTAL DEATHS SINCE CYCLE START (data-based survival)
 # ============================================================
 def fetch_total_deaths(db, cycle_start):
-    """Kabuuang deathCount mula mortality_records mula cycle_start.
-    Mirrors dashboard.js loadMortalityStat / survivalChart.js loadDeathsByWeek."""
-    docs = list(db.collection("mortality_records").where("createdAt", ">=", cycle_start).stream())
-    total_deaths = sum((d.to_dict().get("deathCount") or 0) for d in docs)
-    return total_deaths, len(docs)
+    """(total deaths, {weekNumber: deaths}, records read) mula mortality_records mula cycle_start.
+    Total mirrors dashboard.js loadMortalityStat; by-week mirrors mortalityChart.js
+    bucketDeathsByWeek (walang valid weekNumber = sa total lang)."""
+    docs = [d.to_dict() for d in db.collection("mortality_records").where("createdAt", ">=", cycle_start).stream()]
+    by_week = {}
+    for d in docs:
+        wk = d.get("weekNumber")
+        if isinstance(wk, (int, float)) and not isinstance(wk, bool) and wk >= 1:
+            by_week[int(wk)] = by_week.get(int(wk), 0) + (d.get("deathCount") or 0)
+    total_deaths = sum((d.get("deathCount") or 0) for d in docs)
+    return total_deaths, by_week, len(docs)
+
+def project_survival(deaths_by_week, stock, current_week):
+    """Survival % sa HARVEST_WEEK sa compounded average weekly death rate ng completed weeks
+    (walang record = 0 deaths); None kung < SURVIVAL_TREND_MIN_WEEKS. Mirror ng web survivalTrend.js."""
+    k = min(current_week - 1, HARVEST_WEEK)
+    if k < SURVIVAL_TREND_MIN_WEEKS:
+        return None
+    deaths = sum(deaths_by_week.get(w, 0) for w in range(1, k + 1))
+    survival_k = max(0.0, (stock - deaths) / stock * 100.0)
+    rate = 1.0 - (survival_k / 100.0) ** (1.0 / k)
+    return survival_k * (1.0 - rate) ** (HARVEST_WEEK - k)
 
 # ============================================================
 # 4c. FETCH LATEST REAL WEIGHT (ulang_growth_records, real currentWeight)
@@ -509,8 +546,8 @@ def fetch_latest_real_weight(db, cycle_start, stocking_g):
     """Median weight (g) ng PINAKA-BAGONG usable week, umaatras lampas sa flagged
     o kulang-sample na weeks (tulad ng web pickCurrentWeight).
 
-    Nagbabalik: (median_g, week, sample_count, records_read) o
-    (None, None, None, records_read) kung walang usable week."""
+    Nagbabalik: (median_g, week, sample_count, usable_count, records_read) o
+    (None, None, None, 0, records_read) kung walang usable week."""
     by_week, n_docs = fetch_weights_by_week(db, cycle_start)
     stats = weekly_weight_stats(by_week)
     flags = flag_weights(stats, stocking_g)
@@ -521,9 +558,9 @@ def fetch_latest_real_weight(db, cycle_start, stocking_g):
         reason = flags.get(wk) or f"{stats[wk]['n']} samples lang (kailangan {MIN_WEEK_SAMPLES})"
         print(f"[WEIGHT] Week {wk} nilaktawan: {reason}")
     if not usable:
-        return None, None, None, n_docs
+        return None, None, None, 0, n_docs
     wk = max(usable)
-    return stats[wk]["median"], wk, stats[wk]["n"], n_docs
+    return stats[wk]["median"], wk, stats[wk]["n"], len(usable), n_docs
 
 # ============================================================
 # 0. GROWTH_INDICATORS DOC + 3-MONTH GATE
@@ -539,12 +576,16 @@ def fetch_growth_indicators(db):
 # ============================================================
 # 5. COMPUTE YIELD
 # ============================================================
-def compute_yield(gi_doc, gi, harvest_weight, total_deaths):
-    """Yield = stock x survival x harvest_weight / 1000. Survival computed from
-    logged mortality_records, not a typed Settings field (mirrors dashboard.js).
+def compute_yield(gi_doc, gi, harvest_weight, total_deaths, projected_survival):
+    """Yield = stock x survival sa harvest x harvest_weight / 1000. Survival = projected_survival
+    (week-HARVEST_WEEK trend) kapag meron, kung wala ay current survival mula logged
+    mortality_records (mirrors dashboard.js), hindi typed Settings field.
     main() already exits when initialStock is missing or <= 0, so there is no default."""
     stock = gi["initialStock"]
-    survival = max(0.0, ((stock - total_deaths) / stock) * 100.0)
+    if projected_survival is not None:
+        survival = projected_survival
+    else:
+        survival = max(0.0, ((stock - total_deaths) / stock) * 100.0)
     yield_kg = stock * (survival / 100.0) * harvest_weight / 1000.0
     return gi_doc.reference, stock, survival, yield_kg
 
@@ -553,7 +594,7 @@ def compute_yield(gi_doc, gi, harvest_weight, total_deaths):
 # ============================================================
 WATER_SOURCE_TEXT = {"live": "live sensor", "synthetic": "synthetic", "mixed": "live + synthetic"}
 
-def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance, extra_notes):
+def write_prediction(doc_ref, harvest_weight, yield_kg, survival, mode, n_readings, survival_note, provenance, extra_notes, projection):
     water = WATER_SOURCE_TEXT.get(provenance["source"]) if provenance else None
     notes = {
         "test": "Test-mode: assumed optimal conditions (walang readings pa)",
@@ -563,6 +604,7 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, surviv
     payload = {
         "rfProjectedWeight": round(harvest_weight, 2),
         "rfProjectedYield": round(yield_kg, 3),
+        "rfProjectedSurvival": round(survival, 2),  # the survival % used in rfProjectedYield
         "rfMode": mode,
         "rfReadingsUsed": n_readings,
         "rfWaterSource": provenance["source"] if provenance else None,
@@ -572,6 +614,7 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, surviv
         "rfNote": " ".join([notes.get(mode, "Unknown mode"), survival_note, *extra_notes]),
         "rfPending": False,
         "rfDaysUntilAvailable": None,
+        **projection,
     }
     doc_ref.update(payload)
     print(f"[OK] Nasulat sa growth_indicators: {payload}")
@@ -610,10 +653,13 @@ def main():
         })
         print(f"[GATE] Na-mark bilang rfPending"
               + (f" — ~{weeks_remaining} linggo pa" if weeks_remaining is not None else "") + ".")
-        print("[EXIT] Wala pang isusulat na prediction.")
-        return
-
-    print(f"[GATE] Eligible — {days_since_start} araw na mula sa cycle start.")
+        if cycle_start is None:
+            print("[EXIT] Wala pang isusulat na prediction.")
+            return
+        print(f"[EARLY] Early projection lang (walang yield number bago ang day {GATE_DAYS}).")
+    else:
+        print(f"[GATE] Eligible — {days_since_start} araw na mula sa cycle start.")
+    early = not eligible
 
     # Stock and stocking weight are checked before any expensive read; no default of 50 or 2.0 g.
     if not isinstance(gi.get("initialStock"), (int, float)) or gi["initialStock"] <= 0:
@@ -630,21 +676,28 @@ def main():
         return
     print(f"[OK] Na-load ang model: {MODEL_FILE} ({', '.join(model_meta['features'])})")
 
+    # Totoong biomass weight mula ulang_growth_records (maliit na manual-log
+    # collection), fetched before the water backfill so an early run with too
+    # few usable weeks exits after 1 + N reads.
+    real_weight, real_week, real_n, n_usable, ulang_reads = fetch_latest_real_weight(db, cycle_start, stocking_g)
+    if early and n_usable < EARLY_MIN_USABLE_WEEKS:
+        save_read_counter(load_read_counter() + ulang_reads + 1)
+        print(f"[EARLY] {n_usable} usable weight week(s) lang (kailangan {EARLY_MIN_USABLE_WEEKS}) — walang projection.")
+        return
+
     # --- DATA-BASED SURVIVAL (mortality_records, mirrors dashboard.js/survivalChart.js) ---
     # Fetched before the read guardrail — it's a small, technician-logged
     # collection, not sensor-volume like the water-averages fetch below.
-    try:
-        total_deaths, mortality_reads = fetch_total_deaths(db, cycle_start)
-    except Exception as e:
-        print(f"[ERROR] Hindi nakuha ang mortality_records: {e}")
-        print("[EXIT] Hindi tumuloy — survival data unavailable.")
-        return
-
-    if total_deaths == 0:
-        survival_note = "No mortality logged this cycle — survival assumed 100%."
-    else:
-        survival_note = "Survival based on current logged mortality (as-of-date), not final harvest survival."
-    print(f"[OK] Mortality: {total_deaths} logged deaths mula cycle start ({mortality_reads} records read)")
+    # Skipped on the early path, which writes no yield.
+    total_deaths, deaths_by_week, mortality_reads = 0, {}, 0
+    if not early:
+        try:
+            total_deaths, deaths_by_week, mortality_reads = fetch_total_deaths(db, cycle_start)
+        except Exception as e:
+            print(f"[ERROR] Hindi nakuha ang mortality_records: {e}")
+            print("[EXIT] Hindi tumuloy — survival data unavailable.")
+            return
+        print(f"[OK] Mortality: {total_deaths} logged deaths mula cycle start ({mortality_reads} records read)")
 
     # --- DAILY CACHE — load + reconcile + missing-days list. Local file I/O
     # only, no Firestore reads, so safe to do before any budget/guardrail
@@ -666,12 +719,12 @@ def main():
     if days_fetched:
         print(f"[BACKFILL] {days_fetched}/{len(missing_dates)} day(s) fetched this run ({reads_used} reads).")
 
-    # Persist the counter NOW — includes the gate check (+1) and
+    # Persist the counter NOW — includes the gate check (+1), ulang_reads and
     # mortality_reads from earlier in this run, not just reads_used, so an
     # incomplete-backfill exit below still records every read this run
     # actually spent. Must happen BEFORE the completeness gate can return,
     # or a same-day re-run wouldn't know this budget was already used.
-    save_read_counter(current_reads_today + reads_used + mortality_reads + 1)
+    save_read_counter(current_reads_today + reads_used + mortality_reads + ulang_reads + 1)
 
     # --- COMPLETENESS GATE — do NOT fetch today or predict until every day
     # from cycleStart to (today - GRACE_DAYS) is cached (real data or an
@@ -703,21 +756,19 @@ def main():
     # Kunin ang water data — backfill complete, fetch today + weighted average
     water, n_readings, actual_reads, provenance = fetch_today_and_average(db, daily_cache, today)
 
-    # Totoong biomass weight mula ulang_growth_records (maliit na manual-log
-    # collection, tulad ng mortality_records). Fetched DITO — pagkatapos ng
-    # backfill/guardrail gates — para hindi masayang ang reads sa maagang exit.
-    real_weight, real_week, real_n, ulang_reads = fetch_latest_real_weight(db, cycle_start, stocking_g)
-
-    # I-update ang read counter (dagdag na lang dito — backfill + mortality +
-    # gate check ay na-save na sa itaas). Kasama ang today + ulang_growth reads.
+    # I-update ang read counter (dagdag na lang dito — backfill, mortality,
+    # ulang_growth at gate check ay na-save na sa itaas). Today reads lang.
     current = load_read_counter()
-    save_read_counter(current + actual_reads + ulang_reads)
-    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads + ulang_reads:,} reads ngayong araw")
+    save_read_counter(current + actual_reads)
+    print(f"[GUARDRAIL] Na-update ang counter: {current + actual_reads:,} reads ngayong araw")
 
     # Determine mode + currentWeight source — auto-detected mula sa TOTOONG
     # data na ginamit (hindi na label lang). HYBRID_MODE=True = manual override
     # para puwersahang gamitin ang stocking weight kahit may totoong sample.
     if water is None or any(v is None for v in water.values()):
+        if early:
+            print("[EARLY] Walang kumpletong water data — walang early projection (hindi gagamit ng assumed water).")
+            return
         print("[MODE] Walang kumpletong water data -> TEST-MODE (assumed optimal)")
         water = get_optimal_fallback()
         mode = "test"
@@ -746,17 +797,36 @@ def main():
         extra_notes.append(f"start = stocking weight {stocking_g:g} g.")
     extra_notes += out_of_range_notes({"currentWeight": start_weight, **water}, model_meta["featureRanges"])
 
-    # Project harvest weight mula sa (start_week, start_weight)
-    harvest_weight = project_harvest_weight(model, model_meta["features"], water, start_weight, start_week)
+    # Project weight kada linggo mula sa (start_week, start_weight)
+    trajectory = project_weights(model, model_meta["features"], water, start_weight, start_week)
+    harvest_weight = trajectory[-1][1] if trajectory else start_weight
     print(f"[OK] Projected harvest weight: {harvest_weight:.1f}g "
           f"(mula {start_weight:.1f}g sa week {start_week}, hanggang week {HARVEST_WEEK})")
+    projection = projection_fields(start_week, start_weight, "real" if mode == "real" else "stocking",
+                                   trajectory, early, extra_notes)
+
+    if early:
+        gi_doc.reference.update(projection)
+        print(f"[EARLY] Nasulat ang early projection ({len(projection['rfProjectionByWeek'])} points); rfPending pa rin.")
+        return
+
+    # Projected survival sa harvest (trend ng completed weeks), fallback current survival
+    current_week = (today - cycle_start_day).days // 7 + 1
+    projected_survival = project_survival(deaths_by_week, gi["initialStock"], current_week)
+    if total_deaths == 0:
+        survival_note = "No mortality logged this cycle — survival assumed 100%."
+    elif projected_survival is None:
+        survival_note = "Survival based on current logged mortality (as-of-date), not final harvest survival."
+    else:
+        survival_note = f"Survival projected to week {HARVEST_WEEK} at the average weekly death rate so far."
 
     # Compute yield
-    doc_ref, stock, survival, yield_kg = compute_yield(gi_doc, gi, harvest_weight, total_deaths)
+    doc_ref, stock, survival, yield_kg = compute_yield(gi_doc, gi, harvest_weight, total_deaths, projected_survival)
     print(f"[OK] YIELD = {stock} x {survival:.1f}% x {harvest_weight:.1f}g / 1000 = {yield_kg:.2f} kg")
 
     # Isulat pabalik
-    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance, extra_notes)
+    write_prediction(doc_ref, harvest_weight, yield_kg, survival, mode, n_readings, survival_note,
+                     provenance, extra_notes, projection)
 
     print("=" * 55)
     print("TAPOS — prediction nasa Firestore growth_indicators")

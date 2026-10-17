@@ -7,6 +7,7 @@ import {
     getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadDeathsByWeek } from "./mortalityChart.js";
+import { HARVEST_WEEK, projectSurvival } from "./survivalTrend.js";
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -70,20 +71,29 @@ export async function initSurvivalChart() {
 
     const currentWeek = Math.max(1, Math.floor((Date.now() - cycle.cycleStart.getTime()) / MS_PER_WEEK) + 1);
 
+    const trend = projectSurvival(deathsByWeek, cycle.initialStock, currentWeek);
+    const trendByWeek = Object.fromEntries((trend?.points ?? []).map(p => [p.week, Math.round(p.pct * 10) / 10]));
+    const lastWeek = trend ? Math.max(currentWeek, HARVEST_WEEK) : currentWeek;
+
     const labels = [];
     const data = [];
+    const trendData = [];
     let cumulativeDeaths = 0;
-    for (let w = 1; w <= currentWeek; w++) {
+    for (let w = 1; w <= lastWeek; w++) {
+        labels.push("Week " + w);
+        trendData.push(trendByWeek[w] ?? null);
+        if (w > currentWeek) { data.push(null); continue; }
         cumulativeDeaths += deathsByWeek[w] || 0;
         const survivalPct = Math.max(0, ((cycle.initialStock - cumulativeDeaths) / cycle.initialStock) * 100);
-        labels.push("Week " + w);
         data.push(Math.round(survivalPct * 10) / 10);
     }
 
     const subtitleEl = document.getElementById("survivalSubtitle");
     if (subtitleEl && cumulativeDeaths === 0) subtitleEl.textContent = "No deaths logged yet this cycle (100% assumes every death is logged).";
+    else if (subtitleEl && trend) subtitleEl.textContent = `Actual survival from logged mortality; dashed line assumes the ${(trend.weeklyRate * 100).toFixed(2)}% average weekly death rate of ${trend.completedWeeks} completed weeks continues to week ${HARVEST_WEEK}.`;
     // Floor follows the lowest point, rounded down to the 10% tick, so survival under 70% is never clipped.
-    const yMin = Math.max(0, Math.min(70, Math.floor((Math.min(...data) - 5) / 10) * 10));
+    const plotted = [...data, ...trendData].filter(v => v != null);
+    const yMin = Math.max(0, Math.min(70, Math.floor((Math.min(...plotted) - 5) / 10) * 10));
 
     new Chart(canvas.getContext("2d"), {
         type: "line",
@@ -100,14 +110,28 @@ export async function initSurvivalChart() {
                     tension: 0.3,
                     pointBackgroundColor: "#059669",
                     pointRadius: 3
-                }
+                },
+                ...(trend ? [{
+                    label: "Trend if current death rate continues (%)",
+                    data: trendData,
+                    borderColor: "#059669",
+                    borderDash: [6, 4],
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHitRadius: 6,
+                    spanGaps: true
+                }] : [])
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
             plugins: {
-                legend: { display: false }
+                legend: { display: !!trend },
+                tooltip: { filter: item => item.raw != null }
             },
             scales: {
                 y: {

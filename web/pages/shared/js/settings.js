@@ -134,6 +134,8 @@ const STOCKING_WEIGHT_MAX_G = 500;
 const RF_PREDICTION_FIELDS = [
     'rfProjectedWeight', 'rfProjectedYield', 'rfMode', 'rfNote', 'rfUpdatedAt',
     'rfWaterSource', 'rfWaterFrom', 'rfWaterTo', 'rfReadingsUsed', 'rfBackfillDaysRemaining',
+    'rfProjectedSurvival', 'rfProjectionByWeek', 'rfProjectionStart', 'rfProjectionUpdatedAt',
+    'rfProjectionEarly', 'rfProjectionNote',
 ];
 // Cycle-derived fields that would otherwise carry the old cycle's values into the new one.
 const CYCLE_RESET_FIELDS = [...RF_PREDICTION_FIELDS, 'survivalRate'];

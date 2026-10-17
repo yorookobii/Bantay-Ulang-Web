@@ -13,7 +13,7 @@ import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.
 import { modelModeLabel, yieldWaterNote } from "./yieldLabels.js";
 
 // ─── Core yield & income formulas ──────────────────────────────────────────────
-//  Yield (kg)   = RF-projected harvest weight × survival (from mortality_records) × initialStock
+//  Yield (kg)   = RF-projected harvest weight × projected week-21 survival (rfProjectedSurvival) × initialStock
 //  (see ml-analytics/predict_yield.py). No formula fallback — if RF hasn't
 //  produced a prediction for this cycle yet, adjustedYield is null and the
 //  UI shows a "being processed" state instead of a number.
@@ -68,6 +68,9 @@ export function calcYield(growthData, wqScore) {
         incomeAvg,
         incomeMax,
         rfAvailable,
+        // Breakdown inputs as stored by predict_yield.py; null on older predictions without them.
+        rfProjectedSurvival: rfAvailable ? finiteOrNull(growthData.rfProjectedSurvival) : null,
+        rfProjectedWeight: rfAvailable ? finiteOrNull(growthData.rfProjectedWeight) : null,
         rfMode: rfAvailable ? (growthData.rfMode ?? null) : null,
         // live | synthetic | mixed, written by predict_yield.py alongside the prediction.
         rfWaterSource: rfAvailable ? (growthData.rfWaterSource ?? null) : null,
@@ -76,6 +79,18 @@ export function calcYield(growthData, wqScore) {
             ? Number(growthData.rfReadingsUsed) : null,
         rfUpdatedAt: rfAvailable ? (growthData.rfUpdatedAt ?? null) : null
     };
+}
+
+function finiteOrNull(v) {
+    const n = Number(v);
+    return v != null && Number.isFinite(n) ? n : null;
+}
+
+// "Stock N × survival S% × weight W g = Y kg", or "" when an input is missing.
+function breakdownText(result) {
+    const { initialStock: n, rfProjectedSurvival: s, rfProjectedWeight: w, adjustedYield: y } = result;
+    if (!(n > 0) || s == null || w == null || y == null) return "";
+    return `Stock ${n.toLocaleString("en-PH")} × survival ${fmt(s, 1)}% × weight ${fmt(w, 1)} g = ${fmt(y, 1)} kg`;
 }
 
 // Same label as the report ("Assumed weight, live sensor water data"), so no page calls synthetic data "Real".
@@ -119,6 +134,8 @@ function updateUI(result, cycleData, sensorData) {
         ? estHarvestDate.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
         : "--";
     setEl("harvest-date-value", estHarvestDateStr);
+    // Only state (b) has a number to break down; pending and processing leave it empty.
+    setEl("yp-yield-breakdown", result.rfAvailable ? breakdownText(result) : "");
 
     if (!result.eligible) {
         // State (a): not enough cultivation time has elapsed to trust any

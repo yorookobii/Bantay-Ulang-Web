@@ -107,9 +107,9 @@
                     <!-- Sample/Placeholder Charts -->
                     <div class="analytics-card">
                         <div class="card-title">
-                            Average Weight ng Ulang
+                            Median Weight ng Ulang
                         </div>
-                        <div class="card-subtitle">Actual average weight per prawn, logged this cycle</div>
+                        <div class="card-subtitle" id="avgWeightSubtitle">Median weight per prawn each week, logged this cycle</div>
                         <div class="chart-wrap">
                             <canvas id="avgWeightChart"></canvas>
                             <div class="chart-empty-state" id="avgWeightEmptyState" style="display:none;">
@@ -167,6 +167,7 @@
                                 <div class="yp-yield-sub" id="yp-yield-sub">Based on stock, survival rate &amp; weight per piece</div>
                                 <div class="yp-rf-meta">
                                     <span class="yp-rf-mode-badge" id="yp-rf-mode-badge">--</span>
+                                    <div class="yp-rf-readings" id="yp-yield-breakdown"></div>
                                     <div class="yp-rf-note" id="yp-rf-note"></div>
                                     <div class="yp-rf-readings" id="yp-rf-readings"></div>
                                     <div class="yp-rf-updated" id="yp-rf-updated"></div>
