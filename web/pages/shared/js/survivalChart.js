@@ -57,6 +57,7 @@ export async function initSurvivalChart() {
         deathsByWeek = await loadDeathsByWeek(cycle.cycleStart);
     } catch (err) {
         console.warn("survivalChart: could not load mortality_records:", err);
+        if (emptyEl) emptyEl.textContent = "Couldn't load mortality records.";
     }
 
     // A failed fetch is not the same as a legitimate zero-deaths cycle — we
@@ -78,6 +79,11 @@ export async function initSurvivalChart() {
         labels.push("Week " + w);
         data.push(Math.round(survivalPct * 10) / 10);
     }
+
+    const subtitleEl = document.getElementById("survivalSubtitle");
+    if (subtitleEl && cumulativeDeaths === 0) subtitleEl.textContent = "No deaths logged yet this cycle (100% assumes every death is logged).";
+    // Floor follows the lowest point, rounded down to the 10% tick, so survival under 70% is never clipped.
+    const yMin = Math.max(0, Math.min(70, Math.floor((Math.min(...data) - 5) / 10) * 10));
 
     new Chart(canvas.getContext("2d"), {
         type: "line",
@@ -105,7 +111,7 @@ export async function initSurvivalChart() {
             },
             scales: {
                 y: {
-                    min: 70,
+                    min: yMin,
                     max: 100,
                     ticks: { stepSize: 10 },
                     grid: { color: "#f3f4f6" }

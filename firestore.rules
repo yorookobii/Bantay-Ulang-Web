@@ -125,14 +125,27 @@ service cloud.firestore {
     // ulang_growth_records
     // -------------------------------------------------------------------------
     match /ulang_growth_records/{docId} {
+      // Exact field set the Flutter Ulang log writes (logs.dart:369-375).
+      function isValidGrowth(d) {
+        return d.keys().hasOnly(['size', 'weight', 'recordedBy', 'createdAt', 'observedAt'])
+          && d.weight is number && d.weight >= 0.1 && d.weight <= 500
+          && d.createdAt is timestamp
+          && (!('size' in d) || d.size == null || d.size is number)
+          && (!('observedAt' in d) || d.observedAt is timestamp);
+      }
+
       allow read: if isActive();
 
-      allow create: if isActive() &&
-                       request.resource.data.recordedBy == request.auth.uid;
+      allow create: if isActive()
+                    && request.resource.data.recordedBy == request.auth.uid
+                    && request.resource.data.createdAt == request.time
+                    && isValidGrowth(request.resource.data);
 
-      allow update: if isAdmin() ||
-                       (isActive() &&
-                        resource.data.recordedBy == request.auth.uid);
+      // createdAt and recordedBy are fixed after create so a record can't be moved into another cycle or owner.
+      allow update: if isValidGrowth(request.resource.data)
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && request.resource.data.recordedBy == resource.data.recordedBy
+                    && (isAdmin() || (isActive() && resource.data.recordedBy == request.auth.uid));
 
       allow delete: if isAdmin();
     }
@@ -141,14 +154,26 @@ service cloud.firestore {
     // mortality_records
     // -------------------------------------------------------------------------
     match /mortality_records/{docId} {
+      // Exact field set the Flutter mortality log writes (logs.dart:449-454).
+      function isValidMortality(d) {
+        return d.keys().hasOnly(['deathCount', 'weekNumber', 'recordedBy', 'createdAt'])
+          && d.deathCount is int && d.deathCount >= 0 && d.deathCount <= 100000
+          && d.weekNumber is int && d.weekNumber >= 1
+          && d.createdAt is timestamp;
+      }
+
       allow read: if isActive();
 
-      allow create: if isActive() &&
-                       request.resource.data.recordedBy == request.auth.uid;
+      allow create: if isActive()
+                    && request.resource.data.recordedBy == request.auth.uid
+                    && request.resource.data.createdAt == request.time
+                    && isValidMortality(request.resource.data);
 
-      allow update: if isAdmin() ||
-                       (isActive() &&
-                        resource.data.recordedBy == request.auth.uid);
+      // createdAt and recordedBy are fixed after create so a record can't be moved into another cycle or owner.
+      allow update: if isValidMortality(request.resource.data)
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && request.resource.data.recordedBy == resource.data.recordedBy
+                    && (isAdmin() || (isActive() && resource.data.recordedBy == request.auth.uid));
 
       allow delete: if isAdmin();
     }

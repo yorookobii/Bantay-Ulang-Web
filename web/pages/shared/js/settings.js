@@ -135,6 +135,8 @@ const RF_PREDICTION_FIELDS = [
     'rfProjectedWeight', 'rfProjectedYield', 'rfMode', 'rfNote', 'rfUpdatedAt',
     'rfWaterSource', 'rfWaterFrom', 'rfWaterTo', 'rfReadingsUsed', 'rfBackfillDaysRemaining',
 ];
+// Cycle-derived fields that would otherwise carry the old cycle's values into the new one.
+const CYCLE_RESET_FIELDS = [...RF_PREDICTION_FIELDS, 'survivalRate'];
 
 const GROWTH_PARAM_IDS = ['gi_initialStock', ...STOCKING_WEIGHT_IDS];
 const GROWTH_FIELD_MAP = {
@@ -283,7 +285,7 @@ async function saveGrowthParams(stockingWeights, resetPredictions) {
         if (g !== null) payload[field] = g;
         else if (growthDocRef) payload[field] = deleteField();
     }
-    if (resetPredictions && growthDocRef) RF_PREDICTION_FIELDS.forEach(field => { payload[field] = deleteField(); });
+    if (resetPredictions && growthDocRef) CYCLE_RESET_FIELDS.forEach(field => { payload[field] = deleteField(); });
 
     if (growthDocRef) {
         await setDoc(growthDocRef, payload, { merge: true });
@@ -315,7 +317,7 @@ if (growthForm) {
             return;
         }
         const ok = cycleStartChanged
-            ? await confirmDialog('Change cycle start date?', 'Changing the cycle start date clears the current yield prediction and restarts the 3-month prediction timer. Update the stocking weight below if this is a new batch. Are you sure you want to continue?')
+            ? await confirmDialog('Change cycle start date?', 'Changing the cycle start date clears the current yield prediction and the survival rate shown in the mobile app, and restarts the 3-month prediction timer. Update the stocking weight below if this is a new batch. Are you sure you want to continue?')
             : await confirmDialog('Save changes?', 'Are you sure you want to save these changes?');
         if (!ok) return;
         const btn = growthForm.querySelector('button[type="submit"]');
