@@ -7,18 +7,19 @@ ini-average, pinapakain sa trained Random Forest, nag-pro-project ng harvest
 weight, at isinusulat ang yield prediction pabalik sa growth_indicators.
 
 DATA MODE (auto-detected sa rfMode):
-  - Water parameters: TOTOO mula Firestore (temp, pH, DO, tds, turbidity)
-  - currentWeight: TOTOO mula ulang_growth_records kung may sample na para
-    sa cycle; kung wala pa, ASSUMED (2.0g juvenile start) — graceful fallback
+  - Water parameters: TOTOO mula Firestore (temp, pH, tds, turbidity), may
+    per-reading sanity filter; DO ay naka-fix sa FIXED_DO_MG_L (sensor excluded)
+  - currentWeight: median ng pinakabagong usable week sa ulang_growth_records
+    (hindi flagged, >= MIN_WEEK_SAMPLES); kung wala pa, growth_indicators.stockingWeight
   - feedRate: ASSUMED pa rin (optimal_feed_rate curve) — hiwalay na phase
 
 READ GUARDRAIL:
   - Nagta-track ng Firestore reads kada araw (local JSON file)
   - Nag-wa-warning bago maabot ang free tier limit (50,000 reads/araw)
 
-HYBRID_MODE = True: manual override — puwersahang gamitin ang assumed weight
-(2.0g / week 1) kahit may totoong weight data. Default False: totoong weight
-kapag meron, assumed kapag wala. Auto-detected pa rin ang rfMode label.
+HYBRID_MODE = True: manual override — puwersahang gamitin ang stocking weight
+(week 1) kahit may totoong weight data. Default False: totoong weight
+kapag meron, stocking weight kapag wala. Auto-detected pa rin ang rfMode label.
 """
 
 import firebase_admin
@@ -29,7 +30,7 @@ import joblib
 import json
 import math
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 # ============================================================
 # CONFIG
@@ -37,9 +38,8 @@ from datetime import datetime, timedelta, timezone
 SERVICE_KEY = "serviceAccountKey.json"
 MODEL_FILE = "rf_growth_model.joblib"
 
-HYBRID_MODE = False         # manual override: True = force assumed weight
-                            # (2.0g / week 1) kahit may totoong weight data
-ASSUMED_START_WEIGHT = 2.0  # juvenile start (g) — fallback kapag walang sample
+HYBRID_MODE = False         # manual override: True = force stocking weight
+                            # (week 1) kahit may totoong weight data
 HARVEST_WEEK = 18
 GATE_DAYS = 90  # panelist requirement: yield prediction only after 3 months of real cultivation data
 
@@ -49,7 +49,7 @@ ESTIMATED_READS_PER_DAY = 720  # rough estimate for the guardrail PRE-check only
                                 # correct against actual live daily doc counts;
                                 # post-fetch counter update always uses the real count.
 INCLUDE_SYNTHETIC = False  # isSynthetic: true docs (hal. ESP32_SYNTHETIC_BACKFILL) never feed the model unless True
-CACHE_VERSION = 2  # v2: hiwalay ang bilang ng synthetic; ibang version = clear ang buong daily cache
+CACHE_VERSION = 3  # v3: sanity filter + per-parameter counts, walang DO; ibang version = clear ang buong daily cache
 # HistoryLogs day folders are named by the ESP32's local (PHT) date: reading_365 on Oct 6
 # has time "18:12:25" while measuredAt is 10:12:25 UTC, so every day walk uses PHT dates.
 PHT = timezone(timedelta(hours=8))
@@ -63,23 +63,39 @@ DAILY_READ_LIMIT = 50000    # Firestore free tier (Spark plan)
 SAFETY_THRESHOLD = 40000    # mag-warning bago maabot ang limit
 READ_COUNTER_FILE = "read_counter.json"
 
-# RF features (8 — dapat tugma sa training; walang salinity/waterLevel)
+# RF features (8 — dapat tugma sa training; walang salinity/waterLevel).
+# avgDissolvedOxygen stays because rf_growth_model.joblib expects all 8; it gets FIXED_DO_MG_L until the retrain.
 FEATURES = [
     "weekNumber", "currentWeight",
     "avgWaterTemp", "avgPh", "avgDissolvedOxygen",
     "avgTds", "avgTurbidity", "avgFeedRate",
 ]
+FIXED_DO_MG_L = 6.5  # DO sensor excluded from fetch, cache and training rows
 
 # water stat field -> firmware key, read as statistics.<key>.average (old docs)
 # or flat top-level <key> (docs from Oct 13 2026 evening) via stat_value()
-# (single source of truth, shared by fetch_day_readings)
+# (single source of truth, shared by fetch_day_readings); no DO, see FIXED_DO_MG_L
 STAT_MAP = {
     "avgWaterTemp": "waterTemperatureC",
     "avgPh": "phValue",
-    "avgDissolvedOxygen": "oxygenLevelMgL",
     "avgTds": "tdsPpm",
     "avgTurbidity": "turbidityNTU",
 }
+
+# Per-reading water sanity filter, applied before daily averages.
+TURBIDITY_MAX_NTU = 90  # >= this means the probe is out of water (maintenance)
+PH_MIN, PH_MAX = 4.0, 11.0
+PH_TRUSTED_FROM = None  # PHT date of pH probe calibration, e.g. date(2026, 10, 20); earlier pH is dropped
+
+# Weight plausibility flags, a mirror of web reportCleanup.js flagWeights; change both together.
+WEIGHT_CAP_BASE_G = 5
+WEIGHT_CAP_PER_WEEK_G = 5
+WEIGHT_MEDIAN_FACTOR = 3
+STOCK_LOW_FACTOR = 0.5
+STOCK_HIGH_FACTOR = 4
+STOCK_HIGH_PER_WEEK_G = 10
+MIN_WEEK_SAMPLES = 10      # a week's weight is used only with at least this many samples
+TRAIN_MAX_WEIGHT_G = 33.0  # heaviest currentWeight in bantay_ulang_810_dataset.csv
 
 # ============================================================
 # READ GUARDRAIL
@@ -209,6 +225,17 @@ def stat_value(data, key):
     v = data.get(key)
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
+def drop_reason(feat, value, day):
+    """Dahilan kung bakit itatapon ang isang reading value (None kung ok); day = PHT date ng reading."""
+    if feat == "avgTurbidity" and value >= TURBIDITY_MAX_NTU:
+        return "turbidity probe out of water"
+    if feat == "avgPh":
+        if PH_TRUSTED_FROM is not None and day < PH_TRUSTED_FROM:
+            return "pH before probe calibration"
+        if not PH_MIN <= value <= PH_MAX:
+            return "pH out of range"
+    return None
+
 def fetch_day_readings(db, year, month, day):
     """
     Direktang path read para sa ISANG araw (hindi collection_group scan):
@@ -218,7 +245,10 @@ def fetch_day_readings(db, year, month, day):
     Docs na isSynthetic: true ay nilalaktawan maliban kung INCLUDE_SYNTHETIC.
     Parehong schema ang binabasa (nested statistics o flat fields, tingnan ang stat_value).
 
-    Nagbabalik: (day_avgs dict {feat: float|None}, usable_n, docs_streamed, synthetic_used)
+    Bawat value ay dumadaan sa drop_reason; ang natapon ay binibilang kada parameter.
+
+    Nagbabalik: (day_avgs dict {feat: float|None}, usable_n, docs_streamed, synthetic_used,
+                 qc {"counts": {feat: kept}, "dropped": {feat: dropped}})
     """
     coll = (
         db.collection("HistoryLogs").document("Ulang")
@@ -228,7 +258,9 @@ def fetch_day_readings(db, year, month, day):
     )
     docs = list(coll.stream())
 
+    reading_day = date(year, month, day)
     collected = {k: [] for k in STAT_MAP}
+    dropped = {k: 0 for k in STAT_MAP}
     usable_n = 0
     synthetic_used = 0
     for doc in docs:
@@ -239,15 +271,23 @@ def fetch_day_readings(db, year, month, day):
         got = False
         for feat, stat_key in STAT_MAP.items():
             avg = stat_value(data, stat_key)
-            if avg is not None:
-                collected[feat].append(float(avg))
-                got = True
+            if avg is None:
+                continue
+            if drop_reason(feat, float(avg), reading_day):
+                dropped[feat] += 1
+                continue
+            collected[feat].append(float(avg))
+            got = True
         if got:
             usable_n += 1
             synthetic_used += is_synthetic
 
+    counts = {feat: len(vals) for feat, vals in collected.items()}
+    if any(dropped.values()):
+        print(f"[QC] {reading_day.isoformat()}: " + ", ".join(
+            f"{feat} dropped {k}/{k + counts[feat]}" for feat, k in dropped.items() if k))
     day_avgs = {feat: (float(np.mean(vals)) if vals else None) for feat, vals in collected.items()}
-    return day_avgs, usable_n, len(docs), synthetic_used
+    return day_avgs, usable_n, len(docs), synthetic_used, {"counts": counts, "dropped": dropped}
 
 def backfill_missing_days(db, daily_cache, missing_dates, budget_remaining, grace_cutoff):
     """
@@ -277,10 +317,10 @@ def backfill_missing_days(db, daily_cache, missing_dates, budget_remaining, grac
         if reads_used + ESTIMATED_READS_PER_DAY > budget_remaining:
             break  # pre-check: don't start a day likely to overshoot
 
-        day_avgs, n, docs_streamed, n_synthetic = fetch_day_readings(db, d.year, d.month, d.day)
+        day_avgs, n, docs_streamed, n_synthetic, qc = fetch_day_readings(db, d.year, d.month, d.day)
         reads_used += docs_streamed
         if n > 0:
-            entry = dict(day_avgs)
+            entry = dict(day_avgs, **qc)
             entry["n"] = n
             entry["n_synthetic"] = n_synthetic
             daily_cache["days"][d.isoformat()] = entry
@@ -309,21 +349,22 @@ def fetch_today_and_average(db, daily_cache, today):
     Nagbabalik: (water_dict, total_readings_used, actual_reads, provenance)
     provenance = {"source": live|synthetic|mixed, "from": "YYYY-MM-DD", "to": "YYYY-MM-DD"} o None
     """
-    today_avgs, today_n, actual_reads, today_synthetic = fetch_day_readings(db, today.year, today.month, today.day)
+    today_avgs, today_n, actual_reads, today_synthetic, today_qc = fetch_day_readings(db, today.year, today.month, today.day)
     print(f"[INFO] {today.isoformat()} (today, hindi kino-cache): {today_n} usable readings ({actual_reads} read)")
 
     dated_days = dict(daily_cache["days"])
     if today_n > 0:
-        dated_days[today.isoformat()] = dict(today_avgs, n=today_n, n_synthetic=today_synthetic)
+        dated_days[today.isoformat()] = dict(today_avgs, **today_qc, n=today_n, n_synthetic=today_synthetic)
     all_days = list(dated_days.values())
 
+    # Weighted by readings kept per parameter, since the sanity filter drops parameters independently.
     water = {}
     for feat in STAT_MAP:
         weighted_sum = 0.0
         weight_total = 0
         for day in all_days:
             val = day.get(feat)
-            n = day.get("n", 0)
+            n = day.get("counts", {}).get(feat, 0)
             if val is not None and n > 0:
                 weighted_sum += val * n
                 weight_total += n
@@ -360,7 +401,7 @@ def optimal_feed_rate(weight):
 def get_optimal_fallback():
     """Assumed optimal conditions kung walang totoong water data."""
     return {
-        "avgWaterTemp": 29.0, "avgPh": 7.6, "avgDissolvedOxygen": 6.5,
+        "avgWaterTemp": 29.0, "avgPh": 7.6,
         "avgTds": 250.0, "avgTurbidity": 12.0,
     }
 
@@ -381,7 +422,7 @@ def project_harvest_weight(model, water, start_weight, start_week=1):
             "currentWeight": weight,
             "avgWaterTemp": water["avgWaterTemp"],
             "avgPh": water["avgPh"],
-            "avgDissolvedOxygen": water["avgDissolvedOxygen"],
+            "avgDissolvedOxygen": FIXED_DO_MG_L,
             "avgTds": water["avgTds"],
             "avgTurbidity": water["avgTurbidity"],
             "avgFeedRate": feed_rate,
@@ -405,12 +446,12 @@ def fetch_total_deaths(db, cycle_start):
 # ============================================================
 def fetch_weights_by_week(db, cycle_start):
     """Raw weight samples mula ulang_growth_records, naka-group kada week.
-    Sinasalamin ang avgWeightChart.js loadWeightsByWeek: week = floor(days_
-    since_cycleStart / 7) + 1. Ganito rin ang bucketing sa web para magkasundo.
+    Week = PHT-day difference // 7 + 1, parehong rule ng daily cache at
+    weekly_water; tugma sa web kapag PHT midnight ang cycleStart (galing Settings).
 
     Nagbabalik: ({week: [weights]}, records_read)"""
     docs = list(db.collection("ulang_growth_records").where("createdAt", ">=", cycle_start).stream())
-    MS_PER_WEEK = 7 * 24 * 60 * 60  # seconds (mirror ng JS MS_PER_WEEK)
+    cycle_start_day = ph_date(cycle_start)
 
     by_week = {}  # {week: [weights]}
     for d in docs:
@@ -419,33 +460,73 @@ def fetch_weights_by_week(db, cycle_start):
         weight = data.get("weight")
         if created is None or weight is None:
             continue  # malformed doc — skip (mirror ng JS Number.isFinite guard)
-        week = int((created - cycle_start).total_seconds() // MS_PER_WEEK) + 1
+        week = (ph_date(created) - cycle_start_day).days // 7 + 1
         if week < 1:
             continue
         by_week.setdefault(week, []).append(float(weight))
     return by_week, len(docs)
 
-def fetch_latest_real_weight(db, cycle_start):
-    """Latest week's average weight (g): per-week AVERAGE (hindi raw sum) ng
-    PINAKA-BAGONG week na may sample -> totoong currentWeight at week index nito.
+def weekly_weight_stats(by_week):
+    """{week: {"median", "mean", "n"}} mula sa raw samples; ang mean ay para lang sa flags na tugma sa web."""
+    return {wk: {"median": float(np.median(v)), "mean": float(np.mean(v)), "n": len(v)} for wk, v in by_week.items()}
 
-    Nagbabalik: (avg_weight_g, latest_week, records_read) o
-    (None, None, records_read) kung walang usable sample."""
+def flag_weights(stats, stocking_g=None):
+    """{week: reason} para sa weekly mean na labas sa bounds; port ng reportCleanup.js flagWeights."""
+    values = [s["mean"] for s in stats.values()]
+    med = float(np.median(values)) if values else None
+    stock = float(stocking_g) if isinstance(stocking_g, (int, float)) and stocking_g > 0 else None
+    flags = {}
+    for week, s in stats.items():
+        v = s["mean"]
+        reasons = []
+        if stock is not None:
+            low = round(STOCK_LOW_FACTOR * stock, 1)
+            high = round(STOCK_HIGH_FACTOR * stock + STOCK_HIGH_PER_WEEK_G * week, 1)
+            if v < low:
+                reasons.append(f"Below the {low:g} g minimum ({STOCK_LOW_FACTOR:g}x the {stock:g} g stocking weight)")
+            if v > high:
+                reasons.append(f"Above the {high:g} g limit for week {week}")
+        else:
+            cap = WEIGHT_CAP_BASE_G + WEIGHT_CAP_PER_WEEK_G * week
+            if v > cap:
+                reasons.append(f"Above the {cap} g limit for week {week}")
+        if med is not None and v > WEIGHT_MEDIAN_FACTOR * med:
+            reasons.append(f"More than {WEIGHT_MEDIAN_FACTOR}x the median weekly average ({round(med, 1):g} g)")
+        if reasons:
+            flags[week] = "; ".join(reasons)
+    return flags
+
+def usable_weeks(stats, flags):
+    """Weeks na hindi flagged at may >= MIN_WEEK_SAMPLES samples."""
+    return {wk for wk, s in stats.items() if wk not in flags and s["n"] >= MIN_WEEK_SAMPLES}
+
+def fetch_latest_real_weight(db, cycle_start, stocking_g):
+    """Median weight (g) ng PINAKA-BAGONG usable week, umaatras lampas sa flagged
+    o kulang-sample na weeks (tulad ng web pickCurrentWeight).
+
+    Nagbabalik: (median_g, week, sample_count, records_read) o
+    (None, None, None, records_read) kung walang usable week."""
     by_week, n_docs = fetch_weights_by_week(db, cycle_start)
-    if not by_week:
-        return None, None, n_docs
-
-    latest_week = max(by_week)  # LATEST week na may sample
-    vals = by_week[latest_week]
-    avg_weight = sum(vals) / len(vals)  # per-week average, hindi raw sum
-    return avg_weight, latest_week, n_docs
+    stats = weekly_weight_stats(by_week)
+    flags = flag_weights(stats, stocking_g)
+    usable = usable_weeks(stats, flags)
+    for wk in sorted(stats, reverse=True):
+        if wk in usable:
+            break
+        reason = flags.get(wk) or f"{stats[wk]['n']} samples lang (kailangan {MIN_WEEK_SAMPLES})"
+        print(f"[WEIGHT] Week {wk} nilaktawan: {reason}")
+    if not usable:
+        return None, None, None, n_docs
+    wk = max(usable)
+    return stats[wk]["median"], wk, stats[wk]["n"], n_docs
 
 # ============================================================
 # 0. GROWTH_INDICATORS DOC + 3-MONTH GATE
 # ============================================================
 def fetch_growth_indicators(db):
-    """Kunin ang latest growth_indicators doc. None kung wala."""
-    docs = list(db.collection("growth_indicators").limit(1).stream())
+    """Kunin ang latest growth_indicators doc (by timestamp, same as web). None kung wala."""
+    docs = list(db.collection("growth_indicators")
+                .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1).stream())
     if not docs:
         return None
     return docs[0]
@@ -455,9 +536,10 @@ def fetch_growth_indicators(db):
 # ============================================================
 def compute_yield(gi_doc, gi, harvest_weight, total_deaths):
     """Yield = stock x survival x harvest_weight / 1000. Survival computed from
-    logged mortality_records, not a typed Settings field (mirrors dashboard.js)."""
-    stock = gi.get("initialStock", 50)
-    survival = max(0.0, ((stock - total_deaths) / stock) * 100.0) if stock > 0 else 0.0
+    logged mortality_records, not a typed Settings field (mirrors dashboard.js).
+    main() already exits when initialStock is missing or <= 0, so there is no default."""
+    stock = gi["initialStock"]
+    survival = max(0.0, ((stock - total_deaths) / stock) * 100.0)
     yield_kg = stock * (survival / 100.0) * harvest_weight / 1000.0
     return gi_doc.reference, stock, survival, yield_kg
 
@@ -466,11 +548,11 @@ def compute_yield(gi_doc, gi, harvest_weight, total_deaths):
 # ============================================================
 WATER_SOURCE_TEXT = {"live": "live sensor", "synthetic": "synthetic", "mixed": "live + synthetic"}
 
-def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance):
+def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance, extra_notes):
     water = WATER_SOURCE_TEXT.get(provenance["source"]) if provenance else None
     notes = {
         "test": "Test-mode: assumed optimal conditions (walang readings pa)",
-        "hybrid": f"Hybrid: {water} water params, assumed biomass/feed",
+        "hybrid": f"Hybrid: {water} water params, stocking-weight biomass, assumed feed",
         "real": f"Real biomass weight + {water} water params; feed via optimal-rate curve",
     }
     payload = {
@@ -482,7 +564,7 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, surviv
         "rfWaterFrom": provenance["from"] if provenance else None,
         "rfWaterTo": provenance["to"] if provenance else None,
         "rfUpdatedAt": firestore.SERVER_TIMESTAMP,
-        "rfNote": notes.get(mode, "Unknown mode") + " " + survival_note,
+        "rfNote": " ".join([notes.get(mode, "Unknown mode"), survival_note, *extra_notes]),
         "rfPending": False,
         "rfDaysUntilAvailable": None,
     }
@@ -527,6 +609,15 @@ def main():
         return
 
     print(f"[GATE] Eligible — {days_since_start} araw na mula sa cycle start.")
+
+    # Stock and stocking weight are checked before any expensive read; no default of 50 or 2.0 g.
+    if not isinstance(gi.get("initialStock"), (int, float)) or gi["initialStock"] <= 0:
+        print("[SKIP] initialStock missing or <= 0 — no yield write.")
+        return
+    stocking_g = gi.get("stockingWeight")
+    if not isinstance(stocking_g, (int, float)) or stocking_g <= 0:
+        print("[SKIP] stockingWeight missing — no projection.")
+        return
 
     # --- DATA-BASED SURVIVAL (mortality_records, mirrors dashboard.js/survivalChart.js) ---
     # Fetched before the read guardrail — it's a small, technician-logged
@@ -607,7 +698,7 @@ def main():
     # Totoong biomass weight mula ulang_growth_records (maliit na manual-log
     # collection, tulad ng mortality_records). Fetched DITO — pagkatapos ng
     # backfill/guardrail gates — para hindi masayang ang reads sa maagang exit.
-    real_weight, real_week, ulang_reads = fetch_latest_real_weight(db, cycle_start)
+    real_weight, real_week, real_n, ulang_reads = fetch_latest_real_weight(db, cycle_start, stocking_g)
 
     # I-update ang read counter (dagdag na lang dito — backfill + mortality +
     # gate check ay na-save na sa itaas). Kasama ang today + ulang_growth reads.
@@ -617,30 +708,37 @@ def main():
 
     # Determine mode + currentWeight source — auto-detected mula sa TOTOONG
     # data na ginamit (hindi na label lang). HYBRID_MODE=True = manual override
-    # para puwersahang gamitin ang assumed weight kahit may totoong sample.
+    # para puwersahang gamitin ang stocking weight kahit may totoong sample.
     if water is None or any(v is None for v in water.values()):
         print("[MODE] Walang kumpletong water data -> TEST-MODE (assumed optimal)")
         water = get_optimal_fallback()
         mode = "test"
         n_readings = 0
         provenance = None
-        start_weight, start_week = ASSUMED_START_WEIGHT, 1
+        start_weight, start_week = stocking_g, 1
     else:
         use_real_weight = (real_weight is not None) and not HYBRID_MODE
         if use_real_weight:
             start_weight, start_week = real_weight, real_week + 1  # project weeks AFTER measured
             mode = "real"
         else:
-            start_weight, start_week = ASSUMED_START_WEIGHT, 1
+            start_weight, start_week = stocking_g, 1
             mode = "hybrid"
         print(f"[MODE] {mode.upper()} — {provenance['source']} water params, "
-              + ("totoong weight" if use_real_weight else "assumed weight"))
+              + (f"totoong weight (median ng {real_n} samples)" if use_real_weight else "stocking weight"))
         print(f"       Water: temp={water['avgWaterTemp']:.1f} pH={water['avgPh']:.2f} "
-              f"DO={water['avgDissolvedOxygen']:.1f} tds={water['avgTds']:.0f} "
+              f"DO=fixed {FIXED_DO_MG_L:g} tds={water['avgTds']:.0f} "
               f"turb={water['avgTurbidity']:.1f}")
         if real_weight is not None and HYBRID_MODE:
             print(f"[WEIGHT] Override: may totoong weight ({real_weight:.1f}g sa week "
-                  f"{real_week}) pero HYBRID_MODE=True -> assumed pa rin.")
+                  f"{real_week}) pero HYBRID_MODE=True -> stocking weight pa rin.")
+
+    extra_notes = []
+    if mode != "real":
+        extra_notes.append(f"start = stocking weight {stocking_g:g} g.")
+    if start_weight > TRAIN_MAX_WEIGHT_G:
+        extra_notes.append(f"Start weight {start_weight:.1f} g is above the model's training range (max {TRAIN_MAX_WEIGHT_G:g} g).")
+    extra_notes.append(f"DO fixed at {FIXED_DO_MG_L:g} mg/L (sensor excluded).")
 
     # Project harvest weight mula sa (start_week, start_weight)
     harvest_weight = project_harvest_weight(model, water, start_weight, start_week)
@@ -652,7 +750,7 @@ def main():
     print(f"[OK] YIELD = {stock} x {survival:.1f}% x {harvest_weight:.1f}g / 1000 = {yield_kg:.2f} kg")
 
     # Isulat pabalik
-    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance)
+    write_prediction(doc_ref, harvest_weight, yield_kg, mode, n_readings, survival_note, provenance, extra_notes)
 
     print("=" * 55)
     print("TAPOS — prediction nasa Firestore growth_indicators")
