@@ -1,0 +1,132 @@
+{
+  "createdAt": "2026-10-17T13:04:50+08:00",
+  "cycles": 300,
+  "rows": 5787,
+  "seed": 42,
+  "readings": {
+    "file": "bantay-ulang_water-quality_2026-10-10_2026-10-17.xlsx",
+    "rows": 575,
+    "from": "2026-10-13T14:30:00+08:00",
+    "to": "2026-10-17T06:50:00+08:00"
+  },
+  "curveSources": [
+    "Ling, S.W. (FAO), Penang pond growth: 2 g d1 to 125 g at 6 months (fast curve).",
+    "Jain, Gupta & Singh 2008, Livestock Research for Rural Development 20(7), feeding-schedule weights (slow curve).",
+    "New, M.B. 2002, FAO Fisheries Technical Paper 428: optimal temperature 28-31 C, pH 7.0-8.5."
+  ],
+  "settings": {
+    "growoutDays": 150,
+    "maxWeightG": 125.0,
+    "stockingRangeG": [
+      2.0,
+      50.0
+    ],
+    "fastCurve": [
+      [
+        1,
+        2.0
+      ],
+      [
+        30,
+        4.5
+      ],
+      [
+        60,
+        10.0
+      ],
+      [
+        90,
+        25.0
+      ],
+      [
+        120,
+        60.0
+      ],
+      [
+        150,
+        100.0
+      ],
+      [
+        180,
+        125.0
+      ]
+    ],
+    "slowCurve": [
+      [
+        15,
+        1.25
+      ],
+      [
+        50,
+        4.25
+      ],
+      [
+        70,
+        7.5
+      ],
+      [
+        90,
+        12.5
+      ],
+      [
+        110,
+        18.5
+      ],
+      [
+        130,
+        26.0
+      ],
+      [
+        150,
+        35.0
+      ],
+      [
+        170,
+        47.5
+      ]
+    ],
+    "tempBand": [
+      28.0,
+      31.0,
+      0.08,
+      0.2
+    ],
+    "phBand": [
+      7.0,
+      8.5,
+      0.15,
+      0.3
+    ],
+    "tdsBand": [
+      null,
+      500.0,
+      0.0002,
+      0.9
+    ],
+    "turbidityBand": [
+      null,
+      30.0,
+      0.002,
+      0.9
+    ],
+    "tempBaseRangeC": [
+      24.0,
+      34.0
+    ],
+    "phRange": [
+      6.0,
+      10.0
+    ],
+    "turbidityRange": [
+      5.0,
+      60.0
+    ],
+    "readingsPerWeekSample": 144,
+    "noiseSd": 0.08,
+    "noiseClip": [
+      0.75,
+      1.25
+    ],
+    "gainFloorG": 0.1
+  }
+}

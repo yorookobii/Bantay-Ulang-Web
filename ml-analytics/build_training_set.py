@@ -10,7 +10,7 @@ SOURCES:
     capped sa natitirang SAFETY_THRESHOLD reads ngayong araw.
   - Weight: ulang_growth_records (per-week median, parehong flags ng web reportCleanup.js).
   - Feed rate: ASSUMED (optimal_feed_rate curve) — feedRateAssumed = 1.
-  - DO: wala (sensor excluded); ang predict_yield.py ay gumagamit ng FIXED_DO_MG_L.
+  - DO: wala (sensor excluded); hindi rin ito feature ng v2 model (train_model.py).
 
 ROW RULE: may row ang week N kung usable ang weight sa week N AT N+1 (hindi
 flagged, >= MIN_WEEK_SAMPLES samples) at may >= MIN_WATER_DAYS live water days

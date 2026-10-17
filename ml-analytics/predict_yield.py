@@ -8,7 +8,7 @@ weight, at isinusulat ang yield prediction pabalik sa growth_indicators.
 
 DATA MODE (auto-detected sa rfMode):
   - Water parameters: TOTOO mula Firestore (temp, pH, tds, turbidity), may
-    per-reading sanity filter; DO ay naka-fix sa FIXED_DO_MG_L (sensor excluded)
+    per-reading sanity filter; walang DO (hindi ito feature ng v2 model)
   - currentWeight: median ng pinakabagong usable week sa ulang_growth_records
     (hindi flagged, >= MIN_WEEK_SAMPLES); kung wala pa, growth_indicators.stockingWeight
   - feedRate: ASSUMED pa rin (optimal_feed_rate curve) — hiwalay na phase
@@ -30,17 +30,19 @@ import joblib
 import json
 import math
 import os
+import sklearn
 from datetime import date, datetime, timedelta, timezone
 
 # ============================================================
 # CONFIG
 # ============================================================
 SERVICE_KEY = "serviceAccountKey.json"
-MODEL_FILE = "rf_growth_model.joblib"
+MODEL_FILE = "rf_growth_model_v2.joblib"  # v1 (rf_growth_model.joblib) is kept but no longer used
+MODEL_META_FILE = "model_meta.json"        # written by train_model.py: features, featureRanges, versions
 
 HYBRID_MODE = False         # manual override: True = force stocking weight
                             # (week 1) kahit may totoong weight data
-HARVEST_WEEK = 18
+HARVEST_WEEK = 150 // 7     # 150-day grow-out, the same horizon as generate_synthetic.py
 GATE_DAYS = 90  # panelist requirement: yield prediction only after 3 months of real cultivation data
 
 # Fetch settings — per-day direct reads (see fetch_day_readings), cache-aware
@@ -63,18 +65,10 @@ DAILY_READ_LIMIT = 50000    # Firestore free tier (Spark plan)
 SAFETY_THRESHOLD = 40000    # mag-warning bago maabot ang limit
 READ_COUNTER_FILE = "read_counter.json"
 
-# RF features (8 — dapat tugma sa training; walang salinity/waterLevel).
-# avgDissolvedOxygen stays because rf_growth_model.joblib expects all 8; it gets FIXED_DO_MG_L until the retrain.
-FEATURES = [
-    "weekNumber", "currentWeight",
-    "avgWaterTemp", "avgPh", "avgDissolvedOxygen",
-    "avgTds", "avgTurbidity", "avgFeedRate",
-]
-FIXED_DO_MG_L = 6.5  # DO sensor excluded from fetch, cache and training rows
-
 # water stat field -> firmware key, read as statistics.<key>.average (old docs)
 # or flat top-level <key> (docs from Oct 13 2026 evening) via stat_value()
-# (single source of truth, shared by fetch_day_readings); no DO, see FIXED_DO_MG_L
+# (single source of truth, shared by fetch_day_readings); no DO, the v2 model doesn't use it.
+# Model features come from model_meta.json, not a constant here.
 STAT_MAP = {
     "avgWaterTemp": "waterTemperatureC",
     "avgPh": "phValue",
@@ -95,7 +89,6 @@ STOCK_LOW_FACTOR = 0.5
 STOCK_HIGH_FACTOR = 4
 STOCK_HIGH_PER_WEEK_G = 10
 MIN_WEEK_SAMPLES = 10      # a week's weight is used only with at least this many samples
-TRAIN_MAX_WEIGHT_G = 33.0  # heaviest currentWeight in bantay_ulang_810_dataset.csv
 
 # ============================================================
 # READ GUARDRAIL
@@ -408,26 +401,38 @@ def get_optimal_fallback():
 # ============================================================
 # 4. PROJECT HARVEST WEIGHT (via RF)
 # ============================================================
-def project_harvest_weight(model, water, start_weight, start_week=1):
+def load_model():
+    """(model, meta) mula MODEL_FILE + MODEL_META_FILE, o (None, None) kapag hindi tugma ang features o sklearn version."""
+    model = joblib.load(MODEL_FILE)
+    with open(MODEL_META_FILE, encoding="utf-8") as f:
+        meta = json.load(f)
+    if list(getattr(model, "feature_names_in_", [])) != meta["features"]:
+        print(f"[ERROR] {MODEL_FILE} features {list(getattr(model, 'feature_names_in_', []))} != {MODEL_META_FILE} {meta['features']}")
+        return None, None
+    if meta["versions"]["sklearn"] != sklearn.__version__:
+        print(f"[ERROR] Model trained on scikit-learn {meta['versions']['sklearn']}, installed {sklearn.__version__} — re-run train_model.py.")
+        return None, None
+    return model, meta
+
+def out_of_range_notes(inputs, feature_ranges):
+    """rfNote lines para sa model inputs na labas sa training featureRanges."""
+    notes = []
+    for feat, value in inputs.items():
+        low, high = feature_ranges.get(feat, (-math.inf, math.inf))
+        if not low <= value <= high:
+            notes.append(f"{feat} {value:.1f} is outside the model's training range ({low:g} to {high:g}).")
+    return notes
+
+def project_harvest_weight(model, features, water, start_weight, start_week=1):
     """I-project ang weight mula (start_week, start_weight) hanggang harvest
-    (week 18). start_weight = timbang na PAPASOK sa start_week; may growth step
-    kada linggo mula start_week..18. Feed assumed pa rin (optimal_feed_rate
-    curve). start_week > HARVEST_WEEK -> empty loop, ibabalik ang start_weight
-    (nasa/lampas na sa harvest)."""
+    (HARVEST_WEEK). start_weight = timbang na PAPASOK sa start_week; may growth
+    step kada linggo mula start_week..HARVEST_WEEK. Ang input columns ay galing
+    sa model_meta.json features. start_week > HARVEST_WEEK -> empty loop,
+    ibabalik ang start_weight (nasa/lampas na sa harvest)."""
     weight = start_weight
     for wk in range(start_week, HARVEST_WEEK + 1):
-        feed_rate = optimal_feed_rate(weight)  # assumed (hybrid)
-        feat = pd.DataFrame([{
-            "weekNumber": wk,
-            "currentWeight": weight,
-            "avgWaterTemp": water["avgWaterTemp"],
-            "avgPh": water["avgPh"],
-            "avgDissolvedOxygen": FIXED_DO_MG_L,
-            "avgTds": water["avgTds"],
-            "avgTurbidity": water["avgTurbidity"],
-            "avgFeedRate": feed_rate,
-        }])[FEATURES]
-        growth = float(model.predict(feat)[0])
+        row = {"weekNumber": wk, "currentWeight": weight, **water, "avgFeedRate": optimal_feed_rate(weight)}
+        growth = float(model.predict(pd.DataFrame([row])[features])[0])
         weight += growth
     return weight
 
@@ -619,6 +624,12 @@ def main():
         print("[SKIP] stockingWeight missing — no projection.")
         return
 
+    # Model is loaded before any expensive read so a mismatched model costs nothing.
+    model, model_meta = load_model()
+    if model is None:
+        return
+    print(f"[OK] Na-load ang model: {MODEL_FILE} ({', '.join(model_meta['features'])})")
+
     # --- DATA-BASED SURVIVAL (mortality_records, mirrors dashboard.js/survivalChart.js) ---
     # Fetched before the read guardrail — it's a small, technician-logged
     # collection, not sensor-volume like the water-averages fetch below.
@@ -689,9 +700,6 @@ def main():
         print("[EXIT] Hindi tumuloy — read guardrail.")
         return
 
-    model = joblib.load(MODEL_FILE)
-    print(f"[OK] Na-load ang model: {MODEL_FILE}")
-
     # Kunin ang water data — backfill complete, fetch today + weighted average
     water, n_readings, actual_reads, provenance = fetch_today_and_average(db, daily_cache, today)
 
@@ -727,7 +735,7 @@ def main():
         print(f"[MODE] {mode.upper()} — {provenance['source']} water params, "
               + (f"totoong weight (median ng {real_n} samples)" if use_real_weight else "stocking weight"))
         print(f"       Water: temp={water['avgWaterTemp']:.1f} pH={water['avgPh']:.2f} "
-              f"DO=fixed {FIXED_DO_MG_L:g} tds={water['avgTds']:.0f} "
+              f"tds={water['avgTds']:.0f} "
               f"turb={water['avgTurbidity']:.1f}")
         if real_weight is not None and HYBRID_MODE:
             print(f"[WEIGHT] Override: may totoong weight ({real_weight:.1f}g sa week "
@@ -736,12 +744,10 @@ def main():
     extra_notes = []
     if mode != "real":
         extra_notes.append(f"start = stocking weight {stocking_g:g} g.")
-    if start_weight > TRAIN_MAX_WEIGHT_G:
-        extra_notes.append(f"Start weight {start_weight:.1f} g is above the model's training range (max {TRAIN_MAX_WEIGHT_G:g} g).")
-    extra_notes.append(f"DO fixed at {FIXED_DO_MG_L:g} mg/L (sensor excluded).")
+    extra_notes += out_of_range_notes({"currentWeight": start_weight, **water}, model_meta["featureRanges"])
 
     # Project harvest weight mula sa (start_week, start_weight)
-    harvest_weight = project_harvest_weight(model, water, start_weight, start_week)
+    harvest_weight = project_harvest_weight(model, model_meta["features"], water, start_weight, start_week)
     print(f"[OK] Projected harvest weight: {harvest_weight:.1f}g "
           f"(mula {start_weight:.1f}g sa week {start_week}, hanggang week {HARVEST_WEEK})")
 

@@ -1,0 +1,232 @@
+{
+  "modelFile": "rf_growth_model_v2.joblib",
+  "features": [
+    "currentWeight",
+    "avgWaterTemp",
+    "avgPh",
+    "avgTurbidity"
+  ],
+  "target": "weeklyGrowthIncrement",
+  "modelParams": {
+    "n_estimators": 300,
+    "min_samples_leaf": 5,
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "versions": {
+    "python": "3.14.3",
+    "sklearn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "joblib": "1.5.3"
+  },
+  "trainingRows": 5787,
+  "trainingCycles": 300,
+  "weightRange": [
+    2.18,
+    124.991
+  ],
+  "featureRanges": {
+    "currentWeight": [
+      2.18,
+      124.991
+    ],
+    "avgWaterTemp": [
+      23.125,
+      34.861
+    ],
+    "avgPh": [
+      6.0,
+      10.0
+    ],
+    "avgTurbidity": [
+      5.001,
+      59.992
+    ]
+  },
+  "featureImportances": {
+    "currentWeight": 0.6754449295025422,
+    "avgWaterTemp": 0.16258031898096287,
+    "avgPh": 0.1050292411839415,
+    "avgTurbidity": 0.05694551033255345
+  },
+  "cv": {
+    "method": "GroupKFold(n_splits=5) by cycleId",
+    "folds": [
+      {
+        "fold": 1,
+        "testRows": 1158,
+        "testCycles": 60,
+        "mae": 0.7467231539585022,
+        "r2": 0.5652711438847315
+      },
+      {
+        "fold": 2,
+        "testRows": 1158,
+        "testCycles": 60,
+        "mae": 0.8230247237763149,
+        "r2": 0.5682814145858304
+      },
+      {
+        "fold": 3,
+        "testRows": 1157,
+        "testCycles": 60,
+        "mae": 0.7735731134151966,
+        "r2": 0.5873600462950718
+      },
+      {
+        "fold": 4,
+        "testRows": 1157,
+        "testCycles": 60,
+        "mae": 0.7844743741887282,
+        "r2": 0.6084712904165186
+      },
+      {
+        "fold": 5,
+        "testRows": 1157,
+        "testCycles": 60,
+        "mae": 0.6996322194268959,
+        "r2": 0.7041698343785434
+      }
+    ],
+    "mae": 0.7654855169531276,
+    "r2": 0.6067107459121391,
+    "maeSd": 0.04589506862863726,
+    "r2Sd": 0.057161781680816745
+  },
+  "realEvaluation": null,
+  "dataSources": {
+    "synthetic": "synthetic_v2.csv",
+    "createdAt": "2026-10-17T13:04:50+08:00",
+    "cycles": 300,
+    "rows": 5787,
+    "seed": 42,
+    "readings": {
+      "file": "bantay-ulang_water-quality_2026-10-10_2026-10-17.xlsx",
+      "rows": 575,
+      "from": "2026-10-13T14:30:00+08:00",
+      "to": "2026-10-17T06:50:00+08:00"
+    },
+    "curveSources": [
+      "Ling, S.W. (FAO), Penang pond growth: 2 g d1 to 125 g at 6 months (fast curve).",
+      "Jain, Gupta & Singh 2008, Livestock Research for Rural Development 20(7), feeding-schedule weights (slow curve).",
+      "New, M.B. 2002, FAO Fisheries Technical Paper 428: optimal temperature 28-31 C, pH 7.0-8.5."
+    ],
+    "settings": {
+      "growoutDays": 150,
+      "maxWeightG": 125.0,
+      "stockingRangeG": [
+        2.0,
+        50.0
+      ],
+      "fastCurve": [
+        [
+          1,
+          2.0
+        ],
+        [
+          30,
+          4.5
+        ],
+        [
+          60,
+          10.0
+        ],
+        [
+          90,
+          25.0
+        ],
+        [
+          120,
+          60.0
+        ],
+        [
+          150,
+          100.0
+        ],
+        [
+          180,
+          125.0
+        ]
+      ],
+      "slowCurve": [
+        [
+          15,
+          1.25
+        ],
+        [
+          50,
+          4.25
+        ],
+        [
+          70,
+          7.5
+        ],
+        [
+          90,
+          12.5
+        ],
+        [
+          110,
+          18.5
+        ],
+        [
+          130,
+          26.0
+        ],
+        [
+          150,
+          35.0
+        ],
+        [
+          170,
+          47.5
+        ]
+      ],
+      "tempBand": [
+        28.0,
+        31.0,
+        0.08,
+        0.2
+      ],
+      "phBand": [
+        7.0,
+        8.5,
+        0.15,
+        0.3
+      ],
+      "tdsBand": [
+        null,
+        500.0,
+        0.0002,
+        0.9
+      ],
+      "turbidityBand": [
+        null,
+        30.0,
+        0.002,
+        0.9
+      ],
+      "tempBaseRangeC": [
+        24.0,
+        34.0
+      ],
+      "phRange": [
+        6.0,
+        10.0
+      ],
+      "turbidityRange": [
+        5.0,
+        60.0
+      ],
+      "readingsPerWeekSample": 144,
+      "noiseSd": 0.08,
+      "noiseClip": [
+        0.75,
+        1.25
+      ],
+      "gainFloorG": 0.1
+    }
+  },
+  "createdAt": "2026-10-17T13:05:07+08:00"
+}
