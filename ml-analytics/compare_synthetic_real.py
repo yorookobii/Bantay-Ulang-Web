@@ -11,6 +11,7 @@ Usage:
   python compare_synthetic_real.py --rerender  # redraw figures from comparison/real_daily_means.csv
   python compare_synthetic_real.py --weights   # step 2: growth rule vs real weekly medians (weight records only)
   python compare_synthetic_real.py --freeze    # freeze the RF v2 week-2 forecast (--force to overwrite)
+  python compare_synthetic_real.py --freeze-v1 # freeze RF v1 from the frozen v2 inputs, no reads (--force to overwrite)
   python compare_synthetic_real.py --rf-week2  # step 3, after the week-2 weigh-in: frozen forecast vs actual
 """
 import argparse
@@ -18,6 +19,7 @@ import hashlib
 import json
 import os
 import subprocess
+import warnings
 from datetime import date, datetime, timedelta, timezone
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))  # predict_yield paths are relative
@@ -32,13 +34,14 @@ import joblib
 import numpy as np
 import pandas as pd
 import sklearn
+from sklearn.exceptions import InconsistentVersionWarning
 
 from generate_synthetic import GAIN_FLOOR_G, base_gain, water_effect
 from predict_yield import (
     DAILY_READ_LIMIT, ESTIMATED_READS_PER_DAY, GRACE_DAYS, PHT, STAT_MAP,
     backfill_missing_days, check_read_guardrail, connect_firestore, fetch_day_readings,
     fetch_growth_indicators, fetch_weights_by_week, flag_weights, get_missing_dates, load_daily_cache,
-    load_model, load_read_counter, out_of_range_notes, ph_date, project_weights,
+    load_model, load_read_counter, optimal_feed_rate, out_of_range_notes, ph_date, project_weights,
     reconcile_daily_cache, save_daily_cache, save_read_counter, usable_weeks, weekly_weight_stats,
 )
 
@@ -51,6 +54,7 @@ CYCLE1_FROM = date(2026, 10, 13)  # PHT floor so setup days never enter the comp
 V1_MODEL_FILE = "rf_growth_model.joblib"  # RF v1, 8 features, trained on V1_DATASET (notebook), scikit-learn 1.8.0
 V1_DATASET = "bantay_ulang_810_dataset.csv"
 FORECAST_FILE = os.path.join("comparison", "forecast_week2.json")
+FORECAST_V1_FILE = os.path.join("comparison", "forecast_week2_v1.json")
 FORECAST_SOURCES = ["compare_synthetic_real.py", "predict_yield.py", "generate_synthetic.py", "model_meta.json"]  # tracked inputs to the forecast
 CURVES = [("Slow (m=0)", 0.0), ("Average (m=0.5)", 0.5), ("Fast (m=1)", 1.0)]  # generate_synthetic.py curve mix
 WEIGHTS_CAPTION = "Week 1 covers ~6 days of growth; sampling noise is similar in size to the expected gain."
@@ -356,6 +360,11 @@ def sha256(path):
         return hashlib.sha256(f.read()).hexdigest()
 
 
+def cube_root_interp(start, end, days):
+    """Weight after `days` of a 7-day step, with cube root of weight linear in time."""
+    return (start ** (1 / 3) + (end ** (1 / 3) - start ** (1 / 3)) * days / 7) ** 3
+
+
 def freeze_forecast(cw, force=False):
     """Writes FORECAST_FILE: RF v2 week-2 weight from the week-1 median and week-1 water, frozen before the week-2 weigh-in."""
     if os.path.exists(FORECAST_FILE) and not force:
@@ -372,8 +381,7 @@ def freeze_forecast(cw, force=False):
     start = stats[1]["median"]
     # First projected step: the week-1 median plus one week of predicted gain.
     pred = project_weights(v2, meta["features"], water, start, start_week=1)[0][1]
-    # Cube root of weight is linear in time between the week-1 median and the 7-day forecast.
-    interim = (start ** (1 / 3) + (pred ** (1 / 3) - start ** (1 / 3)) * INTERIM_DAYS / 7) ** 3
+    interim = cube_root_interp(start, pred, INTERIM_DAYS)
     commit, dirty = git_state()
     forecast = {
         "createdAt": datetime.now(PHT).isoformat(timespec="seconds"),
@@ -401,6 +409,58 @@ def freeze_forecast(cw, force=False):
         json.dump(forecast, f, indent=2, ensure_ascii=False)
     print(json.dumps(forecast, indent=2, ensure_ascii=False))
     print(f"[OK] Froze {FORECAST_FILE}")
+
+
+def freeze_forecast_v1(force=False):
+    """Writes FORECAST_V1_FILE: RF v1 week-2 weight from the frozen v2 inputs, DO imputed and feed rate from SEAFDEC; no reads."""
+    if os.path.exists(FORECAST_V1_FILE) and not force:
+        raise SystemExit(f"[STOP] {FORECAST_V1_FILE} already exists; pass --force to overwrite it.")
+    if not os.path.exists(FORECAST_FILE):
+        raise SystemExit(f"[STOP] No {FORECAST_FILE}; freeze the v2 forecast first.")
+    with open(FORECAST_FILE, encoding="utf-8") as f:
+        v2 = json.load(f)
+    inputs = v2["inputs"]
+    start = inputs["week1MedianG"]
+    train = pd.read_csv(V1_DATASET)
+    do = float(train["avgDissolvedOxygen"].median())
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", InconsistentVersionWarning)
+        v1 = joblib.load(V1_MODEL_FILE)
+    trained = next((str(w.message.original_sklearn_version) for w in caught
+                    if isinstance(w.message, InconsistentVersionWarning)), sklearn.__version__)
+    features = list(v1.feature_names_in_)
+    pred = project_weights(v1, features, {**inputs["water"], "avgDissolvedOxygen": do}, start, start_week=1)[0][1]
+    wk1 = train.loc[train["weekNumber"] == 1, "currentWeight"]
+    commit, dirty = git_state()
+    forecast = {
+        "createdAt": datetime.now(PHT).isoformat(timespec="seconds"),
+        "gitCommit": commit,
+        "gitDirty": dirty,
+        "gitDirtyScope": FORECAST_SOURCES,
+        "model": {"file": V1_MODEL_FILE, "sha256": sha256(V1_MODEL_FILE), "features": features,
+                  "trainedSklearn": trained, "installedSklearn": sklearn.__version__},
+        "trainingData": {"file": V1_DATASET, "sha256": sha256(V1_DATASET)},
+        "inputsFrom": {"file": FORECAST_FILE, "createdAt": v2["createdAt"], "gitCommit": v2["gitCommit"]},
+        "cycleStart": v2["cycleStart"],
+        "stockingWeightG": v2["stockingWeightG"],
+        "inputs": {**inputs,
+                   "weekNumber": 1,
+                   "avgDissolvedOxygen": {"value": round(do, 3), "label": "imputed — no reliable DO reading",
+                                          "source": f"training median of {V1_DATASET}"},
+                   "avgFeedRate": {"value": optimal_feed_rate(start), "label": "approximate",
+                                   "source": "SEAFDEC grow-out table (optimal_feed_rate), % body weight/day"}},
+        "rfV1Week2G": round(pred, 3),
+        "rfV1Oct20G": round(cube_root_interp(start, pred, INTERIM_DAYS), 3),
+        "targetDates": {"rfV1Week2G": (WEEK1_WEIGH_IN + timedelta(days=7)).isoformat(),
+                        "rfV1Oct20G": (WEEK1_WEIGH_IN + timedelta(days=INTERIM_DAYS)).isoformat()},
+        "trainingPatternNote": (f"Outside v1's training pattern: week-1 currentWeight in {V1_DATASET} is "
+                                f"{wk1.min():.2f}-{wk1.max():.2f} g (median {wk1.median():.2f} g); this cycle starts week 1 at {start:g} g."),
+    }
+    os.makedirs(OUT_DIR, exist_ok=True)
+    with open(FORECAST_V1_FILE, "w", encoding="utf-8") as f:
+        json.dump(forecast, f, indent=2, ensure_ascii=False)
+    print(json.dumps(forecast, indent=2, ensure_ascii=False))
+    print(f"[OK] Froze {FORECAST_V1_FILE} (0 Firestore reads)")
 
 
 def compare_rf_week2():
@@ -437,11 +497,15 @@ def main():
     parser.add_argument("--rerender", action="store_true", help="redraw both figures from the saved daily means, no reads")
     parser.add_argument("--weights", action="store_true", help="step 2: generator growth rule vs real weekly medians")
     parser.add_argument("--freeze", action="store_true", help="freeze the RF v2 week-2 forecast to comparison/forecast_week2.json")
-    parser.add_argument("--force", action="store_true", help="with --freeze, overwrite an existing forecast")
+    parser.add_argument("--freeze-v1", action="store_true", help="freeze RF v1 from the frozen v2 inputs to comparison/forecast_week2_v1.json")
+    parser.add_argument("--force", action="store_true", help="with --freeze or --freeze-v1, overwrite an existing forecast")
     parser.add_argument("--rf-week2", action="store_true", help="step 3, after the week-2 weigh-in: frozen forecast vs actual week 2")
     args = parser.parse_args()
     if args.rf_week2:
         compare_rf_week2()
+        return
+    if args.freeze_v1:
+        freeze_forecast_v1(args.force)
         return
     if args.weights or args.freeze:
         if args.freeze and os.path.exists(FORECAST_FILE) and not args.force:
