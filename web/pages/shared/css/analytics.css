@@ -53,6 +53,17 @@
     margin-bottom: 16px;
 }
 
+/* One-line literature source under a chart. */
+.analytics-card .chart-source {
+    font-size: 11px;
+    color: #6b7280;
+    margin: 8px 0 0;
+}
+
+.analytics-card .chart-source[hidden] {
+    display: none;
+}
+
 .chart-legend {
     display: flex;
     align-items: center;

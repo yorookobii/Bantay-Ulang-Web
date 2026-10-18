@@ -1,11 +1,12 @@
 import { feedRecommendation, pickCurrentWeight } from "./feedRecommendation.js";
+import { MIN_WEEK_SAMPLES } from "./reportCleanup.js";
 import { toDateValue } from "./logEntry.js";
 
 // Recommended feed amount under the schedule form's Amount field; it only suggests, never saves.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const STALE_DAYS = 14;
-const BASIS = "Based on the feed-rate curve used by the yield model (Gupta et al.). Assumes all deaths are logged. "
+const BASIS = "Based on the SEAFDEC/AQD 2016 grow-out feed rates, also used by the yield model. Assumes all deaths are logged. "
     + "Adjust by observation: reduce if feed is left over or water quality is poor.";
 
 const EMPTY = {
@@ -14,6 +15,7 @@ const EMPTY = {
     "no-alive": "No recommendation: no confirmed alive prawns (every stocked prawn is logged as dead).",
     "no-samples": "No recommendation yet: no weight samples this cycle and no stocking weight in Settings. Log a few in the mobile app's Ulang log.",
     "all-flagged": "No recommendation: this cycle's weight entries look wrong (marked “Check entry” in reports). Check the latest samples.",
+    "too-few": `No recommendation yet: no week has ${MIN_WEEK_SAMPLES} or more weight samples, and no stocking weight is set in Settings. Log more in the mobile app's Ulang log.`,
     "error": "Couldn't load the data for a recommendation. Close and reopen the form to try again."
 };
 
@@ -38,9 +40,11 @@ export async function loadInputs() {
     const alive = confirmedAlive(growth.initialStock, records.reduce((sum, r) => sum + r.deaths, 0));
     if (!alive) return { reason: "no-alive" };
     const weight = pickCurrentWeight(samples, growth.stockingWeight);
-    // Before the first weight sample, the stocking weight from Settings stands in.
+    // With no samples, or no week with enough samples, the stocking weight from Settings stands in (like predict_yield.py).
     const stockingWeightG = Number(growth.stockingWeight);
-    if (weight.reason === "no-samples" && stockingWeightG > 0) return { alive, weight: { weightG: stockingWeightG, source: "stocking" } };
+    if ((weight.reason === "no-samples" || weight.reason === "too-few") && stockingWeightG > 0) {
+        return { alive, weight: { weightG: stockingWeightG, source: "stocking", latest: weight.latest ?? null } };
+    }
     if (weight.weightG === null) return { reason: weight.reason };
     return { alive, weight };
 }
@@ -54,8 +58,14 @@ export function describe(inputs, enabledCount, now = Date.now()) {
     const grams = roundGrams(rec.gramsPerFeeding);
     const fromStocking = weight.source === "stocking";
     const ageDays = fromStocking ? 0 : Math.floor((now - weight.latestSampleMs) / DAY_MS);
-    const skipped = weight.skippedWeeks?.length
-        ? ` (skipped week ${weight.skippedWeeks.join(", ")}: entries look wrong)` : "";
+    const skippedParts = [
+        ...(weight.skippedFlagged?.length ? [`week ${weight.skippedFlagged.join(", ")}: entries look wrong`] : []),
+        ...(weight.skippedFew ?? []).map(({ week, n }) => `week ${week}: only ${plural(n, "sample")}, needs ${MIN_WEEK_SAMPLES}`)
+    ];
+    const skipped = skippedParts.length ? ` (skipped ${skippedParts.join("; ")})` : "";
+    const stockingWhy = weight.latest
+        ? `no week has ${MIN_WEEK_SAMPLES} or more weight samples yet (latest: ${weight.latest.n} in week ${weight.latest.week})`
+        : "no weight samples yet this cycle";
     return {
         kind: "ok",
         grams,
@@ -63,9 +73,9 @@ export function describe(inputs, enabledCount, now = Date.now()) {
         math: `${fmtNum(alive)} alive × ${fmtNum(weight.weightG, 1)} g × ${fmtNum(rec.ratePct, 1)}% per day `
             + `÷ ${plural(feedingsPerDay, "feeding")} a day (${enabledCount} enabled + this one)`,
         sample: fromStocking
-            ? `Based on stocking weight (${fmtNum(weight.weightG, 1)} g median from Settings); no weight samples yet this cycle.`
+            ? `Based on stocking weight (${fmtNum(weight.weightG, 1)} g median from Settings); ${stockingWhy}.`
             : `Median weight of ${plural(weight.sampleCount, "sample")}, week ${weight.week}, sampled ${fmtDate(weight.latestSampleMs)}${skipped}.`,
-        capNote: weight.weightG >= 25 ? "Rate held at 5% from 25 g (end of the curve)." : null,
+        capNote: weight.weightG > 25 ? "3% above 25 g (SEAFDEC/AQD 2016)." : null,
         stale: ageDays > STALE_DAYS
             ? `Latest weight sample is ${ageDays} days old. Weigh a few prawns for a better estimate.` : null,
         basis: BASIS

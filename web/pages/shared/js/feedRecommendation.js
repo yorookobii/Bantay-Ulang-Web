@@ -1,18 +1,16 @@
-import { flagWeights, median } from "./reportCleanup.js";
-import { bucketWeightsByWeek } from "./avgWeightChart.js";
+import { median, usableWeeks } from "./reportCleanup.js";
 
 // Pure feed-amount helpers for the Automation schedule form; no Firestore access.
 
 /**
- * Optimal feed rate (% of body weight per day) by average weight.
- * Same curve as the yield model: ml-analytics/bantay_ulang_ml.ipynb (Section 2.5,
- * optimal_feed_rate) and ml-analytics/predict_yield.py optimal_feed_rate.
- * Gupta et al.: 10% (small) to 5% (large), linear between 2 g and 25 g.
+ * Feed rate (% of body weight per day) by average weight; mirror of predict_yield.py optimal_feed_rate, SEAFDEC/AQD 2016.
+ * Below 5 g 10%, 5 to under 15 g 7%, 15 to 25 g 5%, above 25 g 3%.
  */
 export function optimalFeedRatePct(weightG) {
-    if (weightG <= 2) return 10.0;
-    if (weightG >= 25) return 5.0;
-    return 10.0 - (weightG - 2) * (5.0 / 23.0);
+    if (weightG < 5) return 10.0;
+    if (weightG < 15) return 7.0;
+    if (weightG <= 25) return 5.0;
+    return 3.0;
 }
 
 /** Daily and per-feeding grams for the stock, or null when an input can't support a number. */
@@ -25,27 +23,31 @@ export function feedRecommendation({ alive, avgWeightG, feedingsPerDay }) {
 }
 
 /**
- * Current average weight: median of the latest week whose average isn't flagged
- * ("Check entry" in the report), stepping back past flagged weeks.
+ * Current average weight: median of the latest week that isn't flagged ("Check entry" in the report)
+ * and has at least MIN_WEEK_SAMPLES samples, stepping back past weeks that fail either test (like predict_yield.py).
  * stockingWeightG sets the flag bounds the same way the report does.
- * Returns { weightG, week, sampleCount, latestSampleMs, skippedWeeks } or { weightG: null, reason }.
+ * Returns { weightG, week, sampleCount, latestSampleMs, skippedFlagged, skippedFew } or { weightG: null, reason, latest? }.
  */
 export function pickCurrentWeight(samples, stockingWeightG = null) {
     const usable = samples.filter((s) => s.weightG > 0);
     if (!usable.length) return { weightG: null, reason: "no-samples" };
 
-    const byWeek = bucketWeightsByWeek(usable);
-    const flags = flagWeights(Object.entries(byWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })), stockingWeightG);
-    const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a);
-    const week = weeks.find((w) => !flags[w]);
-    if (week === undefined) return { weightG: null, reason: "all-flagged" };
+    const { byWeek, flags, weeks, isUsable } = usableWeeks(usable, stockingWeightG);
+    const week = weeks.find(isUsable);
+    if (week === undefined) {
+        // Every week flagged is a data problem to show; otherwise too few samples, which falls back to the stocking weight.
+        if (weeks.every((w) => flags[w])) return { weightG: null, reason: "all-flagged" };
+        return { weightG: null, reason: "too-few", latest: { week: weeks[0], n: byWeek[weeks[0]].count } };
+    }
 
     const inWeek = usable.filter((s) => s.week === week);
+    const later = weeks.filter((w) => w > week);
     return {
         weightG: median(inWeek.map((s) => s.weightG)),
         week,
         sampleCount: inWeek.length,
         latestSampleMs: Math.max(...inWeek.map((s) => s.observedAtMs ?? s.createdAtMs)),
-        skippedWeeks: weeks.filter((w) => w > week)
+        skippedFlagged: later.filter((w) => flags[w]),
+        skippedFew: later.filter((w) => !flags[w]).map((w) => ({ week: w, n: byWeek[w].count }))
     };
 }

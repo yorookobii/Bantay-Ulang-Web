@@ -1,7 +1,7 @@
 // Honest yield-model labels shared by the Analytics card and the report; pure, no Firestore.
 
-// predict_yield.py rfMode only says where the weight came from; the water source is rfWaterSource, labelled separately.
-const MODEL_MODE_LABELS = { real: "Measured weight", hybrid: "Assumed weight", test: "Test mode" };
+// predict_yield.py rfMode only says where the weight came from (hybrid = projection started from the stocking weight); water is rfWaterSource, labelled separately.
+const MODEL_MODE_LABELS = { real: "Measured weight", hybrid: "Stocking weight start", test: "Test mode" };
 const WATER_SOURCE_LABELS = { live: "live sensor water data", synthetic: "synthetic water data", mixed: "live and synthetic water data" };
 
 export function modelModeLabel(mode, waterSource) {

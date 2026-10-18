@@ -93,7 +93,7 @@ function breakdownText(result) {
     return `Stock ${n.toLocaleString("en-PH")} × survival ${fmt(s, 1)}% × weight ${fmt(w, 1)} g = ${fmt(y, 1)} kg`;
 }
 
-// Same label as the report ("Assumed weight, live sensor water data"), so no page calls synthetic data "Real".
+// Same label as the report ("Stocking weight start, live sensor water data"), so no page calls synthetic data "Real".
 function rfModeText(result) {
     const label = modelModeLabel(result.rfMode, result.rfWaterSource);
     return label ? "RF Prediction — " + label : "RF Prediction";

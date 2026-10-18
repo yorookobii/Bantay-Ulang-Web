@@ -8,8 +8,9 @@ import {
     getDocs,
     Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { median } from "./reportCleanup.js";
+import { median, bucketWeightsByWeek } from "./reportCleanup.js";
 import { HARVEST_WEEK } from "./survivalTrend.js";
+import { pondTrend, MIN_TREND_WEEKS } from "./pondTrend.js";
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -21,7 +22,7 @@ function toDateValue(v) {
     return null;
 }
 
-// Cycle start plus the RF weight projection (predict_yield.py rfProjection*) from the same single read.
+// Cycle start, stocking weight and the RF weight projection (predict_yield.py rfProjection*) from the same single read.
 async function loadCycle() {
     const snap = await getDocs(
         query(collection(db, "growth_indicators"), orderBy("timestamp", "desc"), limit(1))
@@ -38,7 +39,7 @@ async function loadCycle() {
         note: d.rfProjectionNote || "",
         updatedAt: toDateValue(d.rfProjectionUpdatedAt)
     } : null;
-    return { cycleStart: toDateValue(d.cycleStart), projection };
+    return { cycleStart: toDateValue(d.cycleStart), projection, stockingWeight: Number(d.stockingWeight) };
 }
 
 // ulang_growth_records has no precomputed weekNumber (unlike mortality_records) —
@@ -76,17 +77,6 @@ export async function loadWeightSamples(cycleStart, { until = null, max = null }
     return samples;
 }
 
-// { week: { sum, count } } — averaged per week by callers, never summed raw.
-export function bucketWeightsByWeek(samples) {
-    const byWeek = {};
-    samples.forEach(({ weightG, week }) => {
-        if (!byWeek[week]) byWeek[week] = { sum: 0, count: 0 };
-        byWeek[week].sum   += weightG;
-        byWeek[week].count += 1;
-    });
-    return byWeek;
-}
-
 export async function loadWeightsByWeek(cycleStart) {
     return bucketWeightsByWeek(await loadWeightSamples(cycleStart));
 }
@@ -99,6 +89,16 @@ function weeklyMedians(samples) {
         byWeek[week].push(weightG);
     });
     return Object.fromEntries(Object.entries(byWeek).map(([w, v]) => [w, { median: median(v), n: v.length }]));
+}
+
+// Note under the chart: the weeks the trend was fitted on and where it ends; early wording at exactly MIN_TREND_WEEKS weeks.
+export function pondTrendNote(trend) {
+    const end = trend.points[trend.points.length - 1];
+    const fitted = `stocking + week ${trend.weeks.join(", ")}`;
+    const expected = `expected ${Math.round(end.weightG * 10) / 10} g by week ${end.week}.`;
+    return trend.weeks.length === MIN_TREND_WEEKS
+        ? `Pond trend (early estimate, ${MIN_TREND_WEEKS} weigh-ins: ${fitted}): ${expected}`
+        : `Pond trend from ${trend.weeks.length} weigh-ins (${fitted}): ${expected}`;
 }
 
 function fmtDate(d) {
@@ -126,38 +126,51 @@ export async function initAvgWeightChart() {
         showEmpty(canvas, emptyEl);
         return;
     }
-    const { cycleStart, projection } = cycle;
+    const { cycleStart, projection, stockingWeight } = cycle;
 
-    let byWeek = null;
+    let samples = null;
     try {
-        byWeek = weeklyMedians(await loadWeightSamples(cycleStart));
+        samples = await loadWeightSamples(cycleStart);
     } catch (err) {
         console.warn("avgWeightChart: could not load ulang_growth_records:", err);
     }
+    const byWeek = samples === null ? null : weeklyMedians(samples);
 
     if (byWeek === null || (Object.keys(byWeek).length === 0 && !projection)) {
         showEmpty(canvas, emptyEl);
         return;
     }
 
+    const trend = pondTrend(samples, cycleStart.getTime(), stockingWeight);
     const currentWeek = Math.max(1, Math.floor((Date.now() - cycleStart.getTime()) / MS_PER_WEEK) + 1);
-    const projByWeek = Object.fromEntries((projection?.points ?? []).map(p => [p.week, Math.round(p.weightG * 10) / 10]));
+    const round1 = v => Math.round(v * 10) / 10;
+    const projByWeek = Object.fromEntries((projection?.points ?? []).map(p => [p.week, round1(p.weightG)]));
+    const trendByWeek = Object.fromEntries((trend?.points ?? []).map(p => [p.week, round1(p.weightG)]));
     const anchorWeek = projection ? Math.min(...projection.points.map(p => p.week)) : null;
-    // Week 0 is the stocking day, shown only when a projection can anchor there.
+    // Week 0 is the stocking day, shown only when a projection can anchor there; the pond trend only extends the end.
     const firstWeek = projection ? 0 : 1;
-    const maxWeek = Math.max(currentWeek, ...Object.keys(byWeek).map(Number), ...(projection ? [HARVEST_WEEK, ...Object.keys(projByWeek).map(Number)] : []));
+    const maxWeek = Math.max(currentWeek, ...Object.keys(byWeek).map(Number),
+        ...(projection ? [HARVEST_WEEK, ...Object.keys(projByWeek).map(Number)] : []), ...Object.keys(trendByWeek).map(Number));
 
     const labels = [];
     const data = [];
     const counts = [];
     const projData = [];
+    const trendData = [];
     for (let w = firstWeek; w <= maxWeek; w++) {
         labels.push("Week " + w);
         const bucket = byWeek[w];
         // Weekly MEDIAN, robust to a mis-keyed sample; no records this week is null (a gap), never 0 g.
-        data.push(bucket ? Math.round(bucket.median * 10) / 10 : null);
+        data.push(bucket ? round1(bucket.median) : null);
         counts.push(bucket ? bucket.n : 0);
         projData.push(projByWeek[w] ?? null);
+        trendData.push(trendByWeek[w] ?? null);
+    }
+
+    const trendNoteEl = document.getElementById("pondTrendNote");
+    if (trendNoteEl) {
+        trendNoteEl.hidden = !trend;
+        if (trend) trendNoteEl.textContent = pondTrendNote(trend);
     }
 
     const subtitleEl = document.getElementById("avgWeightSubtitle");
@@ -173,6 +186,7 @@ export async function initAvgWeightChart() {
         data: {
             labels,
             datasets: [{
+                kind: "actual",
                 label: "Median weight (g)",
                 data,
                 borderColor: "#0d9488",
@@ -184,6 +198,7 @@ export async function initAvgWeightChart() {
                 pointRadius: 4,
                 spanGaps: false
             }, ...(projection ? [{
+                kind: "projected",
                 label: projection.early ? "Projected (RF), early projection" : "Projected (RF)",
                 data: projData,
                 borderColor: "#0d9488",
@@ -195,6 +210,18 @@ export async function initAvgWeightChart() {
                 pointRadius: ctx => ctx.dataIndex === anchorWeek - firstWeek ? 4 : 0,
                 pointHitRadius: 6,
                 spanGaps: true
+            }] : []), ...(trend ? [{
+                kind: "pondTrend",
+                label: "Expected (pond trend)",
+                data: trendData,
+                borderColor: "#d97706",
+                borderDash: [2, 4],
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHitRadius: 6,
+                spanGaps: true
             }] : [])]
         },
         options: {
@@ -202,18 +229,22 @@ export async function initAvgWeightChart() {
             maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             plugins: {
-                legend: { display: !!projection },
+                legend: { display: !!(projection || trend) },
                 tooltip: {
-                    filter: item => item.raw != null,
+                    // The trend's first point is the latest median itself, already shown as "Median".
+                    filter: item => item.raw != null
+                        && !(item.dataset.kind === "pondTrend" && item.dataIndex === trend.latestWeek - firstWeek),
                     callbacks: {
                         label: item => {
-                            if (item.datasetIndex === 0) return `Median: ${item.raw} g (n = ${counts[item.dataIndex]})`;
+                            const kind = item.dataset.kind;
+                            if (kind === "actual") return `Median: ${item.raw} g (n = ${counts[item.dataIndex]})`;
+                            if (kind === "pondTrend") return `Pond trend: ${item.raw} g`;
                             if (item.dataIndex === anchorWeek - firstWeek) {
                                 return `Model start: ${item.raw} g (${projection.source === "real" ? "median of week " + anchorWeek : "stocking weight"})`;
                             }
                             return `${item.dataset.label}: ${item.raw} g`;
                         },
-                        footer: items => items.some(i => i.datasetIndex === 1) && projection.updatedAt
+                        footer: items => items.some(i => i.dataset.kind === "projected") && projection.updatedAt
                             ? "Model run: " + fmtDate(projection.updatedAt) : ""
                     }
                 }

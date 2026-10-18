@@ -62,6 +62,8 @@ export const WEIGHT_MEDIAN_FACTOR = 3;
 export const STOCK_LOW_FACTOR = 0.5;
 export const STOCK_HIGH_FACTOR = 4;
 export const STOCK_HIGH_PER_WEEK_G = 10;
+// A week's weight is usable only with at least this many samples; mirror of predict_yield.py MIN_WEEK_SAMPLES.
+export const MIN_WEEK_SAMPLES = 10;
 
 export function median(values) {
     const sorted = [...values].sort((a, b) => a - b);
@@ -91,6 +93,25 @@ export function flagWeights(averages, stockingWeightG = null) {
         if (reasons.length) flags[week] = reasons.join("; ");
     }
     return flags;
+}
+
+// { week: { sum, count } } from weight samples; averaged per week by callers, never summed raw.
+export function bucketWeightsByWeek(samples) {
+    const byWeek = {};
+    samples.forEach(({ weightG, week }) => {
+        if (!byWeek[week]) byWeek[week] = { sum: 0, count: 0 };
+        byWeek[week].sum   += weightG;
+        byWeek[week].count += 1;
+    });
+    return byWeek;
+}
+
+// Shared usable-week rule (not flagged and >= MIN_WEEK_SAMPLES samples) for the feed panel and the pond trend; samples must have weightG > 0.
+export function usableWeeks(samples, stockingWeightG = null) {
+    const byWeek = bucketWeightsByWeek(samples);
+    const flags = flagWeights(Object.entries(byWeek).map(([week, w]) => ({ week: Number(week), avgWeightG: w.sum / w.count })), stockingWeightG);
+    const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a);
+    return { byWeek, flags, weeks, isUsable: (w) => !flags[w] && byWeek[w].count >= MIN_WEEK_SAMPLES };
 }
 
 // Per-parameter avg/min/max and % in range over sanitized rows (suspect values are already nulled).

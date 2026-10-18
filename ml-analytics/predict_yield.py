@@ -28,6 +28,7 @@ kapag meron, stocking weight kapag wala. Auto-detected pa rin ang rfMode label.
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 import pandas as pd
 import numpy as np
 import joblib
@@ -474,7 +475,7 @@ def fetch_total_deaths(db, cycle_start):
     Total mirrors dashboard.js loadMortalityStat; by-week mirrors mortalityChart.js
     bucketDeathsByWeek: week mula createdAt vs current cycle_start (mortality_week),
     kaya na-re-bucket ang lumang records kapag inilipat ang cycle start; walang valid week = sa total lang."""
-    docs = [d.to_dict() for d in db.collection("mortality_records").where("createdAt", ">=", cycle_start).stream()]
+    docs = [d.to_dict() for d in db.collection("mortality_records").where(filter=FieldFilter("createdAt", ">=", cycle_start)).stream()]
     cycle_start_day = ph_date(cycle_start)
     by_week = {}
     for d in docs:
@@ -504,7 +505,7 @@ def fetch_weights_by_week(db, cycle_start):
     weekly_water; tugma sa web kapag PHT midnight ang cycleStart (galing Settings).
 
     Nagbabalik: ({week: [weights]}, records_read)"""
-    docs = list(db.collection("ulang_growth_records").where("createdAt", ">=", cycle_start).stream())
+    docs = list(db.collection("ulang_growth_records").where(filter=FieldFilter("createdAt", ">=", cycle_start)).stream())
     cycle_start_day = ph_date(cycle_start)
 
     by_week = {}  # {week: [weights]}
