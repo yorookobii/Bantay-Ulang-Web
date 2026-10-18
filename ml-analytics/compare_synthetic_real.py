@@ -14,6 +14,7 @@ Usage:
   python compare_synthetic_real.py --rf-week2  # step 3, after the week-2 weigh-in: frozen forecast vs actual
 """
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -48,6 +49,7 @@ CYCLE1_FROM = date(2026, 10, 13)  # PHT floor so setup days never enter the comp
 V1_MODEL_FILE = "rf_growth_model.joblib"  # RF v1, 8 features, trained on V1_DATASET (notebook), scikit-learn 1.8.0
 V1_DATASET = "bantay_ulang_810_dataset.csv"
 FORECAST_FILE = os.path.join("comparison", "forecast_week2.json")
+FORECAST_SOURCES = ["compare_synthetic_real.py", "predict_yield.py", "generate_synthetic.py", "model_meta.json"]  # tracked inputs to the forecast
 CURVES = [("Slow (m=0)", 0.0), ("Average (m=0.5)", 0.5), ("Fast (m=1)", 1.0)]  # generate_synthetic.py curve mix
 WEIGHTS_CAPTION = "Week 1 covers ~6 days of growth; sampling noise is similar in size to the expected gain."
 REAL_COLOR, SYN_COLOR = "#0d9488", "#64748b"
@@ -337,13 +339,19 @@ def compare_weights(cw):
 
 
 def git_state():
-    """(HEAD commit hash, whether ml-analytics has uncommitted changes), or (None, None) without git."""
+    """(HEAD commit hash, whether any FORECAST_SOURCES file has uncommitted changes), or (None, None) without git."""
     try:
         head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-        dirty = bool(subprocess.run(["git", "status", "--porcelain", "--", "."], capture_output=True, text=True, check=True).stdout.strip())
+        dirty = bool(subprocess.run(["git", "status", "--porcelain", "--", *FORECAST_SOURCES], capture_output=True, text=True, check=True).stdout.strip())
         return head, dirty
     except (OSError, subprocess.CalledProcessError):
         return None, None
+
+
+def sha256(path):
+    """Hex SHA-256 of a file, for the gitignored model."""
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 
 def freeze_forecast(cw, force=False):
@@ -367,7 +375,8 @@ def freeze_forecast(cw, force=False):
         "createdAt": datetime.now(PHT).isoformat(timespec="seconds"),
         "gitCommit": commit,
         "gitDirty": dirty,
-        "model": {"file": meta["modelFile"], "trainedSklearn": meta["versions"]["sklearn"], "installedSklearn": sklearn.__version__},
+        "gitDirtyScope": FORECAST_SOURCES,
+        "model": {"file": meta["modelFile"], "sha256": sha256(meta["modelFile"]), "trainedSklearn": meta["versions"]["sklearn"], "installedSklearn": sklearn.__version__},
         "cycleStart": ph_date(cw["cycle_start"]).isoformat(),
         "stockingWeightG": cw["stock"],
         "inputs": {"week1MedianG": round(start, 3), "week1N": stats[1]["n"], "week1Usable": 1 in usable,
