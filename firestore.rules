@@ -125,7 +125,7 @@ service cloud.firestore {
     // ulang_growth_records
     // -------------------------------------------------------------------------
     match /ulang_growth_records/{docId} {
-      // Exact field set the Flutter Ulang log writes (logs.dart:369-375).
+      // Exact field set the Flutter Ulang log writes (sync_backend.dart:172-178).
       function isValidGrowth(d) {
         return d.keys().hasOnly(['size', 'weight', 'recordedBy', 'createdAt', 'observedAt'])
           && d.weight is number && d.weight >= 0.1 && d.weight <= 500
@@ -154,12 +154,13 @@ service cloud.firestore {
     // mortality_records
     // -------------------------------------------------------------------------
     match /mortality_records/{docId} {
-      // Exact field set the Flutter mortality log writes (logs.dart:449-454).
+      // Exact field set the Flutter mortality log writes (sync_backend.dart:191-197).
       function isValidMortality(d) {
-        return d.keys().hasOnly(['deathCount', 'weekNumber', 'recordedBy', 'createdAt'])
+        return d.keys().hasOnly(['deathCount', 'weekNumber', 'recordedBy', 'createdAt', 'observedAt'])
           && d.deathCount is int && d.deathCount >= 0 && d.deathCount <= 100000
           && d.weekNumber is int && d.weekNumber >= 1
-          && d.createdAt is timestamp;
+          && d.createdAt is timestamp
+          && (!('observedAt' in d) || d.observedAt is timestamp);
       }
 
       allow read: if isActive();
