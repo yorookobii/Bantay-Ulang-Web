@@ -1,0 +1,47 @@
+{
+  "createdAt": "2026-10-18T22:09:06+08:00",
+  "gitCommit": "0e2f72e351cd9279e14fcca2c0f32b65ca2475fe",
+  "gitDirty": false,
+  "gitDirtyScope": [
+    "compare_synthetic_real.py",
+    "predict_yield.py",
+    "generate_synthetic.py",
+    "model_meta.json"
+  ],
+  "model": {
+    "file": "rf_growth_model_v2.joblib",
+    "sha256": "07ea8a2659dce2b5031e5f251875bdba19daeb01d3796cbe924c31b7f51bd5d8",
+    "trainedSklearn": "1.9.0",
+    "installedSklearn": "1.9.0"
+  },
+  "cycleStart": "2026-10-13",
+  "stockingWeightG": 20.5,
+  "inputs": {
+    "week1MedianG": 20.5,
+    "week1N": 20,
+    "week1Usable": true,
+    "water": {
+      "avgWaterTemp": 29.455,
+      "avgPh": 9.224,
+      "avgTds": 382.568,
+      "avgTurbidity": 10.054
+    },
+    "waterDays": [
+      "2026-10-13",
+      "2026-10-14",
+      "2026-10-15",
+      "2026-10-16",
+      "2026-10-17"
+    ],
+    "phFrom": "2026-10-15"
+  },
+  "outOfRangeNotes": [],
+  "rfV2Week2G": 23.434,
+  "rfV2Oct20G": 21.726,
+  "targetDates": {
+    "rfV2Week2G": "2026-10-24",
+    "rfV2Oct20G": "2026-10-20"
+  },
+  "pondTrend": null,
+  "pondTrendNote": "Not available: the pond trend needs 2 usable weeks (stocking + weeks 1 and 2) and only week 1 exists; it is computed in the web app (pondTrend.js), not in Python."
+}
