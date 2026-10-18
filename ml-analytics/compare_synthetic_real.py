@@ -45,6 +45,8 @@ from predict_yield import (
 SYNTHETIC_FILE = "synthetic_v2.csv"
 OUT_DIR = "comparison"
 PH_CALIBRATED_FROM = date(2026, 10, 15)  # PHT; probe calibrated Oct 14, first full calibrated day Oct 15
+WEEK1_WEIGH_IN = date(2026, 10, 17)  # PHT; date of the 20 week-1 samples, the anchor for forecast target dates
+INTERIM_DAYS = 3  # interim forecast point (Oct 20), interpolated on the cube-root growth path
 CYCLE1_FROM = date(2026, 10, 13)  # PHT floor so setup days never enter the comparison, even if cycleStart is wrong
 V1_MODEL_FILE = "rf_growth_model.joblib"  # RF v1, 8 features, trained on V1_DATASET (notebook), scikit-learn 1.8.0
 V1_DATASET = "bantay_ulang_810_dataset.csv"
@@ -370,6 +372,8 @@ def freeze_forecast(cw, force=False):
     start = stats[1]["median"]
     # First projected step: the week-1 median plus one week of predicted gain.
     pred = project_weights(v2, meta["features"], water, start, start_week=1)[0][1]
+    # Cube root of weight is linear in time between the week-1 median and the 7-day forecast.
+    interim = (start ** (1 / 3) + (pred ** (1 / 3) - start ** (1 / 3)) * INTERIM_DAYS / 7) ** 3
     commit, dirty = git_state()
     forecast = {
         "createdAt": datetime.now(PHT).isoformat(timespec="seconds"),
@@ -385,6 +389,9 @@ def freeze_forecast(cw, force=False):
         "outOfRangeNotes": out_of_range_notes({f: water[f] for f in meta["features"] if f != "currentWeight"} | {"currentWeight": start},
                                               meta["featureRanges"]),
         "rfV2Week2G": round(pred, 3),
+        "rfV2Oct20G": round(interim, 3),
+        "targetDates": {"rfV2Week2G": (WEEK1_WEIGH_IN + timedelta(days=7)).isoformat(),
+                        "rfV2Oct20G": (WEEK1_WEIGH_IN + timedelta(days=INTERIM_DAYS)).isoformat()},
         "pondTrend": None,
         "pondTrendNote": ("Not available: the pond trend needs 2 usable weeks (stocking + weeks 1 and 2) and only week 1 exists; "
                           "it is computed in the web app (pondTrend.js), not in Python."),
