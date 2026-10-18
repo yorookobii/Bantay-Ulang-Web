@@ -1,0 +1,75 @@
+{
+  "createdAt": "2026-10-18T23:48:36+08:00",
+  "gitCommit": "9123cca052d0b3de7e274412a4179c523d193ecb",
+  "gitDirty": false,
+  "gitDirtyScope": [
+    "compare_synthetic_real.py",
+    "predict_yield.py",
+    "generate_synthetic.py",
+    "model_meta.json"
+  ],
+  "model": {
+    "file": "rf_growth_model.joblib",
+    "sha256": "89da17f01c1375306a6d28d5e2ae0f767f6edfcc8f572686b301bdfd6c8b41a2",
+    "features": [
+      "weekNumber",
+      "currentWeight",
+      "avgWaterTemp",
+      "avgPh",
+      "avgDissolvedOxygen",
+      "avgTds",
+      "avgTurbidity",
+      "avgFeedRate"
+    ],
+    "trainedSklearn": "1.8.0",
+    "installedSklearn": "1.9.0"
+  },
+  "trainingData": {
+    "file": "bantay_ulang_810_dataset.csv",
+    "sha256": "268e809ab611aef29327e1557fb63c167b590ed894bb5a78c9cae06085147bdb"
+  },
+  "inputsFrom": {
+    "file": "comparison\\forecast_week2.json",
+    "createdAt": "2026-10-18T22:09:06+08:00",
+    "gitCommit": "0e2f72e351cd9279e14fcca2c0f32b65ca2475fe"
+  },
+  "cycleStart": "2026-10-13",
+  "stockingWeightG": 20.5,
+  "inputs": {
+    "week1MedianG": 20.5,
+    "week1N": 20,
+    "week1Usable": true,
+    "water": {
+      "avgWaterTemp": 29.455,
+      "avgPh": 9.224,
+      "avgTds": 382.568,
+      "avgTurbidity": 10.054
+    },
+    "waterDays": [
+      "2026-10-13",
+      "2026-10-14",
+      "2026-10-15",
+      "2026-10-16",
+      "2026-10-17"
+    ],
+    "phFrom": "2026-10-15",
+    "weekNumber": 1,
+    "avgDissolvedOxygen": {
+      "value": 6.234,
+      "label": "imputed — no reliable DO reading",
+      "source": "training median of bantay_ulang_810_dataset.csv"
+    },
+    "avgFeedRate": {
+      "value": 5.0,
+      "label": "approximate",
+      "source": "SEAFDEC grow-out table (optimal_feed_rate), % body weight/day"
+    }
+  },
+  "rfV1Week2G": 22.372,
+  "rfV1Oct20G": 21.289,
+  "targetDates": {
+    "rfV1Week2G": "2026-10-24",
+    "rfV1Oct20G": "2026-10-20"
+  },
+  "trainingPatternNote": "Outside v1's training pattern: week-1 currentWeight in bantay_ulang_810_dataset.csv is 0.77-2.12 g (median 1.43 g); this cycle starts week 1 at 20.5 g."
+}
