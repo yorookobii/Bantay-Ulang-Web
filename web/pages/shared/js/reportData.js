@@ -365,7 +365,7 @@ async function gatherMortalityGrowth({ sinceMs, untilMs, growth, now, warnings }
         });
     }
 
-    // Deaths logged without a usable weekNumber still happened, so they get their own bucket (by createdAt in range) instead of vanishing.
+    // "Week not recorded": deaths with no createdAt and no usable weekNumber fallback still happened, so they get their own bucket instead of vanishing.
     const unrecordedInRange = records
         .filter(r => (!Number.isFinite(r.week) || r.week < 1) && inRange(r.createdAtMs, sinceMs, untilMs))
         .reduce((sum, r) => sum + r.deaths, 0);

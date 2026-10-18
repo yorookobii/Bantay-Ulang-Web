@@ -459,14 +459,24 @@ def projection_fields(start_week, start_weight, source, trajectory, early, notes
 # ============================================================
 # 4b. FETCH TOTAL DEATHS SINCE CYCLE START (data-based survival)
 # ============================================================
+def mortality_week(data, cycle_start_day):
+    """Cycle week mula createdAt vs CURRENT cycle start (PHT dates, parehong rule ng weights);
+    stored weekNumber lang kapag walang createdAt. Mirror ng web survivalTrend.js mortalityWeek."""
+    created = data.get("createdAt")
+    if created is None:
+        return data.get("weekNumber")
+    return (ph_date(created) - cycle_start_day).days // 7 + 1
+
 def fetch_total_deaths(db, cycle_start):
-    """(total deaths, {weekNumber: deaths}, records read) mula mortality_records mula cycle_start.
+    """(total deaths, {week: deaths}, records read) mula mortality_records mula cycle_start.
     Total mirrors dashboard.js loadMortalityStat; by-week mirrors mortalityChart.js
-    bucketDeathsByWeek (walang valid weekNumber = sa total lang)."""
+    bucketDeathsByWeek: week mula createdAt vs current cycle_start (mortality_week),
+    kaya na-re-bucket ang lumang records kapag inilipat ang cycle start; walang valid week = sa total lang."""
     docs = [d.to_dict() for d in db.collection("mortality_records").where("createdAt", ">=", cycle_start).stream()]
+    cycle_start_day = ph_date(cycle_start)
     by_week = {}
     for d in docs:
-        wk = d.get("weekNumber")
+        wk = mortality_week(d, cycle_start_day)
         if isinstance(wk, (int, float)) and not isinstance(wk, bool) and wk >= 1:
             by_week[int(wk)] = by_week.get(int(wk), 0) + (d.get("deathCount") or 0)
     total_deaths = sum((d.get("deathCount") or 0) for d in docs)

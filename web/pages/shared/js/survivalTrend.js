@@ -3,6 +3,12 @@ export const HARVEST_WEEK = 21;
 // Completed weeks needed before a trend is drawn, same as predict_yield.py SURVIVAL_TREND_MIN_WEEKS.
 export const TREND_MIN_WEEKS = 3;
 
+// Cycle week of a death from createdAt vs the CURRENT cycle start (week 1 = [start, start+7d)); stored weekNumber only when createdAt is missing; mirror of predict_yield.py mortality_week.
+export function mortalityWeek(createdAtMs, storedWeek, cycleStartMs) {
+    if (createdAtMs == null) return Number(storedWeek);
+    return Math.floor((createdAtMs - cycleStartMs) / (7 * 24 * 60 * 60 * 1000)) + 1;
+}
+
 // Survival trend to HARVEST_WEEK at the compounded average weekly death rate of completed weeks (no record = 0 deaths); mirror of predict_yield.py project_survival.
 export function projectSurvival(deathsByWeek, initialStock, currentWeek) {
     const k = Math.min(currentWeek - 1, HARVEST_WEEK);

@@ -8,6 +8,7 @@ import {
     getDocs,
     Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { mortalityWeek } from "./survivalTrend.js";
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -27,7 +28,7 @@ async function loadCycleStart() {
     return toDateValue(snap.docs[0].data().cycleStart);
 }
 
-// Every mortality_records doc since cycleStart as { week, deaths, createdAtMs }; week may be NaN or < 1 when not recorded.
+// Every mortality_records doc since cycleStart as { week, deaths, createdAtMs }; week comes from createdAt (NaN or < 1 only via the weekNumber fallback).
 export async function loadMortalityRecords(cycleStart) {
     const q = query(
         collection(db, "mortality_records"),
@@ -37,18 +38,17 @@ export async function loadMortalityRecords(cycleStart) {
     const snap = await getDocs(q);
     return snap.docs.map(docSnap => {
         const d = docSnap.data();
+        const createdAtMs = toDateValue(d.createdAt)?.getTime() ?? null;
         return {
-            week: Number(d.weekNumber),
+            week: mortalityWeek(createdAtMs, d.weekNumber, cycleStart.getTime()),
             deaths: Number(d.deathCount) || 0,
-            createdAtMs: toDateValue(d.createdAt)?.getTime() ?? null
+            createdAtMs
         };
     });
 }
 
-// weekNumber matches the Flutter app's own bucketing (logs.dart _weekNumberFor):
-// week 1 = [cycleStart, cycleStart+7d), etc. mortality_records already stores
-// this per-doc, so we just sum deathCount per weekNumber rather than recompute it.
-// Records without a valid weekNumber go to `unrecorded` instead of a week.
+// Sums deathCount per derived cycle week (createdAt vs the current cycleStart, so a moved cycle start re-buckets old records).
+// The stored weekNumber is a save-time snapshot, used only when createdAt is missing; invalid weeks go to `unrecorded`.
 export function bucketDeathsByWeek(records) {
     const byWeek = {};
     let unrecorded = 0;
