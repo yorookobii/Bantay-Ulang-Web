@@ -4,7 +4,7 @@ Bantay Ulang — Synthetic Training Set v2 (literature growth curves)
 Gumagawa ng weekly rows para sa RF v2 (2–125 g, walang DO, walang weekNumber feature).
 
 GROWTH: weight-driven. Sa bawat timbang, kinukuha ang 7-day gain sa FAST at SLOW
-curve (hinahanap ang posisyon sa curve gamit ang timbang, hindi ang week), tapos
+cube-root curve (posisyon sa curve = cube root ng timbang, hindi ang week), tapos
 slow + m x (fast - slow) kung saan m ~ U(0, 1) kada cycle.
 
 WATER: temperature at TDS ay galing sa totoong readings export (dumaan sa parehong
@@ -31,19 +31,19 @@ GROWOUT_DAYS = 150
 MAX_WEIGHT_G = 125.0
 STOCK_MIN_G, STOCK_MAX_G = 2.0, 50.0
 
-# Ling (FAO), Penang ponds: (day, weight g).
-FAST_CURVE = [(1, 2.0), (30, 4.5), (60, 10.0), (90, 25.0), (120, 60.0), (150, 100.0), (180, 125.0)]
-# Jain, Gupta & Singh 2008, LRRD 20(7), feeding-schedule weights; midpoints of each day and weight range.
-SLOW_CURVE = [(15, 1.25), (50, 4.25), (70, 7.5), (90, 12.5), (110, 18.5), (130, 26.0), (150, 35.0), (170, 47.5)]
+# Growth curves fitted as W^(1/3) = W0^(1/3) + k * days, so a weight's place on the curve is its cube root.
+K_SLOW_PER_DAY = 0.013815  # Chowdhury et al. 2017: 2 g to 37 g in 150 days
+K_FAST_PER_DAY = 0.025984  # Songpayome et al. 2024: 27 g to 229 g in 120 days
 CURVE_SOURCES = [
-    "Ling, S.W. (FAO), Penang pond growth: 2 g d1 to 125 g at 6 months (fast curve).",
-    "Jain, Gupta & Singh 2008, Livestock Research for Rural Development 20(7), feeding-schedule weights (slow curve).",
-    "New, M.B. 2002, FAO Fisheries Technical Paper 428: optimal temperature 28-31 C, pH 7.0-8.5.",
+    "Chowdhury et al. 2017, J. Aquac. Res. Dev. 8(6):494, doi:10.4172/2155-9546.1000494 (slow curve, 2 to 37 g in 150 days).",
+    "Songpayome et al. 2024, Heliyon 10(10):e31231, doi:10.1016/j.heliyon.2024.e31231 (fast curve, 27 to 229 g in 120 days).",
+    "Mohanta 2020, CIFE (water optimum: about 30 C, pH 6.5-9.0; original journal TBD).",
+    "SEAFDEC/AQD 2016 grow-out guide (feed rates, avgFeedRate column).",
 ]
 
 # Water effects multiply weekly growth: 1.0 inside the band, falling per unit outside it, never below the floor.
-TEMP_BAND = (28.0, 31.0, 0.08, 0.2)          # MODEL ASSUMPTION: -0.08 per C outside New 2002 optimum, floor 0.2
-PH_BAND = (7.0, 8.5, 0.15, 0.3)              # MODEL ASSUMPTION: -0.15 per pH unit outside New 2002 optimum, floor 0.3
+TEMP_BAND = (29.0, 31.0, 0.08, 0.2)          # MODEL ASSUMPTION: optimum ~30 C (Mohanta 2020); 29-31 C observed in good-growth ponds (Chowdhury et al. 2017); -0.08 per C outside, floor 0.2
+PH_BAND = (6.5, 9.0, 0.15, 0.3)              # MODEL ASSUMPTION: -0.15 per pH unit outside Mohanta 2020 pH 6.5-9.0, floor 0.3
 TDS_BAND = (-np.inf, 500.0, 0.0002, 0.9)     # MODEL ASSUMPTION: -0.02 per 100 ppm above 500 ppm, floor 0.9
 TURBIDITY_BAND = (-np.inf, 30.0, 0.002, 0.9) # MODEL ASSUMPTION: -0.002 per NTU above 30 NTU, floor 0.9
 
@@ -54,30 +54,14 @@ READINGS_PER_WEEK_SAMPLE = 144  # contiguous block of readings (about one day) a
 NOISE_SD, NOISE_CLIP = 0.08, (0.75, 1.25)  # MODEL ASSUMPTION: multiplicative weekly noise
 GAIN_FLOOR_G = 0.1           # weekly growth never below this; molting weight dips are ignored
 
-def _weight_at(curve, day):
-    """Weight on the curve at a day, extended linearly past the last point with the last slope."""
-    days, weights = zip(*curve)
-    if day <= days[-1]:
-        return float(np.interp(day, days, weights))
-    slope = (weights[-1] - weights[-2]) / (days[-1] - days[-2])
-    return weights[-1] + slope * (day - days[-1])
-
-def _day_at(curve, weight):
-    """Day on the curve where it reaches a weight, extended linearly past the last point."""
-    days, weights = zip(*curve)
-    if weight <= weights[-1]:
-        return float(np.interp(weight, weights, days))
-    slope = (weights[-1] - weights[-2]) / (days[-1] - days[-2])
-    return days[-1] + (weight - weights[-1]) / slope
-
-def curve_gain(curve, weight, days=7):
-    """Gain over `days` starting from `weight`, using the curve's position at that weight."""
-    return _weight_at(curve, _day_at(curve, weight) + days) - weight
+def curve_gain(k, weight, days=7):
+    """Gain over `days` from `weight` on the cube-root curve with rate k per day."""
+    return (weight ** (1 / 3) + k * days) ** 3 - weight
 
 def base_gain(weight, m):
-    """Weekly gain between the slow and fast curves; slow is clamped to never exceed fast."""
-    fast = curve_gain(FAST_CURVE, weight)
-    slow = min(curve_gain(SLOW_CURVE, weight), fast)
+    """Weekly gain between the slow (m=0) and fast (m=1) curves; slow is always below fast since k_slow < k_fast."""
+    fast = curve_gain(K_FAST_PER_DAY, weight)
+    slow = curve_gain(K_SLOW_PER_DAY, weight)
     return slow + m * (fast - slow)
 
 def band_effect(value, band):
@@ -160,7 +144,7 @@ def main():
         "curveSources": CURVE_SOURCES,
         "settings": {
             "growoutDays": GROWOUT_DAYS, "maxWeightG": MAX_WEIGHT_G, "stockingRangeG": [STOCK_MIN_G, STOCK_MAX_G],
-            "fastCurve": FAST_CURVE, "slowCurve": SLOW_CURVE,
+            "growthModel": "W^(1/3) = W0^(1/3) + k * days", "kSlowPerDay": K_SLOW_PER_DAY, "kFastPerDay": K_FAST_PER_DAY,
             "tempBand": TEMP_BAND, "phBand": PH_BAND, "tdsBand": [None, *TDS_BAND[1:]], "turbidityBand": [None, *TURBIDITY_BAND[1:]],
             "tempBaseRangeC": TEMP_BASE_RANGE_C, "phRange": PH_RANGE, "turbidityRange": TURBIDITY_RANGE,
             "readingsPerWeekSample": READINGS_PER_WEEK_SAMPLE, "noiseSd": NOISE_SD, "noiseClip": NOISE_CLIP,

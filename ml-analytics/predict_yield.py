@@ -390,12 +390,14 @@ def fetch_today_and_average(db, daily_cache, today):
 # 3. ASSUMED VALUES (HYBRID MODE)
 # ============================================================
 def optimal_feed_rate(weight):
-    """Gupta et al.: 10% (maliit) -> 5% (malaki). Linear interpolation."""
-    if weight <= 2:
+    """SEAFDEC/AQD 2016 grow-out feed rate (% body weight/day): <5 g 10, 5-15 g 7, 15-25 g 5, >25 g 3; mirror of web feedRecommendation.js."""
+    if weight < 5:
         return 10.0
-    if weight >= 25:
+    if weight < 15:
+        return 7.0
+    if weight <= 25:
         return 5.0
-    return 10.0 - (weight - 2) * (5.0 / 23.0)
+    return 3.0
 
 def get_optimal_fallback():
     """Assumed optimal conditions kung walang totoong water data."""
