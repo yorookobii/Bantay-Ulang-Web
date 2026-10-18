@@ -15,6 +15,7 @@ real_training_rows.csv
 # Real sensor exports — NEVER commit
 ml-analytics/*.xlsx
 ml-analytics/bantay-ulang_water-quality_*.csv
+ml-analytics/comparison/
 
 __pycache__/
 *.pyc
