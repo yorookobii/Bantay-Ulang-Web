@@ -6,6 +6,11 @@ Kumukuha ng water parameters mula Firestore (collection group query sa
 ini-average, pinapakain sa trained Random Forest, nag-pro-project ng harvest
 weight, at isinusulat ang yield prediction pabalik sa growth_indicators.
 
+RUN:
+  python predict_yield.py --project bantay-ulang       # live (serviceAccountKey.json)
+  python predict_yield.py --project bantay-ulang-demo  # demo (serviceAccountKey.demo.json,
+                                                        # sariling cache/counter, rfWaterSource "synthetic")
+
 DATA MODE (auto-detected sa rfMode):
   - Water parameters: TOTOO mula Firestore (temp, pH, tds, turbidity), may
     per-reading sanity filter; walang DO (hindi ito feature ng v2 model)
@@ -32,6 +37,7 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 import pandas as pd
 import numpy as np
 import joblib
+import argparse
 import json
 import math
 import os
@@ -41,7 +47,10 @@ from datetime import date, datetime, timedelta, timezone
 # ============================================================
 # CONFIG
 # ============================================================
-SERVICE_KEY = "serviceAccountKey.json"
+LIVE_PROJECT = "bantay-ulang"
+DEMO_PROJECT = "bantay-ulang-demo"
+# Each project has its own key; connect_firestore() refuses a key whose project_id doesn't match.
+SERVICE_KEYS = {LIVE_PROJECT: "serviceAccountKey.json", DEMO_PROJECT: "serviceAccountKey.demo.json"}
 MODEL_FILE = "rf_growth_model_v2.joblib"  # v1 (rf_growth_model.joblib) is kept but no longer used
 MODEL_META_FILE = "model_meta.json"        # written by train_model.py: features, featureRanges, versions
 
@@ -163,11 +172,19 @@ def check_read_guardrail(planned_reads):
 # ============================================================
 # 1. CONNECT SA FIRESTORE
 # ============================================================
-def connect_firestore():
-    cred = credentials.Certificate(SERVICE_KEY)
-    firebase_admin.initialize_app(cred)
+def connect_firestore(project=LIVE_PROJECT):
+    """Firestore client para sa project; humihinto kapag ibang project ang key o ang client.
+    Default live para sa live-only analysis scripts; ang CLI ng file na ito ay laging may --project."""
+    key_file = SERVICE_KEYS[project]
+    with open(key_file, encoding="utf-8") as f:
+        key_project = json.load(f).get("project_id")
+    if key_project != project:
+        raise SystemExit(f"[STOP] {key_file} is for project {key_project!r}, not {project!r}.")
+    firebase_admin.initialize_app(credentials.Certificate(key_file), {"projectId": project})
     db = firestore.client()
-    print("[OK] Connected sa Firestore")
+    if db.project != project:
+        raise SystemExit(f"[STOP] Firestore client is on {db.project!r}, not {project!r}.")
+    print(f"[OK] Connected sa Firestore ({project})")
     return db
 
 # ============================================================
@@ -636,11 +653,21 @@ def write_prediction(doc_ref, harvest_weight, yield_kg, survival, mode, n_readin
 # MAIN
 # ============================================================
 def main():
+    global DAILY_CACHE_FILE, READ_COUNTER_FILE
+    parser = argparse.ArgumentParser(description="Bantay Ulang RF yield prediction (batch inference).")
+    parser.add_argument("--project", required=True, choices=list(SERVICE_KEYS), help="Firebase project to read and write")
+    project = parser.parse_args().project
+    demo = project == DEMO_PROJECT
+    if demo:
+        # Demo keeps its own cache and read counter so it never resets the live cycle cache.
+        DAILY_CACHE_FILE = "daily_averages_cache.demo.json"
+        READ_COUNTER_FILE = "read_counter.demo.json"
+
     print("=" * 55)
-    print("BANTAY ULANG — RF YIELD PREDICTION (Batch Inference)")
+    print(f"BANTAY ULANG — RF YIELD PREDICTION (Batch Inference) — {project}")
     print("=" * 55)
 
-    db = connect_firestore()
+    db = connect_firestore(project)
 
     # --- 3-MONTH GATE (panelist requirement) — checked BEFORE the read
     # guardrail and the (expensive, up to 5000-read) water-data fetch, so a
@@ -768,6 +795,8 @@ def main():
 
     # Kunin ang water data — backfill complete, fetch today + weighted average
     water, n_readings, actual_reads, provenance = fetch_today_and_average(db, daily_cache, today)
+    if demo and provenance:
+        provenance["source"] = "synthetic"  # demo readings are seeded, never sensor data
 
     # I-update ang read counter (dagdag na lang dito — backfill, mortality,
     # ulang_growth at gate check ay na-save na sa itaas). Today reads lang.

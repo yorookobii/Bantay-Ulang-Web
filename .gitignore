@@ -8,8 +8,8 @@ serviceAccountKey.json
 *serviceAccount*.json
 firebase-adminsdk*.json
 *.joblib
-read_counter.json
-daily_averages_cache.json
+read_counter*.json
+daily_averages_cache*.json
 real_training_rows.csv
 
 # Real sensor exports — NEVER commit

@@ -10,16 +10,8 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 // Import Analytics (optional)
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
 
-// Your Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDK4Bw3fQpJGlt5kqDJvz8w-xQdZZLQO2M",
-  authDomain: "bantay-ulang.firebaseapp.com",
-  projectId: "bantay-ulang",
-  storageBucket: "bantay-ulang.firebasestorage.app",
-  messagingSenderId: "827033380382",
-  appId: "1:827033380382:web:fa26f915847d837f5e300f",
-  measurementId: "G-1DVHW69G6W"
-};
+// Shared Firebase configuration (one copy for the whole web app)
+import { firebaseConfig } from "../../../assets/js/firebase-config.js";
 
 
 // Reuse the app created by firebase-init.js if it already exists on this page,
@@ -35,7 +27,7 @@ const auth = getAuth(app);
 // Keep Analytics from blocking Firestore in unsupported environments.
 let analytics = null;
 try {
-  analytics = getAnalytics(app);
+  if (firebaseConfig.measurementId) analytics = getAnalytics(app);
 } catch (error) {
   console.warn("Firebase Analytics is unavailable in this environment.", error);
 }
