@@ -94,6 +94,11 @@ def water_readings(rows, start, now, rng):
     return docs, weeks
 
 
+def end_weight(rows, w):
+    """Weight at the end of week w (currentWeight is the weight entering week w), 3 dp."""
+    return round(float(rows.loc[w, "currentWeight"] + rows.loc[w, "weeklyGrowthIncrement"]), 3)
+
+
 def weight_samples(target, n, rng):
     """n weights whose median is exactly target: symmetric 3-dp pairs, plus target itself when n is odd."""
     deltas = np.round(np.clip(np.abs(rng.normal(0, 0.12, n // 2)), 0.01, 0.35) * target, 3)
@@ -108,19 +113,18 @@ def build(rows, weeks_seeded, now, admin, tech, rng):
     readings, reading_weeks = water_readings(rows, start, now, rng)
     common = lambda t, kind: {"createdBy": tech["uid"], "createdByName": tech["name"], "createdByEmail": tech["email"],
                               "type": kind, "createdAt": t, "observedAt": t - timedelta(minutes=1)}
-    docs, week1 = list(readings), []
+    docs = list(readings)
     for w in range(1, weeks_seeded + 1):
-        target = round(float(rows.loc[w, "currentWeight"]), 3)
+        # Weighed on the week's last day (day 6), so the median is the end-of-week weight predict_yield steps from.
+        target = end_weight(rows, w)
         for i, g in enumerate(weight_samples(target, int(rng.integers(10, 13)), rng)):
-            t = start + timedelta(days=7 * (w - 1) + 1, hours=9, minutes=2 * i)
+            t = start + timedelta(days=7 * (w - 1) + 6, hours=9, minutes=2 * i)
             size = round((g / 0.0127) ** (1 / 3), 1)  # illustrative length-weight curve, cm
             doc_id = f"demo-w{w:02d}-s{i:02d}"
             docs.append((f"ulang_growth_records/{doc_id}", {"size": size, "weight": g, "recordedBy": tech["uid"],
                                                             "createdAt": t, "observedAt": t - timedelta(minutes=1)}))
             docs.append((f"logs/{doc_id}", {**common(t, "ulang"), "title": "Ulang Log", "size": str(size), "weight": str(g),
                                             "description": f"Laki: {size}cm • Timbang: {g}g"}))
-            if w == 1:
-                week1.append(g)
     for w, n in DEATHS_BY_WEEK.items():
         if w > weeks_seeded:
             continue
@@ -131,10 +135,12 @@ def build(rows, weeks_seeded, now, admin, tech, rng):
 
     deaths = sum(n for w, n in DEATHS_BY_WEEK.items() if w <= weeks_seeded)
     survival = (INITIAL_STOCK - deaths) / INITIAL_STOCK * 100
-    latest_g = round(float(rows.loc[weeks_seeded, "currentWeight"]), 2)
+    latest_g = round(end_weight(rows, weeks_seeded), 2)
+    stocking_g = round(float(rows.loc[1, "currentWeight"]), 3)
     docs.append(("growth_indicators/demo-cycle", {
-        "cycleLabel": CYCLE_LABEL, "initialStock": INITIAL_STOCK, "stockingWeight": round(float(rows.loc[1, "currentWeight"]), 3),
-        "stockingWeightMin": round(min(week1), 1), "stockingWeightMax": round(max(week1), 1),
+        "cycleLabel": CYCLE_LABEL, "initialStock": INITIAL_STOCK, "stockingWeight": stocking_g,
+        # Week-1 logs are end-of-week now, so the stocking range is +-20% of the stocking weight.
+        "stockingWeightMin": round(stocking_g * 0.8, 1), "stockingWeightMax": round(stocking_g * 1.2, 1),
         "cycleStart": start, "cycleEnd": start + timedelta(days=GROWOUT_DAYS), "timestamp": now,
         "survivalRate": round(survival, 2), "avgWeightPerPiece": latest_g, "costPerKg": 246,
         "expectedYield": round(INITIAL_STOCK * survival / 100 * latest_g / 1000, 2),
