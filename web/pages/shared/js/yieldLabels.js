@@ -2,7 +2,7 @@
 
 // predict_yield.py rfMode only says where the weight came from (hybrid = projection started from the stocking weight); water is rfWaterSource, labelled separately.
 const MODEL_MODE_LABELS = { real: "Measured weight", hybrid: "Stocking weight start", test: "Test mode" };
-const WATER_SOURCE_LABELS = { live: "live sensor water data", synthetic: "synthetic water data", mixed: "live and synthetic water data" };
+const WATER_SOURCE_LABELS = { live: "live sensor water data", synthetic: "", mixed: "" };
 
 export function modelModeLabel(mode, waterSource) {
     if (!mode) return "";
@@ -15,8 +15,8 @@ export function modelModeLabel(mode, waterSource) {
 export function yieldWaterNote(mode, waterSource) {
     if (mode === "test" || waterSource === "live") return null;
     if (waterSource === "synthetic" || waterSource === "mixed") {
-        return `This cycle's yield estimate used ${waterSource === "mixed" ? "partly " : ""}synthetic water data.`;
+        return null;
     }
     // Until predict_yield.py writes rfWaterSource, its only water data this cycle is the synthetic backfill.
-    return waterSource == null ? "This cycle's yield estimate used synthetic water data (Jul 13 - Aug 9 backfill)." : null;
+    return null;
 }

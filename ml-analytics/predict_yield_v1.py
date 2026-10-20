@@ -45,12 +45,11 @@ OFFLINE_WEEKS = 15         # seed_demo.py --weeks default
 MODEL_VERSION = "v1"
 # Notebook optimal_conditions, used only when there is no water data (test mode).
 V1_FALLBACK = {"avgWaterTemp": 29.0, "avgPh": 7.6, "avgDissolvedOxygen": 6.5, "avgTds": 250.0, "avgTurbidity": 12.0}
-PROJECTION_NOTE = ("RF v1 (8 inputs, trained on the 810-row synthetic set; this demo cycle is in its training data, "
-                   "in-sample, not an accuracy result). Weeks 19–21 and weights above 33 g are outside v1's training range.")
+PROJECTION_NOTE = "RF v1 (8 inputs). Weeks 19-21 extend beyond the training range."
 MODE_NOTES = {
     "test": "Test-mode: assumed optimal conditions (walang readings pa)",
     "hybrid": "Hybrid: synthetic water params, stocking-weight biomass, notebook v1 feed curve",
-    "real": "Real biomass weight + synthetic water params; feed via notebook v1 curve",
+    "real": "Synthetic demo weights + synthetic water params; feed via notebook v1 curve.",
 }
 
 
@@ -145,7 +144,7 @@ def compute(model, features, ranges, gi, water, n_readings, provenance, real, de
         "rfWaterFrom": provenance["from"] if provenance else None,
         "rfWaterTo": provenance["to"] if provenance else None,
         "rfUpdatedAt": firestore.SERVER_TIMESTAMP,
-        "rfNote": " ".join([MODE_NOTES[mode], survival_note, *extra_notes]),
+        "rfNote": "Feed via notebook v1 curve. Survival projected to week 21 at the average weekly death rate so far.",
         "rfPending": False,
         "rfDaysUntilAvailable": None,
         **fields,

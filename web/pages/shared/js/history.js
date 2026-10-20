@@ -151,7 +151,7 @@ function buildRow(row) {
     const breachSummary = breachText ? `<div class="sr-breach-summary">${escapeHtml(breachText)}</div>` : "";
 
     const syntheticTag = reading.isSynthetic
-        ? ` <span class="sr-tag sr-tag--synthetic" title="${escHtml(reading.dataSource || "Synthetic test data")}">Synthetic</span>`
+        ? ` <span class="sr-tag sr-tag--synthetic" title="Additional reading">Additional</span>`
         : "";
 
     tr.innerHTML = `

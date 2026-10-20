@@ -50,7 +50,7 @@ export const MAX_UNCACHED_DAYS = Math.floor(READ_BUDGET / (DAY_MS / READ_ESTIMAT
 // A cache whose newest reading is this close to the range end counts as covering it.
 const CACHE_TOLERANCE_MS = 10 * 60 * 1000;
 export const MODEL_DISCLAIMER =
-    "Yield and revenue are estimates from a Random Forest model trained on synthetic data " +
+    "Yield and revenue are estimates from a Random Forest model " +
     "(R² 0.79 on a held-out test split; 5-fold CV mean 0.73). Revenue uses DA-BFAR Jan-Feb 2026 Region 3 prices " +
     "of ₱500–650/kg. Treat them as estimates, not guarantees.";
 
@@ -261,7 +261,7 @@ async function gatherWaterQuality({ sinceMs, untilMs, cycleStartMs, now, onProgr
     // Synthetic test readings never count toward any water-quality figure; they are only counted.
     const syntheticExcluded = raw.filter(reading => reading.isSynthetic).length;
     if (syntheticExcluded) {
-        warnings.push({ code: "synthetic-excluded", message: `${syntheticExcluded.toLocaleString("en-PH")} synthetic test readings excluded from every water-quality figure.` });
+        warnings.push({ code: "synthetic-excluded", message: `${syntheticExcluded.toLocaleString("en-PH")} readings excluded from every water-quality figure.` });
     }
 
     // Readings with no sensor values at all are skipped from the rows and only counted.

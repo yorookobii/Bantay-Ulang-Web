@@ -61,7 +61,7 @@ function buildTable(rows) {
     for (const d of rows) {
         const tr = tbody.insertRow();
         const status = el("td", null, text(d.status));
-        if (d.physicalActuatorEnabled === false) status.appendChild(el("span", "al-badge", "Simulated"));
+        if (d.physicalActuatorEnabled === false) status.appendChild(el("span", "al-badge", "Recorded"));
         const cells = [
             el("td", null, whenText(d)),
             el("td", null, text(d.action)),

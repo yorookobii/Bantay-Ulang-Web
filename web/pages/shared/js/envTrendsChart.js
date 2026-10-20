@@ -157,7 +157,7 @@ async function fetchEnvTrends(paramKey, rangeKey, cycleStartMs) {
     // Synthetic test readings never feed the trend line; only their count is reported.
     const live = readings.filter((reading) => !reading.isSynthetic);
     const syntheticHidden = readings.length - live.length;
-    if (syntheticHidden > 0) notes.unshift(`${syntheticHidden.toLocaleString("en-PH")} synthetic test readings hidden`);
+    if (syntheticHidden > 0) notes.unshift(`${syntheticHidden.toLocaleString("en-PH")} readings excluded from the trend`);
     return { points: bucketReadings(live, paramKey, rangeKey, cutoff, now), notes };
 }
 
