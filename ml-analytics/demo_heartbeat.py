@@ -8,10 +8,11 @@ charts, history and reports stay current. Nothing else is written.
 
   python demo_heartbeat.py --project bantay-ulang-demo          # dry run: print one payload, no connection
   python demo_heartbeat.py --project bantay-ulang-demo --write  # write every 60 s until Ctrl+C
+  python demo_heartbeat.py --project bantay-ulang-demo --cycle-file poor_cycle.csv  # replay that CSV's week 15
 
-Values replay the last 24 h of week 15 (cycle 1 of bantay_ulang_810_dataset.csv), built by
-seed_demo.water_readings, for the current hour of day, plus small noise, clipped inside
-seed_demo.THRESHOLDS. Hard guard: --project accepts only bantay-ulang-demo, and the key
+Values replay the last 24 h of week 15 (cycle 1 of bantay_ulang_810_dataset.csv, or the
+--cycle-file cycle), built by seed_demo.water_readings, for the current hour of day, plus small
+noise, clipped inside seed_demo.THRESHOLDS (physical floors only with --cycle-file). Hard guard: --project accepts only bantay-ulang-demo, and the key
 (serviceAccountKey.demo.json), project and client are re-checked by connect_firestore.
 """
 
@@ -45,12 +46,15 @@ BOUNDS = {
     "turbidityNTU": (0.0, T["turbidity_max"] - 0.5),
     "salinityPpt": (0.0, T["salinity_max"] - 0.5),
 }
+# With --cycle-file: physical floors only, so out-of-range water stays out of range.
+PHYSICAL_BOUNDS = {"waterTemperatureC": (0.0, None), "phValue": (0.0, 14.0), "oxygenLevelMgL": (0.0, None),
+                   "tdsPpm": (1.0, None), "turbidityNTU": (0.0, None), "salinityPpt": (0.0, None)}
 
 
-def replay_by_hour():
+def replay_by_hour(cycle_file=None):
     """{hour: reading} for the last 24 h of week WEEK, built exactly as seed_demo builds readings."""
     with contextlib.redirect_stdout(io.StringIO()):
-        rows = sd.load_cycle()
+        rows = sd.load_cycle(cycle_file)
     today = datetime.now(py.PHT).date()
     start = datetime.combine(today - timedelta(days=7 * WEEK), datetime.min.time(), py.PHT)
     end = start + timedelta(weeks=WEEK) - timedelta(hours=1)
@@ -58,10 +62,10 @@ def replay_by_hour():
     return {d["measuredAt"].hour: d for _, d in docs[-24:]}
 
 
-def payload(base, now, rng):
+def payload(base, now, rng, bounds=BOUNDS):
     """Same fields and types seed_demo writes to Aquaponics/Ulang, with measuredAt = now."""
     data = {}
-    for field, (lo, hi) in BOUNDS.items():
+    for field, (lo, hi) in bounds.items():
         kind, noise_sd = (sd.WATER[field][1], sd.WATER[field][3]) if field in sd.WATER else ("add", 0.02)
         noise = rng.normal(0, noise_sd * NOISE_SCALE)
         v = base[field] + noise if kind == "add" else base[field] * np.exp(noise)
@@ -86,19 +90,22 @@ def main():
     parser = argparse.ArgumentParser(description="Demo heartbeat: keep Aquaponics/Ulang fresh on the DEMO project only.")
     parser.add_argument("--project", required=True, choices=[DEMO_ONLY], help="must be bantay-ulang-demo")
     parser.add_argument("--write", action="store_true", help=f"write every {INTERVAL_S} s until Ctrl+C (default: dry run)")
+    parser.add_argument("--cycle-file", help="replay week 15 of this one-cycle CSV (seed_demo.py format), unclipped")
     args = parser.parse_args()
     if args.project != DEMO_ONLY:  # second guard, independent of argparse
         raise SystemExit(f"[STOP] demo_heartbeat.py only runs on {DEMO_ONLY}.")
     if py.SERVICE_KEYS[DEMO_ONLY] != KEY_FILE:  # key is fixed; refuse if predict_yield's mapping ever changes
         raise SystemExit(f"[STOP] Expected key {KEY_FILE}, predict_yield maps {py.SERVICE_KEYS[DEMO_ONLY]}.")
 
-    replay = replay_by_hour()
+    replay = replay_by_hour(args.cycle_file)
+    bounds = PHYSICAL_BOUNDS if args.cycle_file else BOUNDS
     rng = np.random.default_rng()
 
     if not args.write:
         now = datetime.now(py.PHT)
-        data = payload(replay[now.hour], now, rng)
-        print(f"[DRY RUN] Would write {DOC_PATH} in {DEMO_ONLY} (merge):")
+        data = payload(replay[now.hour], now, rng, bounds)
+        print(f"[DRY RUN] Would write {DOC_PATH} in {DEMO_ONLY} (merge)"
+              + (f", replaying {args.cycle_file} week {WEEK}, physical bounds only:" if args.cycle_file else ":"))
         for k, v in data.items():
             print(f"  {k}: {v!r}")
         print(f"[DRY RUN] Would also write {history_path(now)} (same fields, plus):")
@@ -114,7 +121,7 @@ def main():
     try:
         while True:
             now = datetime.now(py.PHT)
-            data = payload(replay[now.hour], now, rng)
+            data = payload(replay[now.hour], now, rng, bounds)
             try:
                 ref.set(data, merge=True)
                 print(f"[WRITE] {line(data)}")

@@ -8,6 +8,7 @@ project stays on v2 via predict_yield.py, which this script does not modify.
 
   python predict_yield_v1.py --project bantay-ulang-demo            # read + write the demo project
   python predict_yield_v1.py --project bantay-ulang-demo --offline  # no Firestore: seed_demo.py inputs, print fields
+  python predict_yield_v1.py --project bantay-ulang-demo --cycle-file poor_cycle.csv  # same, for a seed_demo.py --cycle-file seed
 
 Hard guard: --project accepts only bantay-ulang-demo, and the key, project and client are
 checked again by predict_yield.connect_firestore before any read.
@@ -151,11 +152,11 @@ def compute(model, features, ranges, gi, water, n_readings, provenance, real, de
     }
 
 
-def offline_inputs():
+def offline_inputs(cycle_file=None):
     """The inputs predict would read after seed_demo.py --write, built from seed_demo.build() with no Firestore."""
     import seed_demo
     with contextlib.redirect_stdout(io.StringIO()):
-        rows = seed_demo.load_cycle()
+        rows = seed_demo.load_cycle(cycle_file)
     now = datetime.now(py.PHT).replace(minute=0, second=0, microsecond=0)
     user = lambda role: {"uid": f"<{role}-uid>", "email": f"<{role}-email>", "name": role}
     docs, start, readings, _ = seed_demo.build(rows, OFFLINE_WEEKS, now, user("admin"), user("tech"), np.random.default_rng(42))
@@ -190,8 +191,10 @@ def offline_inputs():
     return gi, water, n_readings, provenance, real, deaths_by_week, total_deaths, py.ph_date(now), not eligible, stats
 
 
-def run_offline(model, features, ranges):
-    gi, water, n_readings, provenance, real, deaths_by_week, total_deaths, today, early, stats = offline_inputs()
+def run_offline(model, features, ranges, cycle_file=None):
+    gi, water, n_readings, provenance, real, deaths_by_week, total_deaths, today, early, stats = offline_inputs(cycle_file)
+    if cycle_file:
+        print(f"\n[OFFLINE] cycle: {gi['cycleLabel']} ({cycle_file})")
     print(f"\n[OFFLINE] seed_demo inputs: cycleStart {gi['cycleStart']:%Y-%m-%d} PHT, early={early}, "
           f"{n_readings} readings ({provenance['from']} to {provenance['to']}), deaths {total_deaths} {dict(sorted(deaths_by_week.items()))}")
     print("[OFFLINE] week medians: " + ", ".join(f"w{w} {s['median']:.3f} (n={s['n']})" for w, s in sorted(stats.items())))
@@ -209,14 +212,22 @@ def run_offline(model, features, ranges):
         print(f"  {k}: {shown}")
 
 
-def run_online(model, features, ranges):
+def run_online(model, features, ranges, cycle_file=None):
     """predict_yield.main's flow on the demo project with v1 projection; same reads, gates and writes."""
+    expected_label = None
+    if cycle_file:  # validated before connecting; the seeded doc must come from this file
+        import seed_demo
+        with contextlib.redirect_stdout(io.StringIO()):
+            expected_label = seed_demo.cycle_label(seed_demo.load_cycle(cycle_file))
     db = py.connect_firestore(DEMO_ONLY)  # re-checks key, project and client
     gi_doc = py.fetch_growth_indicators(db)
     if gi_doc is None:
         print("[ERROR] Walang growth_indicators doc — hindi makakasulat")
         return
     gi = gi_doc.to_dict()
+    if expected_label and gi.get("cycleLabel") != expected_label:
+        raise SystemExit(f"[STOP] Seeded cycle is {gi.get('cycleLabel')!r}, not {expected_label!r}; "
+                         f"re-seed with --cycle-file {cycle_file} first. Nothing written.")
     cycle_start = gi.get("cycleStart")
     days_since_start = (datetime.now(timezone.utc) - cycle_start).days if cycle_start is not None else None
     early = not (days_since_start is not None and days_since_start >= py.GATE_DAYS)
@@ -272,6 +283,7 @@ def main():
     parser = argparse.ArgumentParser(description="RF v1 yield prediction for the DEMO project only.")
     parser.add_argument("--project", required=True, choices=[DEMO_ONLY], help="must be bantay-ulang-demo")
     parser.add_argument("--offline", action="store_true", help="no Firestore: seed_demo.py inputs, print the fields")
+    parser.add_argument("--cycle-file", help="cycle CSV seed_demo.py was run with; offline uses its rows, online checks the seeded cycle matches")
     args = parser.parse_args()
     if args.project != DEMO_ONLY:  # second guard, independent of argparse
         raise SystemExit(f"[STOP] predict_yield_v1.py only runs on {DEMO_ONLY}.")
@@ -281,7 +293,7 @@ def main():
     print(f"BANTAY ULANG — RF v1 YIELD PREDICTION — {DEMO_ONLY}" + (" (OFFLINE)" if args.offline else ""))
     print("=" * 55)
     model, features, ranges = load_v1()
-    (run_offline if args.offline else run_online)(model, features, ranges)
+    (run_offline if args.offline else run_online)(model, features, ranges, args.cycle_file)
 
 
 if __name__ == "__main__":

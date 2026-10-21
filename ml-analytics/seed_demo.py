@@ -7,6 +7,7 @@ Seeds the demo Firebase project from ONE cycle of bantay_ulang_810_dataset.csv
   python seed_demo.py                       # dry run: plan + write counts, no connection
   python seed_demo.py --write --admin-email A --tech-email T          # write (empty project)
   python seed_demo.py --write --reset --admin-email A --tech-email T  # wipe seeded collections, re-anchor to today
+  python seed_demo.py --cycle-file poor_cycle.csv   # any of the above, seeded from that CSV's one cycle instead of cycle 1
 
 Refuses to connect unless serviceAccountKey.demo.json's project_id is bantay-ulang-demo
 (connect_firestore in predict_yield.py). Auth users are created in the console first;
@@ -49,17 +50,37 @@ SEEDED = ["growth_indicators", "ulang_growth_records", "mortality_records", "log
           "feeding_schedules", "settings", "HistoryLogs", "ActionLogs", "Aquaponics"]
 
 
-def load_cycle():
-    """Cycle rows by week, and how the cycle compares with the dataset medians."""
+def read_cycle_file(path, df):
+    """One cycle from a CSV in the dataset's exact format; stops on wrong columns, dtypes, ids or weeks."""
+    rows = pd.read_csv(path)
+    if list(rows.columns) != list(df.columns) or not rows.dtypes.equals(df.dtypes):
+        raise SystemExit(f"[STOP] {path}: columns/dtypes must match {DATASET}: {list(df.columns)}")
+    if rows.isna().any().any() or rows.cycleId.nunique() != 1:
+        raise SystemExit(f"[STOP] {path}: needs exactly one cycleId and no empty cells.")
+    if sorted(rows.weekNumber) != list(range(1, int(df.weekNumber.max()) + 1)):
+        raise SystemExit(f"[STOP] {path}: needs weeks 1..{int(df.weekNumber.max())}, one row each.")
+    return rows
+
+
+def cycle_label(rows):
+    """growth_indicators cycleLabel; a cycle file gets its own so predict can tell which cycle was seeded."""
+    cid = int(rows.cycleId.iloc[0])
+    return CYCLE_LABEL if cid == CYCLE_ID else f"Demo cycle (cycle file, cycle {cid})"
+
+
+def load_cycle(path=None):
+    """Cycle rows by week (cycle 1, or the one cycle in path), and how the cycle compares with the dataset medians."""
     df = pd.read_csv(DATASET)
-    rows = df[df.cycleId == CYCLE_ID].set_index("weekNumber").sort_index()
+    rows = (read_cycle_file(path, df) if path else df[df.cycleId == CYCLE_ID]).set_index("weekNumber").sort_index()
+    cid = int(rows.cycleId.iloc[0])
     last = df.sort_values("weekNumber").groupby("cycleId").tail(1)
     final = (last.currentWeight + last.weeklyGrowthIncrement).set_axis(last.cycleId)
+    own_final = rows.currentWeight.iloc[-1] + rows.weeklyGrowthIncrement.iloc[-1]
     means = df.groupby("cycleId")[[c for c, *_ in WATER.values()]].mean()
-    print(f"[DATA] Cycle {CYCLE_ID}: {len(rows)} weeks. Final weight {final[CYCLE_ID]:.2f} g vs median "
-          f"{final.median():.2f} g ({(final < final[CYCLE_ID]).mean():.0%} of cycles lower)")
+    print(f"[DATA] Cycle {cid}{f' ({path})' if path else ''}: {len(rows)} weeks. Final weight {own_final:.2f} g vs median "
+          f"{final.median():.2f} g ({(final < own_final).mean():.0%} of cycles lower)")
     for col in means:
-        print(f"[DATA]   {col}: {means.loc[CYCLE_ID, col]:.2f} vs median {means[col].median():.2f}")
+        print(f"[DATA]   {col}: {rows[col].mean():.2f} vs median {means[col].median():.2f}")
     return rows
 
 
@@ -138,7 +159,7 @@ def build(rows, weeks_seeded, now, admin, tech, rng):
     latest_g = round(end_weight(rows, weeks_seeded), 2)
     stocking_g = round(float(rows.loc[1, "currentWeight"]), 3)
     docs.append(("growth_indicators/demo-cycle", {
-        "cycleLabel": CYCLE_LABEL, "initialStock": INITIAL_STOCK, "stockingWeight": stocking_g,
+        "cycleLabel": cycle_label(rows), "initialStock": INITIAL_STOCK, "stockingWeight": stocking_g,
         # Week-1 logs are end-of-week now, so the stocking range is +-20% of the stocking weight.
         "stockingWeightMin": round(stocking_g * 0.8, 1), "stockingWeightMax": round(stocking_g * 1.2, 1),
         "cycleStart": start, "cycleEnd": start + timedelta(days=GROWOUT_DAYS), "timestamp": now,
@@ -208,11 +229,12 @@ def main():
     parser.add_argument("--tech-email", help="demo technician Auth email (required with --write)")
     parser.add_argument("--weeks", type=int, default=15, help="full weeks to seed (cycle day = 7 x weeks)")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--cycle-file", help=f"CSV with one 18-week cycle in {DATASET}'s format (default: cycle {CYCLE_ID})")
     args = parser.parse_args()
     if args.write and not (args.admin_email and args.tech_email):
         parser.error("--write needs --admin-email and --tech-email")
 
-    rows = load_cycle()
+    rows = load_cycle(args.cycle_file)
     if not 13 <= args.weeks < len(rows):
         parser.error(f"--weeks must be 13..{len(rows) - 1} (past day 90, with a next-week row for today)")
     now = datetime.now(PHT).replace(minute=0, second=0, microsecond=0)
@@ -229,7 +251,7 @@ def main():
 
     docs, start, readings, weeks = build(rows, args.weeks, now, admin, tech, np.random.default_rng(args.seed))
     counts = pd.Series([p.split("/")[0] for p, _ in docs]).value_counts()
-    print(f"\n[PLAN] {CYCLE_LABEL}: cycleStart {start:%Y-%m-%d} PHT, day {(now.date() - start.date()).days}, "
+    print(f"\n[PLAN] {cycle_label(rows)}: cycleStart {start:%Y-%m-%d} PHT, day {(now.date() - start.date()).days}, "
           f"readings through {now:%Y-%m-%d %H:00} PHT")
     print(counts.to_string())
     print(f"[PLAN] TOTAL WRITES: {len(docs)}" + (" (+ deletes from --reset)" if args.reset else ""))
