@@ -1,8 +1,10 @@
 """
 Bantay Ulang — Demo heartbeat (bantay-ulang-demo ONLY)
 ======================================================
-Keeps the demo dashboard "Online" during a presentation by rewriting ONLY the doc
-Aquaponics/Ulang every 60 s with measuredAt = now. Nothing else is written.
+Keeps the demo dashboard "Online" during a presentation by rewriting the doc
+Aquaponics/Ulang every 60 s with measuredAt = now, and appends the same values as one
+HistoryLogs reading per 5-min slot (seed_demo format, id reading_hb_HHMM) so the trend
+charts, history and reports stay current. Nothing else is written.
 
   python demo_heartbeat.py --project bantay-ulang-demo          # dry run: print one payload, no connection
   python demo_heartbeat.py --project bantay-ulang-demo --write  # write every 60 s until Ctrl+C
@@ -29,6 +31,9 @@ KEY_FILE = "serviceAccountKey.demo.json"
 DOC_PATH = "Aquaponics/Ulang"
 WEEK = 15
 INTERVAL_S = 60
+HISTORY_EVERY_MIN = 5
+# Per-reading fields seed_demo.water_readings adds on top of the Aquaponics/Ulang fields.
+HISTORY_EXTRA = {"expectedSamples": 20, "samplesCollected": 20, "summaryWindowSeconds": 3600}
 NOISE_SCALE = 0.25  # fraction of seed_demo's per-field noise sd
 # Inclusive bounds per field, a small margin inside seed_demo.THRESHOLDS (no threshold -> physical floor only).
 T = sd.THRESHOLDS
@@ -65,6 +70,12 @@ def payload(base, now, rng):
     return data
 
 
+def history_path(now):
+    """Seed-style reading path; one id per 5-min slot, so a restart rewrites the same doc."""
+    s = now.replace(minute=now.minute - now.minute % HISTORY_EVERY_MIN, second=0, microsecond=0)
+    return f"HistoryLogs/Ulang/years/reading_{s:%Y}/reading_{s:%m}/reading_{s:%d}/readings/reading_hb_{s:%H%M}"
+
+
 def line(data):
     return (f"{data['date']} {data['time']} PHT  temp {data['waterTemperatureC']}  pH {data['phValue']}  "
             f"DO {data['oxygenLevelMgL']}  TDS {data['tdsPpm']}  turb {data['turbidityNTU']}  "
@@ -90,12 +101,16 @@ def main():
         print(f"[DRY RUN] Would write {DOC_PATH} in {DEMO_ONLY} (merge):")
         for k, v in data.items():
             print(f"  {k}: {v!r}")
+        print(f"[DRY RUN] Would also write {history_path(now)} (same fields, plus):")
+        for k, v in HISTORY_EXTRA.items():
+            print(f"  {k}: {v!r}")
         print("[DRY RUN] Nothing written. Add --write to loop.")
         return
 
     db = py.connect_firestore(DEMO_ONLY)  # re-checks key, project and client before any write
     ref = db.document(DOC_PATH)
-    print(f"[RUN] Writing {DOC_PATH} every {INTERVAL_S} s. Ctrl+C to stop.")
+    print(f"[RUN] Writing {DOC_PATH} every {INTERVAL_S} s, HistoryLogs every {HISTORY_EVERY_MIN} min. Ctrl+C to stop.")
+    last_path = None
     try:
         while True:
             now = datetime.now(py.PHT)
@@ -103,6 +118,11 @@ def main():
             try:
                 ref.set(data, merge=True)
                 print(f"[WRITE] {line(data)}")
+                path = history_path(now)
+                if path != last_path:
+                    db.document(path).set({**data, **HISTORY_EXTRA})
+                    last_path = path
+                    print(f"[HISTORY] {path}")
             except Exception as err:  # keep beating through a transient network error
                 print(f"[ERROR] {now:%H:%M:%S} write failed: {err}")
             time.sleep(INTERVAL_S)
