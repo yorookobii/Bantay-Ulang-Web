@@ -35,8 +35,8 @@ DEATHS_BY_WEEK = {1: 2, 2: 1, 4: 1, 7: 1, 10: 1, 13: 1}  # 7 of 30 = 23.3% morta
 DEVICE_ID = "ESP32-001"
 FEED_TIMES = ["07:00", "12:00", "17:00"]
 # Same keys and defaults as thresholds.js DEFAULT_RANGES / settings.js FIELDS.
-THRESHOLDS = {"ph_min": 6.5, "ph_max": 8.5, "temp_min": 22, "temp_max": 32, "o2_min": 5,
-              "salinity_max": 5, "turbidity_max": 25, "waterlevel_min": 0.5, "waterlevel_max": 2.0}
+THRESHOLDS = {"ph_min": 7.0, "ph_max": 8.5, "temp_min": 28, "temp_max": 31, "o2_min": 5,
+              "salinity_min": 0, "salinity_max": 15, "turbidity_max": 100, "waterlevel_min": 0.8, "waterlevel_max": 2.2}
 # Firmware field -> (dataset column, noise kind, diurnal amplitude, noise sd); diurnal peak at 14:00 PHT.
 WATER = {
     "waterTemperatureC": ("avgWaterTemp", "add", 1.0, 0.2),

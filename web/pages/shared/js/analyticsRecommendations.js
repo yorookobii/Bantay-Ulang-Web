@@ -1,7 +1,9 @@
 import {
     onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { loadThresholds, getRanges } from './thresholds.js';
+import { loadThresholds, getRanges, getRangeSource } from './thresholds.js';
+import { basisFor } from './ruleBasis.js';
+import { escapeHtml } from './escapeHtml.js';
 import { calcWaterQualityScore, scoreStatus } from './waterQualityScore.js';
 import { AQUAPONICS_REF, normalizeAquaponicsReading } from './aquaponicsReading.js';
 
@@ -169,7 +171,7 @@ function generateRecommendations(sensor) {
         if (val == null) continue;
         judgedCount++;
         const result = rule.check(val);
-        if (result) recs.push(result);
+        if (result) recs.push({ ...result, param: rule.key });
     }
     recs.sort((a, b) => IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact]);
     return { recs, judgedCount };
@@ -188,6 +190,7 @@ function buildCard(rec) {
         </div>
         <h3 class="rec-card-title">${rec.title}</h3>
         <p class="rec-card-desc">${rec.desc}</p>
+        <p class="rec-card-basis">Basis: ${escapeHtml(basisFor(rec.param, getRanges()[rec.param], getRangeSource(rec.param)))}</p>
     `;
     return card;
 }

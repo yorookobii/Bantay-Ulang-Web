@@ -17,6 +17,7 @@ import {
 import { getActiveAlerts, subscribe, countedAlerts } from './alertState.js';
 import { initProfileMenu } from './profileMenu.js';
 import { initAlertFab } from './alertFab.js';
+import { escapeHtml } from './escapeHtml.js';
 
 const isOnTechnicianPage = window.location.pathname.includes('/technician/');
 // Technicians stay inside technician/ pages and have no Settings they can save.
@@ -171,7 +172,7 @@ function renderNotifications(dropdownEl, alerts, active, unseen) {
         const time = formatRelativeTime(alert.createdAt?.toDate?.());
         return `<div class="notification-item" data-alert-id="${alert.id}">
             <i class="${icon}" style="color:${color}"></i>
-            <span>${alert.message || 'Alert'}${time ? ` <small style="color:#9ca3af;">(${time})</small>` : ''}</span>
+            <span>${escapeHtml(alert.message || 'Alert')}${time ? ` <small style="color:#9ca3af;">(${time})</small>` : ''}</span>
         </div>`;
     }).join('');
 

@@ -10,6 +10,7 @@ import { AQUAPONICS_REF, normalizeAquaponicsReading } from "./aquaponicsReading.
 import { initReportModal } from "./reportModal.js";
 import { roleLabel } from "./roleLabels.js";
 import { renderWaterCondition } from "./waterConditionPanel.js";
+import { escapeHtml } from "./escapeHtml.js";
 
 function getTextField(data, keys, fallback = "") {
     for (const key of keys) {
@@ -707,14 +708,14 @@ function renderAlertBanner(container, alertData, totalCount) {
         '<div class="tab-icon-wrap"><i class="fa-solid ' + iconForSev(sev) + '"></i></div>' +
         '<div class="tab-content">' +
             '<div class="tab-top-row">' +
-                '<span class="tab-param-name">' + paramLabel + '</span>' +
+                '<span class="tab-param-name">' + escapeHtml(paramLabel) + '</span>' +
                 '<span class="tab-sev-badge tab-sev-badge--' + sev + '">' + sev.toUpperCase() + '</span>' +
             '</div>' +
-            '<p class="tab-message">' + message + '</p>' +
+            '<p class="tab-message">' + escapeHtml(message) + '</p>' +
             '<div class="tab-meta-row">' +
-                '<span class="tab-meta-item">Current: <strong>' + value + '</strong></span>' +
+                '<span class="tab-meta-item">Current: <strong>' + escapeHtml(value) + '</strong></span>' +
                 '<span class="tab-meta-sep">·</span>' +
-                '<span class="tab-meta-item">Safe range: <strong>' + safeRange + '</strong></span>' +
+                '<span class="tab-meta-item">Safe range: <strong>' + escapeHtml(safeRange) + '</strong></span>' +
                 moreHtml +
             '</div>' +
         '</div>' +

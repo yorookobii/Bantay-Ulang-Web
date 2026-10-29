@@ -325,6 +325,13 @@
     margin-bottom: 16px;
 }
 
+.rec-card-basis {
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.4;
+    margin: 0;
+}
+
 .rec-card .btn-apply {
     display: inline-flex;
     align-items: center;

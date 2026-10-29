@@ -53,6 +53,10 @@ export const MODEL_DISCLAIMER =
     "Yield and revenue are estimates from a Random Forest model " +
     "(R² 0.79 on a held-out test split; 5-fold CV mean 0.73). Revenue uses DA-BFAR Jan-Feb 2026 Region 3 prices " +
     "of ₱500–650/kg. Treat them as estimates, not guarantees.";
+// Listed after the disclaimer in the report's sources (PDF Notes, CSV report info).
+export const RANGE_BASIS_NOTE =
+    "Default safe ranges: R. Regalado, BFAR Pampanga (interview, Dec 2025); admins can change them in Settings. " +
+    "Recommended actions: Bantay Ulang team, pending expert review.";
 
 // ─── Range helpers (for the modal) ──────────────────────────────────────────
 
@@ -519,7 +523,8 @@ export async function gatherReport({ sinceMs, untilMs, sections, onProgress = nu
         excluded: null,
         sources: [
             "Sensor readings: HistoryLogs sensor summaries, from this browser's saved copy or fetched for the range.",
-            "Alerts, tasks, logs, mortality and growth records: Firestore."
+            "Alerts, tasks, logs, mortality and growth records: Firestore.",
+            RANGE_BASIS_NOTE
         ],
         disclaimer: MODEL_DISCLAIMER
     };
