@@ -243,7 +243,7 @@ export function buildReportInfoRows(report, files) {
             ["Coverage (%)", round(meta.coverage.pct, 1)],
             ["Readings With Faulty Values", meta.coverage.suspect],
             ["Empty Readings Skipped", meta.coverage.noDataSkipped],
-            ["Readings Excluded", meta.coverage.syntheticExcluded]
+            ["Synthetic Test Readings Excluded", meta.coverage.syntheticExcluded]
         );
     }
     if (meta.excluded) rows.push(["Duplicate Alerts Excluded", meta.excluded.duplicateAlerts]);

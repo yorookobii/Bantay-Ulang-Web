@@ -6,7 +6,7 @@ import { toDateValue } from "./logEntry.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const STALE_DAYS = 14;
-const BASIS = "Based on the SEAFDEC/AQD 2016 grow-out feed rates. Assumes all deaths are logged. "
+const BASIS = "Based on the SEAFDEC/AQD 2016 grow-out feed rates, also used by the yield model. Assumes all deaths are logged. "
     + "Adjust by observation: reduce if feed is left over or water quality is poor.";
 
 const EMPTY = {
